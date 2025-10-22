@@ -1,0 +1,23 @@
+{
+  "project": {
+    "name": "recruiter-evaluation-app",
+    "type": "fullstack",
+    "phase": "mvp"
+  },
+  "documentation": {
+    "architecture": "CLAUDE.md",
+    "status": "STATUS.md"
+  },
+  "development": {
+    "primary_language": "javascript",
+    "secondary_languages": ["python"],
+    "framework": "react",
+    "build_tool": "vite"
+  },
+  "preferences": {
+    "commit_style": "conventional",
+    "branch_strategy": "github_flow",
+    "test_framework": "vitest",
+    "component_style": "functional"
+  }
+}
