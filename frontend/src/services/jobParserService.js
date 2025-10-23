@@ -34,8 +34,8 @@ export async function parseJobFile(file) {
     fileType = 'txt'
   }
 
-  // Call API
-  const response = await fetch(`${API_BASE_URL}/api/parse_job`, {
+  // Call API (using simple regex-based parser - no AI needed!)
+  const response = await fetch(`${API_BASE_URL}/api/parse_job_simple`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
