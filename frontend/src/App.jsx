@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { JobsPage } from './pages/JobsPage'
 import { JobDetailPage } from './pages/JobDetailPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { InterviewRatingTestPage } from './pages/InterviewRatingTestPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,6 +24,7 @@ function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/jobs/:id" element={<JobDetailPage />} />
+          <Route path="/test/interview-rating" element={<InterviewRatingTestPage />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
