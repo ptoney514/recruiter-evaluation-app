@@ -17,18 +17,19 @@ export function ResultsPage() {
     }
     setEvaluation(current)
 
-    // TODO: Replace with actual evaluation results
-    // For now, show placeholder
-    setResults({
-      mode: 'regex', // or 'ai'
-      candidates: current.resumes.map((resume, index) => ({
-        name: resume.name,
-        score: Math.floor(Math.random() * 40) + 60, // Random score 60-100
-        recommendation: index < 2 ? 'ADVANCE TO INTERVIEW' : index < 5 ? 'PHONE SCREEN FIRST' : 'DECLINE',
-        matchedKeywords: ['Python', 'React', '5+ years'],
-        missingKeywords: ['PostgreSQL', 'AWS']
-      })).sort((a, b) => b.score - a.score) // Sort by score descending
-    })
+    // Get actual results based on evaluation mode
+    const mode = current.evaluationMode || 'regex'
+    const evaluationResults = mode === 'regex' ? current.regexResults : current.aiResults
+
+    if (evaluationResults) {
+      setResults({
+        mode,
+        ...evaluationResults
+      })
+    } else {
+      // No results yet, shouldn't happen
+      navigate('/review')
+    }
   }, [navigate])
 
   const handleStartNew = () => {
@@ -52,9 +53,10 @@ export function ResultsPage() {
     )
   }
 
-  const advanceCount = results.candidates.filter(c => c.recommendation === 'ADVANCE TO INTERVIEW').length
-  const phoneScreenCount = results.candidates.filter(c => c.recommendation === 'PHONE SCREEN FIRST').length
-  const declineCount = results.candidates.filter(c => c.recommendation === 'DECLINE').length
+  const candidates = results.results || results.candidates || []
+  const advanceCount = results.summary?.advance_to_interview || candidates.filter(c => c.recommendation === 'ADVANCE TO INTERVIEW').length
+  const phoneScreenCount = results.summary?.phone_screen || candidates.filter(c => c.recommendation === 'PHONE SCREEN FIRST').length
+  const declineCount = results.summary?.declined || candidates.filter(c => c.recommendation === 'DECLINE').length
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -71,7 +73,7 @@ export function ResultsPage() {
             {evaluation.job.title} - Candidate Ranking
           </h1>
           <p className="text-gray-600">
-            {results.candidates.length} candidates evaluated • {results.mode === 'ai' ? 'AI Detailed Analysis' : 'Regex Keyword Matching'}
+            {candidates.length} candidates evaluated • {results.mode === 'ai' ? 'AI Detailed Analysis' : 'Regex Keyword Matching'}
           </p>
         </div>
 
@@ -112,7 +114,7 @@ export function ResultsPage() {
                 </tr>
               </thead>
               <tbody>
-                {results.candidates.map((candidate, index) => (
+                {candidates.map((candidate, index) => (
                   <tr key={index} className="border-b hover:bg-gray-50">
                     <td className="py-4 px-4 text-gray-700">{index + 1}</td>
                     <td className="py-4 px-4 font-semibold text-gray-900">{candidate.name}</td>

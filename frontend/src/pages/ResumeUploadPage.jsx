@@ -4,13 +4,16 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { sessionStore } from '../services/storage/sessionStore'
 import { extractTextFromFile } from '../utils/pdfParser'
+import { MAX_FILE_SIZE_MB, MAX_RESUMES_BATCH, SUPPORTED_FILE_TYPES } from '../constants/config'
 
 export function ResumeUploadPage() {
   const navigate = useNavigate()
   const [resumes, setResumes] = useState([])
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [processingProgress, setProcessingProgress] = useState({ current: 0, total: 0 })
   const [error, setError] = useState(null)
+  const [expandedResumeId, setExpandedResumeId] = useState(null)
 
   // Load existing resumes if available
   useEffect(() => {
@@ -36,41 +39,82 @@ export function ResumeUploadPage() {
   }
 
   const handleFiles = async (fileList) => {
+    const filesArray = Array.from(fileList)
+
+    // Validate batch size
+    if (resumes.length + filesArray.length > MAX_RESUMES_BATCH) {
+      setError(`Maximum ${MAX_RESUMES_BATCH} resumes per batch. You currently have ${resumes.length} and tried to add ${filesArray.length}.`)
+      return
+    }
+
     setIsProcessing(true)
     setError(null)
+    setProcessingProgress({ current: 0, total: filesArray.length })
 
     const newResumes = []
     const errors = []
 
     try {
-      for (const file of Array.from(fileList)) {
+      // Process files in parallel for better performance
+      const processFile = async (file, index) => {
         try {
-          // Validate file type
-          const validTypes = ['.pdf', '.txt']
-          const extension = '.' + file.name.split('.').pop().toLowerCase()
+          // Validate file size
+          const fileSizeMB = file.size / (1024 * 1024)
+          if (fileSizeMB > MAX_FILE_SIZE_MB) {
+            errors.push(`${file.name}: File too large (${fileSizeMB.toFixed(1)}MB, max ${MAX_FILE_SIZE_MB}MB)`)
+            return null
+          }
 
-          if (!validTypes.includes(extension)) {
-            errors.push(`${file.name}: Unsupported file type (PDF and TXT only for now)`)
-            continue
+          // Validate file type
+          const extension = '.' + file.name.split('.').pop().toLowerCase()
+          if (!SUPPORTED_FILE_TYPES.includes(extension)) {
+            errors.push(`${file.name}: Unsupported file type (PDF and TXT only)`)
+            return null
           }
 
           // Extract text from file using client-side parser
           const text = await extractTextFromFile(file)
 
+          // Validate we got text
+          if (!text || text.trim().length === 0) {
+            errors.push(`${file.name}: No text extracted (may be scanned/image PDF)`)
+            return null
+          }
+
+          // Check storage capacity before adding
+          const textSizeKB = text.length / 1024
+          if (!sessionStore.canAddMoreData(textSizeKB)) {
+            errors.push(`${file.name}: Storage limit reached. Try evaluating current batch first.`)
+            return null
+          }
+
           // Extract candidate name from filename
           const candidateName = extractCandidateName(file.name)
 
-          newResumes.push({
+          // Update progress
+          setProcessingProgress(prev => ({ ...prev, current: prev.current + 1 }))
+
+          return {
             id: `resume_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             name: candidateName,
             filename: file.name,
             text: text,
-            uploadedAt: Date.now()
-          })
+            uploadedAt: Date.now(),
+            fileSizeMB: fileSizeMB.toFixed(2)
+          }
         } catch (fileError) {
           errors.push(`${file.name}: ${fileError.message}`)
+          setProcessingProgress(prev => ({ ...prev, current: prev.current + 1 }))
+          return null
         }
       }
+
+      // Process all files in parallel
+      const results = await Promise.all(filesArray.map(processFile))
+
+      // Filter out nulls (failed files)
+      const successfulResumes = results.filter(r => r !== null)
+      newResumes.push(...successfulResumes)
 
       // Add to existing resumes
       const updated = [...resumes, ...newResumes]
@@ -81,7 +125,7 @@ export function ResumeUploadPage() {
 
       // Show errors if any
       if (errors.length > 0) {
-        setError(`Some files failed:\n${errors.join('\n')}`)
+        setError(`${newResumes.length} of ${filesArray.length} files uploaded successfully. Errors:\n${errors.join('\n')}`)
       }
 
     } catch (err) {
@@ -89,7 +133,19 @@ export function ResumeUploadPage() {
       setError('Failed to process files. Please try again.')
     } finally {
       setIsProcessing(false)
+      setProcessingProgress({ current: 0, total: 0 })
     }
+  }
+
+  const clearAllResumes = () => {
+    if (window.confirm('Remove all uploaded resumes?')) {
+      setResumes([])
+      sessionStore.updateEvaluation({ resumes: [] })
+    }
+  }
+
+  const togglePreview = (resumeId) => {
+    setExpandedResumeId(expandedResumeId === resumeId ? null : resumeId)
   }
 
   const handleDrop = (e) => {
@@ -176,7 +232,7 @@ export function ResumeUploadPage() {
                 disabled={isProcessing}
                 onClick={() => document.getElementById('file-upload').click()}
               >
-                {isProcessing ? 'Processing...' : 'Choose Files'}
+                {isProcessing ? `Processing ${processingProgress.current}/${processingProgress.total}...` : 'Choose Files'}
               </Button>
             </label>
             <input
@@ -192,8 +248,23 @@ export function ResumeUploadPage() {
             </p>
           </div>
 
+          {isProcessing && (
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+                <span>Processing files...</span>
+                <span>{processingProgress.current} of {processingProgress.total}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-primary-600 h-2 rounded-full transition-all"
+                  style={{ width: `${(processingProgress.current / processingProgress.total) * 100}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
+
           {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700 whitespace-pre-line">
               {error}
             </div>
           )}
@@ -206,39 +277,73 @@ export function ResumeUploadPage() {
               <h3 className="text-lg font-semibold text-gray-900">
                 Uploaded Resumes ({resumes.length})
               </h3>
-              <div className="text-sm text-gray-500">
-                {(resumes.reduce((sum, r) => sum + r.text.length, 0) / 1024).toFixed(1)} KB total
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-500">
+                  {(resumes.reduce((sum, r) => sum + r.text.length, 0) / 1024).toFixed(1)} KB total
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={clearAllResumes}
+                >
+                  Clear All
+                </Button>
               </div>
             </div>
 
             <div className="space-y-2">
               {resumes.map((resume) => (
-                <div
-                  key={resume.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="flex-shrink-0">
-                      <svg className="w-8 h-8 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
+                <div key={resume.id}>
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="flex-shrink-0">
+                        <svg className="w-8 h-8 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-gray-900">{resume.name}</div>
+                        <div className="text-sm text-gray-500 truncate">{resume.filename}</div>
+                      </div>
+                      <div className="text-sm text-gray-400">
+                        {(resume.text.length / 1024).toFixed(1)} KB
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-gray-900">{resume.name}</div>
-                      <div className="text-sm text-gray-500 truncate">{resume.filename}</div>
-                    </div>
-                    <div className="text-sm text-gray-400">
-                      {(resume.text.length / 1024).toFixed(1)} KB
+                    <div className="flex items-center gap-2 ml-4">
+                      <button
+                        onClick={() => togglePreview(resume.id)}
+                        className="text-gray-400 hover:text-primary-600 transition-colors"
+                        title="Preview text"
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => removeResume(resume.id)}
+                        className="text-gray-400 hover:text-red-600 transition-colors"
+                        title="Remove resume"
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
-                  <button
-                    onClick={() => removeResume(resume.id)}
-                    className="ml-4 text-gray-400 hover:text-red-600 transition-colors"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+
+                  {/* Text Preview (expandable) */}
+                  {expandedResumeId === resume.id && (
+                    <div className="mt-2 p-4 bg-white border border-gray-200 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-semibold text-gray-700">Resume Text Preview</span>
+                        <span className="text-xs text-gray-500">{resume.text.length} characters</span>
+                      </div>
+                      <div className="text-sm text-gray-600 max-h-64 overflow-y-auto whitespace-pre-wrap font-mono text-xs bg-gray-50 p-3 rounded">
+                        {resume.text.substring(0, 1000)}{resume.text.length > 1000 && '...\n\n[Truncated - showing first 1000 characters]'}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

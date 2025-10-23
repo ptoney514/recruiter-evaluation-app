@@ -4,6 +4,8 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { TextArea } from '../components/ui/Input'
 import { sessionStore } from '../services/storage/sessionStore'
+import { COST_PER_CANDIDATE_AI } from '../constants/config'
+import { evaluationService } from '../services/evaluationService'
 
 export function ReviewPage() {
   const navigate = useNavigate()
@@ -24,16 +26,51 @@ export function ReviewPage() {
   }, [navigate])
 
   const handleEvaluate = async () => {
-    // Save additional instructions
-    sessionStore.updateEvaluation({ additionalInstructions })
+    // Save additional instructions and mode
+    sessionStore.updateEvaluation({
+      additionalInstructions,
+      evaluationMode
+    })
 
     setIsEvaluating(true)
 
-    // TODO: Make API call based on evaluation mode
-    // For now, just navigate to results page
-    setTimeout(() => {
+    try {
+      let results
+
+      if (evaluationMode === 'regex') {
+        // Run regex evaluation
+        results = await evaluationService.evaluateWithRegex(
+          evaluation.job,
+          evaluation.resumes
+        )
+      } else {
+        // Run AI evaluation
+        results = await evaluationService.evaluateWithAI(
+          evaluation.job,
+          evaluation.resumes,
+          {
+            stage: evaluation.stage || 1,
+            additionalInstructions
+          }
+        )
+      }
+
+      // Save results to session storage
+      if (evaluationMode === 'regex') {
+        sessionStore.updateEvaluation({ regexResults: results })
+      } else {
+        sessionStore.updateEvaluation({ aiResults: results })
+      }
+
+      // Navigate to results
       navigate('/results')
-    }, 1000)
+
+    } catch (error) {
+      console.error('Evaluation error:', error)
+      alert(`Evaluation failed: ${error.message}`)
+    } finally {
+      setIsEvaluating(false)
+    }
   }
 
   const handleBack = () => {
@@ -45,7 +82,7 @@ export function ReviewPage() {
   }
 
   const estimatedCost = evaluationMode === 'ai'
-    ? (evaluation.resumes.length * 0.003).toFixed(3)
+    ? (evaluation.resumes.length * COST_PER_CANDIDATE_AI).toFixed(3)
     : '0.00'
 
   return (
