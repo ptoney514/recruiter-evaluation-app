@@ -199,50 +199,67 @@ def simulate_http_request(payload):
     Simulate HTTP POST request to the evaluate_candidate handler
     """
     from io import BytesIO
-    from http.server import BaseHTTPRequestHandler
+    import socketserver
 
     # Import the handler
     from evaluate_candidate import handler
 
-    # Create a mock request
-    class MockRequest:
-        def __init__(self, payload):
-            self.payload = json.dumps(payload).encode('utf-8')
-            self.headers = {'Content-Length': len(self.payload)}
-            self.rfile = BytesIO(self.payload)
-            self.wfile = BytesIO()
-            self.response_status = None
-            self.response_headers = {}
-            self.response_data = None
+    # Create mock server and socket
+    class MockSocket:
+        def makefile(self, mode):
+            if 'r' in mode:
+                # Request data
+                request_line = b"POST /api/evaluate_candidate HTTP/1.1\r\n"
+                headers = b"Content-Type: application/json\r\n"
+                payload_bytes = json.dumps(payload).encode('utf-8')
+                headers += f"Content-Length: {len(payload_bytes)}\r\n".encode('utf-8')
+                headers += b"\r\n"
+                return BytesIO(request_line + headers + payload_bytes)
+            elif 'w' in mode:
+                return BytesIO()
+            else:
+                return BytesIO()
 
-        def send_response(self, code):
-            self.response_status = code
+    class MockServer:
+        def __init__(self):
+            self.server_address = ('localhost', 8000)
 
-        def send_header(self, key, value):
-            self.response_headers[key] = value
+    # Create response capture
+    response_capture = {
+        'status': None,
+        'headers': {},
+        'body': BytesIO()
+    }
+
+    # Override wfile to capture response
+    original_wfile = None
+
+    class ResponseCapturingHandler(handler):
+        def setup(self):
+            self.rfile = self.request.makefile('rb')
+            self.wfile = response_capture['body']
+
+        def send_response(self, code, message=None):
+            response_capture['status'] = code
+
+        def send_header(self, keyword, value):
+            response_capture['headers'][keyword] = value
 
         def end_headers(self):
             pass
 
-    mock_request = MockRequest(payload)
+    # Create mock socket
+    mock_socket = MockSocket()
+    mock_server = MockServer()
 
-    # Create handler instance and bind mock request methods
-    h = handler()
-    h.headers = mock_request.headers
-    h.rfile = mock_request.rfile
-    h.wfile = mock_request.wfile
-    h.send_response = mock_request.send_response
-    h.send_header = mock_request.send_header
-    h.end_headers = mock_request.end_headers
-
-    # Call the handler
-    h.do_POST()
+    # Instantiate and call handler
+    h = ResponseCapturingHandler(mock_socket, ('127.0.0.1', 8000), mock_server)
 
     # Parse response
-    response_data = mock_request.wfile.getvalue().decode('utf-8')
+    response_data = response_capture['body'].getvalue().decode('utf-8')
     return {
-        'status': mock_request.response_status,
-        'headers': mock_request.response_headers,
+        'status': response_capture['status'],
+        'headers': response_capture['headers'],
         'data': json.loads(response_data) if response_data else None
     }
 
