@@ -105,8 +105,41 @@ Implementing two-stage evaluation framework (Stage 2: Final Hiring Decision with
 
 ## Blockers
 
-- **Supabase Access**: Need credentials/access to run database migrations
-- **API Testing Environment**: Need to determine if testing against production API or local mock
+None currently - local development environment is fully operational!
+
+**Recently Resolved:**
+- ✅ **Supabase Access**: Local Supabase running successfully. Production deployment TBD.
+- ✅ **Development Environment**: Local setup complete with all migrations applied.
+
+## Production Deployment Checklist
+
+**When ready to deploy migrations to production Supabase:**
+
+1. **Pre-Deployment**
+   - [ ] Test all migrations thoroughly on local Supabase
+   - [ ] Verify all table structures match schema requirements
+   - [ ] Document rollback plan for each migration
+   - [ ] Backup production database (Supabase dashboard → Database → Backups)
+   - [ ] Notify team of planned deployment window
+
+2. **Deployment**
+   - [ ] Link to production Supabase: `supabase link --project-ref <production-ref> --password <db-password>`
+   - [ ] Review pending migrations: `supabase db remote commit`
+   - [ ] Push migrations: `supabase db push`
+   - [ ] Verify migration success in Supabase dashboard
+
+3. **Post-Deployment Verification**
+   - [ ] Verify all 6 tables exist in production
+   - [ ] Verify indexes created: `idx_interview_ratings_*`, `idx_reference_checks_*`
+   - [ ] Verify foreign key constraints working
+   - [ ] Test frontend connection to production database
+   - [ ] Run smoke tests on critical user flows
+   - [ ] Monitor error logs for 24 hours
+
+4. **Rollback Plan (if needed)**
+   - [ ] Have rollback SQL ready
+   - [ ] Document data migration strategy for rollback
+   - [ ] Test rollback procedure on staging first
 
 ## Notes
 

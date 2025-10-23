@@ -6,6 +6,73 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 AI-powered candidate evaluation system that helps recruiters make data-driven hiring decisions using Claude API. Uses a two-stage evaluation framework to screen resumes and make final hiring decisions.
 
+## Quick Start (New Developer)
+
+**Prerequisites:**
+- Node.js 18+
+- Docker Desktop (for local Supabase)
+- Supabase CLI: `brew install supabase/tap/supabase`
+
+**Setup Steps:**
+
+1. **Clone and Install Dependencies**
+   ```bash
+   git clone <repo-url>
+   cd recruiter-evaluation-app
+   cd frontend && npm install && cd ..
+   ```
+
+2. **Start Local Supabase**
+   ```bash
+   supabase start
+   # Wait for containers to start (first time takes ~2 minutes)
+   ```
+
+3. **Configure Frontend Environment**
+   ```bash
+   # Copy local Supabase credentials
+   cd frontend
+   cp .env.example .env
+   # Update .env with local Supabase URL and anon key from `supabase status`
+   ```
+
+4. **Start Development Server**
+   ```bash
+   npm run dev
+   # Frontend runs at http://localhost:5173 (or :3000 if configured)
+   ```
+
+5. **Access Local Services**
+   - **Frontend**: http://localhost:5173
+   - **Supabase Studio**: http://127.0.0.1:54323 (Database UI)
+   - **API**: http://127.0.0.1:54321
+   - **Database**: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
+6. **Verify Setup**
+   ```bash
+   # Check Supabase status
+   supabase status
+
+   # View tables in database
+   docker exec supabase_db_recruiter-evaluation-app psql -U postgres -d postgres -c "\dt"
+   # Should show: jobs, candidates, evaluations, candidate_rankings, interview_ratings, reference_checks
+   ```
+
+**Common Commands:**
+```bash
+# Stop Supabase
+supabase stop
+
+# Reset database to migrations
+supabase db reset
+
+# View Supabase logs
+supabase logs
+
+# Open Studio UI
+open http://127.0.0.1:54323
+```
+
 ## Tech Stack
 
 - **Frontend**: Vite + React, Tailwind CSS, React Router, React Query (TanStack Query), Zustand
