@@ -37,6 +37,9 @@ Thumbs.db
 # Supabase
 .supabase/
 
+# Claude Code
+.claude/context.md
+
 # Testing
 coverage/
 .pytest_cache/
