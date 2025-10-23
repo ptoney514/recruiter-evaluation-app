@@ -44,7 +44,8 @@ def test_evaluation(test_name, job_data, candidate_data):
     print(f"Candidate: {candidate_data['full_name']} ({candidate_data['years_experience']} years)")
 
     # Load skill instructions (same as handler does)
-    skill_path = "/Users/pernelltoney/.claude/skills/recruiting-evaluation/SKILL.md"
+    # Use Path.home() to work on any machine
+    skill_path = Path.home() / ".claude" / "skills" / "recruiting-evaluation" / "SKILL.md"
     try:
         with open(skill_path, 'r') as f:
             skill_instructions = f.read()
