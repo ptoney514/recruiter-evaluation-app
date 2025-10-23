@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { sessionStore } from '../services/storage/sessionStore'
+import { extractTextFromFile } from '../utils/pdfParser'
 
 export function ResumeUploadPage() {
   const navigate = useNavigate()
@@ -18,47 +19,6 @@ export function ResumeUploadPage() {
       setResumes(existing.resumes)
     }
   }, [])
-
-  // Extract text from PDF using our API
-  const extractTextFromPDF = async (file) => {
-    const reader = new FileReader()
-
-    return new Promise((resolve, reject) => {
-      reader.onload = async () => {
-        try {
-          const base64Data = reader.result.split(',')[1]
-
-          // Determine file type
-          let fileType = 'pdf'
-          if (file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
-            fileType = 'docx'
-          } else if (file.name.endsWith('.txt')) {
-            fileType = 'txt'
-          }
-
-          const response = await fetch('http://localhost:8000/api/parse_resume', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              file_data: base64Data,
-              file_type: fileType
-            })
-          })
-
-          if (!response.ok) {
-            throw new Error('Failed to parse resume')
-          }
-
-          const result = await response.json()
-          resolve(result.text)
-        } catch (err) {
-          reject(err)
-        }
-      }
-      reader.onerror = () => reject(new Error('Failed to read file'))
-      reader.readAsDataURL(file)
-    })
-  }
 
   // Extract candidate name from filename
   // Oracle format: "FirstName_LastName_12345.pdf" or just "John_Doe.pdf"
@@ -80,31 +40,36 @@ export function ResumeUploadPage() {
     setError(null)
 
     const newResumes = []
+    const errors = []
 
     try {
       for (const file of Array.from(fileList)) {
-        // Validate file type
-        const validTypes = ['.pdf', '.docx', '.doc', '.txt']
-        const extension = '.' + file.name.split('.').pop().toLowerCase()
+        try {
+          // Validate file type
+          const validTypes = ['.pdf', '.txt']
+          const extension = '.' + file.name.split('.').pop().toLowerCase()
 
-        if (!validTypes.includes(extension)) {
-          console.warn(`Skipping ${file.name} - unsupported file type`)
-          continue
+          if (!validTypes.includes(extension)) {
+            errors.push(`${file.name}: Unsupported file type (PDF and TXT only for now)`)
+            continue
+          }
+
+          // Extract text from file using client-side parser
+          const text = await extractTextFromFile(file)
+
+          // Extract candidate name from filename
+          const candidateName = extractCandidateName(file.name)
+
+          newResumes.push({
+            id: `resume_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            name: candidateName,
+            filename: file.name,
+            text: text,
+            uploadedAt: Date.now()
+          })
+        } catch (fileError) {
+          errors.push(`${file.name}: ${fileError.message}`)
         }
-
-        // Extract text from file
-        const text = await extractTextFromPDF(file)
-
-        // Extract candidate name from filename
-        const candidateName = extractCandidateName(file.name)
-
-        newResumes.push({
-          id: `resume_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          name: candidateName,
-          filename: file.name,
-          text: text,
-          uploadedAt: Date.now()
-        })
       }
 
       // Add to existing resumes
@@ -114,9 +79,14 @@ export function ResumeUploadPage() {
       // Save to session storage
       sessionStore.updateEvaluation({ resumes: updated })
 
+      // Show errors if any
+      if (errors.length > 0) {
+        setError(`Some files failed:\n${errors.join('\n')}`)
+      }
+
     } catch (err) {
       console.error('Error processing files:', err)
-      setError('Failed to process some files. Please try again.')
+      setError('Failed to process files. Please try again.')
     } finally {
       setIsProcessing(false)
     }
@@ -175,7 +145,7 @@ export function ResumeUploadPage() {
 
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Upload Resumes</h1>
         <p className="text-gray-600 mb-8">
-          Upload 1-50 candidate resumes (PDF, DOCX, or TXT)
+          Upload 1-50 candidate resumes (PDF or TXT)
         </p>
 
         {/* Upload Area */}
@@ -213,12 +183,12 @@ export function ResumeUploadPage() {
               id="file-upload"
               type="file"
               multiple
-              accept=".pdf,.docx,.doc,.txt"
+              accept=".pdf,.txt"
               onChange={handleFileInput}
               className="hidden"
             />
             <p className="text-xs text-gray-400 mt-4">
-              Supports PDF, DOCX, and TXT • Max 50 files
+              Supports PDF and TXT • Max 50 files • DOCX coming soon
             </p>
           </div>
 
