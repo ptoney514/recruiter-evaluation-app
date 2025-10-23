@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Input, TextArea } from '../ui/Input'
 import { Button } from '../ui/Button'
+import { jobParserService } from '../../services/jobParserService'
 
 export function JobForm({ initialData, onSubmit, onCancel, isLoading }) {
   const [formData, setFormData] = useState(
@@ -22,10 +23,53 @@ export function JobForm({ initialData, onSubmit, onCancel, isLoading }) {
 
   const [mustHaveInput, setMustHaveInput] = useState('')
   const [preferredInput, setPreferredInput] = useState('')
+  const [isParsing, setIsParsing] = useState(false)
+  const [parseError, setParseError] = useState(null)
+  const [wasAutoParsed, setWasAutoParsed] = useState(false)
+  const fileInputRef = useRef(null)
 
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsParsing(true)
+    setParseError(null)
+
+    try {
+      const parsedData = await jobParserService.parseJobFile(file)
+
+      // Merge parsed data with current form data
+      setFormData((prev) => ({
+        ...prev,
+        title: parsedData.title || prev.title,
+        department: parsedData.department || prev.department,
+        location: parsedData.location || prev.location,
+        employment_type: parsedData.employment_type || prev.employment_type,
+        description: parsedData.description || prev.description,
+        must_have_requirements: parsedData.must_have_requirements || prev.must_have_requirements,
+        preferred_requirements: parsedData.preferred_requirements || prev.preferred_requirements,
+        years_experience_min: parsedData.years_experience_min !== null ? parsedData.years_experience_min : prev.years_experience_min,
+        years_experience_max: parsedData.years_experience_max !== null ? parsedData.years_experience_max : prev.years_experience_max,
+        compensation_min: parsedData.compensation_min !== null ? parsedData.compensation_min : prev.compensation_min,
+        compensation_max: parsedData.compensation_max !== null ? parsedData.compensation_max : prev.compensation_max,
+      }))
+
+      setWasAutoParsed(true)
+    } catch (err) {
+      console.error('Error parsing job file:', err)
+      setParseError(err.message)
+    } finally {
+      setIsParsing(false)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
   }
 
   const addMustHave = () => {
@@ -79,6 +123,55 @@ export function JobForm({ initialData, onSubmit, onCancel, isLoading }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* File Upload Section */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start gap-4">
+          <div className="flex-1">
+            <h3 className="font-semibold text-gray-900 mb-1">Upload Job Description</h3>
+            <p className="text-sm text-gray-600 mb-3">
+              Upload a job description file (PDF, DOCX, or TXT) to auto-populate the form fields
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.docx,.doc,.txt"
+              onChange={handleFileUpload}
+              disabled={isParsing || isLoading}
+              className="hidden"
+              id="job-file-upload"
+            />
+            <label htmlFor="job-file-upload">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={isParsing || isLoading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {isParsing ? 'Parsing...' : '📄 Choose File'}
+              </Button>
+            </label>
+          </div>
+        </div>
+
+        {isParsing && (
+          <div className="mt-3 text-sm text-blue-700">
+            🔄 Parsing job description... This may take a few seconds.
+          </div>
+        )}
+
+        {wasAutoParsed && !isParsing && (
+          <div className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">
+            ✅ Job description parsed successfully! Review and edit the fields below before saving.
+          </div>
+        )}
+
+        {parseError && (
+          <div className="mt-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
+            ❌ {parseError}
+          </div>
+        )}
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Input
           label="Job Title"
