@@ -1,24 +1,40 @@
 # Project Status
 
-Last Updated: 2025-10-22
+Last Updated: 2025-10-23
 
 ## Current Focus
 
-Implementing two-stage evaluation framework (Stage 2: Final Hiring Decision with weighted scoring) and updating project structure to Claude Code v2.0 standards.
+**MAJOR PIVOT**: Simplifying architecture to build a batch resume ranker that integrates with Oracle Recruiting Cloud (ATS-agnostic). Removing unnecessary complexity (Supabase, job CRUD UI) to focus on core value: uploading resumes + getting AI-ranked evaluations.
 
 ## In Progress 🚧
 
-- [ ] Test Stage 1 API (Resume Screening) ([Issue #2](https://github.com/ptoney514/recruiter-evaluation-app/issues/2))
-  - Need to create test payload
-  - Validate response format
-  - Document cost metrics
+**Current Branch**: `refactor/batch-resume-ranker`
 
-- [ ] Test Stage 2 API (Final Hiring Decision) ([Issue #3](https://github.com/ptoney514/recruiter-evaluation-app/issues/3))
-  - Need to create test payload with interview/reference data
-  - Verify weighted scoring calculation (25/50/25)
-  - Validate that interview performance is weighted most heavily
+### Architecture Refactor
+- [ ] Remove Supabase database and all persistence layer
+- [ ] Remove Jobs CRUD UI (not needed - Oracle handles this)
+- [ ] Remove Interview Rating Forms (replace with flexible text input)
+- [ ] Implement session-based storage (browser sessionStorage)
+- [ ] Build regex-based evaluator (free, instant keyword matching)
+- [ ] Add selective AI evaluation (run AI only on chosen candidates)
+- [ ] Create job description templates (Nurse, Professor, etc.)
+- [ ] Build batch upload workflow (1-50 resumes at once)
+- [ ] Format AI output to match existing markdown report format
 
 ## Recently Completed ✅
+
+- **Architecture Discovery** (Oct 23)
+  - Clarified actual use case: Batch resume ranker, NOT full ATS
+  - User has Oracle Recruiting Cloud for candidate management
+  - Identified workflow: Download resumes from Oracle → Upload to tool → Get AI rankings
+  - Current working system: Claude Desktop app with markdown reports
+  - Goal: Replicate Claude Desktop workflow as web app
+
+- **Job Upload Feature** (Oct 23)
+  - Created regex-based job parser (parse_job_simple.py)
+  - Removed expensive AI-based parsing
+  - Built dev server for local API testing
+  - Interview rating form (will be replaced with flexible text input)
 
 - Local Supabase setup with migration 002 deployed (Oct 22)
   - Initialized Supabase CLI in project
@@ -89,19 +105,57 @@ Implementing two-stage evaluation framework (Stage 2: Final Hiring Decision with
    - Design reference check form layout
    - Plan component architecture and data flow
 
+## New Architecture (Simplified)
+
+### What We're Building
+**A batch resume ranker** that integrates with Oracle Recruiting Cloud exports. User workflow:
+
+1. Export 1-50 resumes from Oracle (individual PDFs)
+2. Upload to web app with job description
+3. Choose evaluation mode:
+   - **Regex (Free)**: Instant keyword matching → Quick filter
+   - **AI (Paid)**: Detailed Claude analysis → Full report
+4. Get ranked markdown report (matches current Claude Desktop output)
+5. For Stage 2: Add interview notes → Re-evaluate with weighted scoring
+
+### What We're Removing
+- ❌ Supabase database (no persistent storage needed)
+- ❌ Jobs CRUD UI (Oracle handles job management)
+- ❌ Complex interview rating forms (replace with flexible text input)
+- ❌ Candidate management (Oracle tracks candidates)
+- ❌ Authentication (MVP is public access)
+
+### What We're Keeping/Adding
+- ✅ React frontend (existing)
+- ✅ Python API with Claude integration (existing)
+- ✅ PDF parsing (existing)
+- ✅ Dev server for local testing (new)
+- ✅ Regex evaluator for cost control (new)
+- ✅ Selective AI evaluation (new)
+- ✅ Job templates (Nurse, Professor, etc.) (new)
+- ✅ Session-based storage (browser only) (new)
+
+### Cost Optimization
+**Current**: 50 candidates × $0.003 = $0.15 per evaluation
+
+**Optimized**:
+- Regex filter (free) → Top 5 candidates
+- AI on 5 only = $0.015 per evaluation
+- **90% cost savings**
+
 ## Recent Decisions 📝
 
-- **Oct 22**: Using local Supabase for development and testing before deploying to production. Allows safe testing of migrations and API endpoints.
+- **Oct 23**: **MAJOR PIVOT** - Discovered actual use case is batch resume ranker, not full ATS. User has Oracle for candidate management, needs tool for AI-powered ranking of exported resumes.
 
-- **Oct 22**: Adopted Claude Code v2.0 project structure with CLAUDE.md + STATUS.md for better collaboration and context preservation
+- **Oct 23**: Dual-mode evaluation (Regex vs AI) for cost control. Regex provides instant free filtering, AI gives detailed analysis on selected candidates only.
 
-- **Oct 22**: Created GitHub issues for tracking development work instead of inline TODO comments
+- **Oct 23**: Remove Supabase entirely - no persistent storage needed. Use browser sessionStorage instead.
 
-- **Oct 21**: Implemented two-stage evaluation framework (25% resume + 50% interview + 25% references) per recruiting best practices
+- **Oct 23**: ATS-agnostic design - works with Oracle exports, career fair resumes, or any PDF resumes.
+
+- **Oct 22**: Using local Supabase for development and testing before deploying to production. **NOTE**: This decision is now reversed - removing database entirely.
 
 - **Oct 21**: Using Claude 3.5 Haiku for cost optimization (~$0.003 per evaluation vs ~$0.015 for Sonnet)
-
-- **Oct 21**: Integrated recruiting-evaluation skill for consistent evaluation criteria across sessions
 
 ## Blockers
 
