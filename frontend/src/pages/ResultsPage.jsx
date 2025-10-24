@@ -1,9 +1,27 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { sessionStore } from '../services/storage/sessionStore'
 import { exportService } from '../services/exportService'
+
+// Methodology section constants
+const METHODOLOGY_SECTIONS = {
+  OVERVIEW: 0,
+  QUALIFICATIONS: 1,
+  EXPERIENCE: 2,
+  RISK_FLAGS: 3,
+  THRESHOLDS: 4
+}
+
+// FAQ section constants
+const FAQ_SECTIONS = {
+  PHONE_SCREEN: 0,
+  INTERVIEW_PANELS: 1,
+  REFERENCE_CHECKS: 2,
+  DISPOSITION: 3,
+  INTERNAL_CANDIDATES: 4
+}
 
 export function ResultsPage() {
   const navigate = useNavigate()
@@ -66,35 +84,38 @@ export function ResultsPage() {
     }
   }
 
-  const toggleRow = (index) => {
-    const newExpandedRows = new Set(expandedRows)
-    if (newExpandedRows.has(index)) {
-      newExpandedRows.delete(index)
-    } else {
-      newExpandedRows.add(index)
-    }
-    setExpandedRows(newExpandedRows)
-  }
+  // Memoized toggle functions for better performance
+  const toggleRow = useCallback((index) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev)
+      next.has(index) ? next.delete(index) : next.add(index)
+      return next
+    })
+  }, [])
 
-  const toggleFaq = (index) => {
-    const newExpandedFaqs = new Set(expandedFaqs)
-    if (newExpandedFaqs.has(index)) {
-      newExpandedFaqs.delete(index)
-    } else {
-      newExpandedFaqs.add(index)
-    }
-    setExpandedFaqs(newExpandedFaqs)
-  }
+  const toggleFaq = useCallback((index) => {
+    setExpandedFaqs(prev => {
+      const next = new Set(prev)
+      next.has(index) ? next.delete(index) : next.add(index)
+      return next
+    })
+  }, [])
 
-  const toggleMethodology = (index) => {
-    const newExpandedMethodology = new Set(expandedMethodology)
-    if (newExpandedMethodology.has(index)) {
-      newExpandedMethodology.delete(index)
-    } else {
-      newExpandedMethodology.add(index)
+  const toggleMethodology = useCallback((index) => {
+    setExpandedMethodology(prev => {
+      const next = new Set(prev)
+      next.has(index) ? next.delete(index) : next.add(index)
+      return next
+    })
+  }, [])
+
+  // Keyboard event handler for accessibility
+  const handleKeyDown = useCallback((e, toggleFn, index) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      toggleFn(index)
     }
-    setExpandedMethodology(newExpandedMethodology)
-  }
+  }, [])
 
   if (!evaluation || !results) {
     return (
@@ -438,13 +459,16 @@ export function ResultsPage() {
             {/* FAQ 1 */}
             <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
               <button
-                onClick={() => toggleFaq(0)}
+                onClick={() => toggleFaq(FAQ_SECTIONS.PHONE_SCREEN)}
+                onKeyDown={(e) => handleKeyDown(e, toggleFaq, FAQ_SECTIONS.PHONE_SCREEN)}
+                aria-expanded={expandedFaqs.has(FAQ_SECTIONS.PHONE_SCREEN)}
+                aria-label="What is the purpose of a phone screen?"
                 className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
               >
                 <span className="text-left font-semibold text-gray-900">1. What is the purpose of a phone screen?</span>
                 <svg
                   className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
-                    expandedFaqs.has(0) ? '' : '-rotate-90'
+                    expandedFaqs.has(FAQ_SECTIONS.PHONE_SCREEN) ? '' : '-rotate-90'
                   }`}
                   fill="none"
                   viewBox="0 0 24 24"
@@ -454,7 +478,7 @@ export function ResultsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              {expandedFaqs.has(0) && (
+              {expandedFaqs.has(FAQ_SECTIONS.PHONE_SCREEN) && (
                 <div className="px-4 pb-4 pt-2 bg-gray-50/50">
                   <ul className="list-disc list-inside space-y-2 text-sm text-gray-700 ml-2">
                     <li>A phone screen helps assess a candidate's communication skills, role fit, and alignment with company values before advancing to interviews</li>
@@ -470,13 +494,16 @@ export function ResultsPage() {
             {/* FAQ 2 */}
             <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
               <button
-                onClick={() => toggleFaq(1)}
+                onClick={() => toggleFaq(FAQ_SECTIONS.INTERVIEW_PANELS)}
+                onKeyDown={(e) => handleKeyDown(e, toggleFaq, FAQ_SECTIONS.INTERVIEW_PANELS)}
+                aria-expanded={expandedFaqs.has(FAQ_SECTIONS.INTERVIEW_PANELS)}
+                aria-label="Why do we use interview panels?"
                 className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
               >
                 <span className="text-left font-semibold text-gray-900">2. Why do we use interview panels?</span>
                 <svg
                   className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
-                    expandedFaqs.has(1) ? '' : '-rotate-90'
+                    expandedFaqs.has(FAQ_SECTIONS.INTERVIEW_PANELS) ? '' : '-rotate-90'
                   }`}
                   fill="none"
                   viewBox="0 0 24 24"
@@ -486,7 +513,7 @@ export function ResultsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              {expandedFaqs.has(1) && (
+              {expandedFaqs.has(FAQ_SECTIONS.INTERVIEW_PANELS) && (
                 <div className="px-4 pb-4 pt-2 bg-gray-50/50">
                   <ul className="list-disc list-inside space-y-2 text-sm text-gray-700 ml-2">
                     <li>Panels bring multiple perspectives to the evaluation process, reducing individual bias</li>
@@ -502,13 +529,16 @@ export function ResultsPage() {
             {/* FAQ 3 */}
             <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
               <button
-                onClick={() => toggleFaq(2)}
+                onClick={() => toggleFaq(FAQ_SECTIONS.REFERENCE_CHECKS)}
+                onKeyDown={(e) => handleKeyDown(e, toggleFaq, FAQ_SECTIONS.REFERENCE_CHECKS)}
+                aria-expanded={expandedFaqs.has(FAQ_SECTIONS.REFERENCE_CHECKS)}
+                aria-label="Why conduct reference checks?"
                 className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
               >
                 <span className="text-left font-semibold text-gray-900">3. Why conduct reference checks?</span>
                 <svg
                   className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
-                    expandedFaqs.has(2) ? '' : '-rotate-90'
+                    expandedFaqs.has(FAQ_SECTIONS.REFERENCE_CHECKS) ? '' : '-rotate-90'
                   }`}
                   fill="none"
                   viewBox="0 0 24 24"
@@ -518,7 +548,7 @@ export function ResultsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              {expandedFaqs.has(2) && (
+              {expandedFaqs.has(FAQ_SECTIONS.REFERENCE_CHECKS) && (
                 <div className="px-4 pb-4 pt-2 bg-gray-50/50">
                   <ul className="list-disc list-inside space-y-2 text-sm text-gray-700 ml-2">
                     <li>Reference checks verify past performance, leadership style, and interpersonal effectiveness</li>
@@ -534,13 +564,16 @@ export function ResultsPage() {
             {/* FAQ 4 */}
             <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
               <button
-                onClick={() => toggleFaq(3)}
+                onClick={() => toggleFaq(FAQ_SECTIONS.DISPOSITION)}
+                onKeyDown={(e) => handleKeyDown(e, toggleFaq, FAQ_SECTIONS.DISPOSITION)}
+                aria-expanded={expandedFaqs.has(FAQ_SECTIONS.DISPOSITION)}
+                aria-label="What does disposition mean in the hiring process?"
                 className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
               >
                 <span className="text-left font-semibold text-gray-900">4. What does "disposition" mean in the hiring process?</span>
                 <svg
                   className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
-                    expandedFaqs.has(3) ? '' : '-rotate-90'
+                    expandedFaqs.has(FAQ_SECTIONS.DISPOSITION) ? '' : '-rotate-90'
                   }`}
                   fill="none"
                   viewBox="0 0 24 24"
@@ -550,7 +583,7 @@ export function ResultsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              {expandedFaqs.has(3) && (
+              {expandedFaqs.has(FAQ_SECTIONS.DISPOSITION) && (
                 <div className="px-4 pb-4 pt-2 bg-gray-50/50">
                   <ul className="list-disc list-inside space-y-2 text-sm text-gray-700 ml-2">
                     <li>"Dispositioning" refers to formally marking a candidate's application status (e.g., interviewed, not selected, declined)</li>
@@ -566,13 +599,16 @@ export function ResultsPage() {
             {/* FAQ 5 */}
             <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
               <button
-                onClick={() => toggleFaq(4)}
+                onClick={() => toggleFaq(FAQ_SECTIONS.INTERNAL_CANDIDATES)}
+                onKeyDown={(e) => handleKeyDown(e, toggleFaq, FAQ_SECTIONS.INTERNAL_CANDIDATES)}
+                aria-expanded={expandedFaqs.has(FAQ_SECTIONS.INTERNAL_CANDIDATES)}
+                aria-label="Why are internal candidate protocols important?"
                 className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
               >
                 <span className="text-left font-semibold text-gray-900">5. Why are internal candidate protocols important?</span>
                 <svg
                   className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
-                    expandedFaqs.has(4) ? '' : '-rotate-90'
+                    expandedFaqs.has(FAQ_SECTIONS.INTERNAL_CANDIDATES) ? '' : '-rotate-90'
                   }`}
                   fill="none"
                   viewBox="0 0 24 24"
@@ -582,7 +618,7 @@ export function ResultsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              {expandedFaqs.has(4) && (
+              {expandedFaqs.has(FAQ_SECTIONS.INTERNAL_CANDIDATES) && (
                 <div className="px-4 pb-4 pt-2 bg-gray-50/50">
                   <ul className="list-disc list-inside space-y-2 text-sm text-gray-700 ml-2">
                     <li>Internal candidates must be evaluated with transparency and fairness while recognizing their current contributions</li>
@@ -612,13 +648,16 @@ export function ResultsPage() {
             {/* Overview */}
             <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
               <button
-                onClick={() => toggleMethodology(0)}
+                onClick={() => toggleMethodology(METHODOLOGY_SECTIONS.OVERVIEW)}
+                onKeyDown={(e) => handleKeyDown(e, toggleMethodology, METHODOLOGY_SECTIONS.OVERVIEW)}
+                aria-expanded={expandedMethodology.has(METHODOLOGY_SECTIONS.OVERVIEW)}
+                aria-label="Scoring Overview and Calculation"
                 className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
               >
                 <span className="text-left font-semibold text-gray-900">Scoring Overview & Calculation</span>
                 <svg
                   className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
-                    expandedMethodology.has(0) ? '' : '-rotate-90'
+                    expandedMethodology.has(METHODOLOGY_SECTIONS.OVERVIEW) ? '' : '-rotate-90'
                   }`}
                   fill="none"
                   viewBox="0 0 24 24"
@@ -628,7 +667,7 @@ export function ResultsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              {expandedMethodology.has(0) && (
+              {expandedMethodology.has(METHODOLOGY_SECTIONS.OVERVIEW) && (
                 <div className="px-4 pb-4 pt-2 bg-gray-50/50">
                   <p className="text-sm text-gray-700 mb-4">
                     Each candidate receives a composite score (0-100) calculated using three weighted components.
@@ -648,7 +687,10 @@ export function ResultsPage() {
             {/* Qualifications Score */}
             <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
               <button
-                onClick={() => toggleMethodology(1)}
+                onClick={() => toggleMethodology(METHODOLOGY_SECTIONS.QUALIFICATIONS)}
+                onKeyDown={(e) => handleKeyDown(e, toggleMethodology, METHODOLOGY_SECTIONS.QUALIFICATIONS)}
+                aria-expanded={expandedMethodology.has(METHODOLOGY_SECTIONS.QUALIFICATIONS)}
+                aria-label="Qualifications Score breakdown"
                 className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center gap-3">
@@ -659,7 +701,7 @@ export function ResultsPage() {
                 </div>
                 <svg
                   className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
-                    expandedMethodology.has(1) ? '' : '-rotate-90'
+                    expandedMethodology.has(METHODOLOGY_SECTIONS.QUALIFICATIONS) ? '' : '-rotate-90'
                   }`}
                   fill="none"
                   viewBox="0 0 24 24"
@@ -669,7 +711,7 @@ export function ResultsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              {expandedMethodology.has(1) && (
+              {expandedMethodology.has(METHODOLOGY_SECTIONS.QUALIFICATIONS) && (
                 <div className="px-4 pb-4 pt-2 bg-gray-50/50">
                   <p className="text-sm text-gray-700 mb-3">
                     Evaluates education, certifications, licenses, and technical skills against job requirements.
@@ -686,7 +728,10 @@ export function ResultsPage() {
             {/* Experience Score */}
             <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
               <button
-                onClick={() => toggleMethodology(2)}
+                onClick={() => toggleMethodology(METHODOLOGY_SECTIONS.EXPERIENCE)}
+                onKeyDown={(e) => handleKeyDown(e, toggleMethodology, METHODOLOGY_SECTIONS.EXPERIENCE)}
+                aria-expanded={expandedMethodology.has(METHODOLOGY_SECTIONS.EXPERIENCE)}
+                aria-label="Experience Score breakdown"
                 className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center gap-3">
@@ -697,7 +742,7 @@ export function ResultsPage() {
                 </div>
                 <svg
                   className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
-                    expandedMethodology.has(2) ? '' : '-rotate-90'
+                    expandedMethodology.has(METHODOLOGY_SECTIONS.EXPERIENCE) ? '' : '-rotate-90'
                   }`}
                   fill="none"
                   viewBox="0 0 24 24"
@@ -707,7 +752,7 @@ export function ResultsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              {expandedMethodology.has(2) && (
+              {expandedMethodology.has(METHODOLOGY_SECTIONS.EXPERIENCE) && (
                 <div className="px-4 pb-4 pt-2 bg-gray-50/50">
                   <p className="text-sm text-gray-700 mb-3">
                     Assesses years of relevant experience, role similarity, industry background, and demonstrated achievements.
@@ -724,7 +769,10 @@ export function ResultsPage() {
             {/* Risk Flags Score */}
             <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
               <button
-                onClick={() => toggleMethodology(3)}
+                onClick={() => toggleMethodology(METHODOLOGY_SECTIONS.RISK_FLAGS)}
+                onKeyDown={(e) => handleKeyDown(e, toggleMethodology, METHODOLOGY_SECTIONS.RISK_FLAGS)}
+                aria-expanded={expandedMethodology.has(METHODOLOGY_SECTIONS.RISK_FLAGS)}
+                aria-label="Risk Flags Score breakdown"
                 className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center gap-3">
@@ -735,7 +783,7 @@ export function ResultsPage() {
                 </div>
                 <svg
                   className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
-                    expandedMethodology.has(3) ? '' : '-rotate-90'
+                    expandedMethodology.has(METHODOLOGY_SECTIONS.RISK_FLAGS) ? '' : '-rotate-90'
                   }`}
                   fill="none"
                   viewBox="0 0 24 24"
@@ -745,7 +793,7 @@ export function ResultsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              {expandedMethodology.has(3) && (
+              {expandedMethodology.has(METHODOLOGY_SECTIONS.RISK_FLAGS) && (
                 <div className="px-4 pb-4 pt-2 bg-gray-50/50">
                   <p className="text-sm text-gray-700 mb-3">
                     Identifies potential concerns including employment gaps, job-hopping, credential mismatches, or missing requirements.
@@ -762,13 +810,16 @@ export function ResultsPage() {
             {/* Recommendation Thresholds */}
             <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
               <button
-                onClick={() => toggleMethodology(4)}
+                onClick={() => toggleMethodology(METHODOLOGY_SECTIONS.THRESHOLDS)}
+                onKeyDown={(e) => handleKeyDown(e, toggleMethodology, METHODOLOGY_SECTIONS.THRESHOLDS)}
+                aria-expanded={expandedMethodology.has(METHODOLOGY_SECTIONS.THRESHOLDS)}
+                aria-label="Recommendation Thresholds"
                 className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
               >
                 <span className="text-left font-semibold text-gray-900">Recommendation Thresholds</span>
                 <svg
                   className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
-                    expandedMethodology.has(4) ? '' : '-rotate-90'
+                    expandedMethodology.has(METHODOLOGY_SECTIONS.THRESHOLDS) ? '' : '-rotate-90'
                   }`}
                   fill="none"
                   viewBox="0 0 24 24"
@@ -778,7 +829,7 @@ export function ResultsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              {expandedMethodology.has(4) && (
+              {expandedMethodology.has(METHODOLOGY_SECTIONS.THRESHOLDS) && (
                 <div className="px-4 pb-4 pt-2 bg-gray-50/50">
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
