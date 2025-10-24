@@ -76,7 +76,7 @@ def evaluate_regex():
         }), 500
 
 @app.route('/api/evaluate_candidate', methods=['POST', 'OPTIONS'])
-@limiter.limit("10 per minute")  # Stricter limit for AI evaluation (costs money)
+@limiter.limit("100 per minute")  # Generous limit for local dev (Vercel will have its own limits)
 def evaluate_with_ai():
     """Evaluate a single candidate using Claude Haiku AI"""
     if request.method == 'OPTIONS':
@@ -129,10 +129,10 @@ if __name__ == '__main__':
     print('✅ Flask API server starting...')
     print(f'📍 Running on http://localhost:{port}')
     print(f'🔧 Debug mode: {"ON" if debug_mode else "OFF"}')
-    print(f'🛡️  Rate limiting: 10 req/min (AI), 20 req/min (regex), 100/min (general)')
+    print(f'🛡️  Rate limiting: 100 req/min (AI & regex - generous for local dev)')
     print('🔌 Endpoints:')
-    print('   POST /api/evaluate_regex - Regex evaluation (rate limited 20/min)')
-    print('   POST /api/evaluate_candidate - AI evaluation (rate limited 10/min)')
+    print('   POST /api/evaluate_regex - Regex evaluation')
+    print('   POST /api/evaluate_candidate - AI evaluation')
     print('   GET  /health - Health check')
     print('\nPress Ctrl+C to stop\n')
 
