@@ -133,9 +133,9 @@ export function ResultsPage() {
           </div>
         </Card>
 
-        {/* Ranked Results */}
+        {/* Summary Rankings */}
         <Card className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Candidate Rankings</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Summary Rankings</h2>
 
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -145,6 +145,9 @@ export function ResultsPage() {
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Candidate</th>
                   <th className="text-center py-3 px-4 text-sm font-semibold text-gray-600">Score</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Recommendation</th>
+                  {results.mode === 'ai' && (
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Key Strength</th>
+                  )}
                   {results.mode === 'regex' && (
                     <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Matched</th>
                   )}
@@ -173,6 +176,15 @@ export function ResultsPage() {
                         {candidate.recommendation}
                       </span>
                     </td>
+                    {results.mode === 'ai' && (
+                      <td className="py-4 px-4">
+                        <div className="text-sm text-gray-700">
+                          {candidate.keyStrengths && candidate.keyStrengths.length > 0
+                            ? candidate.keyStrengths[0]
+                            : 'N/A'}
+                        </div>
+                      </td>
+                    )}
                     {results.mode === 'regex' && (
                       <td className="py-4 px-4">
                         <div className="text-sm">
