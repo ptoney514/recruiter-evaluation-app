@@ -9,6 +9,9 @@ export function ResultsPage() {
   const navigate = useNavigate()
   const [evaluation, setEvaluation] = useState(null)
   const [results, setResults] = useState(null)
+  const [expandedRows, setExpandedRows] = useState(new Set())
+  const [expandedFaqs, setExpandedFaqs] = useState(new Set())
+  const [expandedMethodology, setExpandedMethodology] = useState(new Set())
 
   useEffect(() => {
     const current = sessionStore.getCurrentEvaluation()
@@ -63,6 +66,36 @@ export function ResultsPage() {
     }
   }
 
+  const toggleRow = (index) => {
+    const newExpandedRows = new Set(expandedRows)
+    if (newExpandedRows.has(index)) {
+      newExpandedRows.delete(index)
+    } else {
+      newExpandedRows.add(index)
+    }
+    setExpandedRows(newExpandedRows)
+  }
+
+  const toggleFaq = (index) => {
+    const newExpandedFaqs = new Set(expandedFaqs)
+    if (newExpandedFaqs.has(index)) {
+      newExpandedFaqs.delete(index)
+    } else {
+      newExpandedFaqs.add(index)
+    }
+    setExpandedFaqs(newExpandedFaqs)
+  }
+
+  const toggleMethodology = (index) => {
+    const newExpandedMethodology = new Set(expandedMethodology)
+    if (newExpandedMethodology.has(index)) {
+      newExpandedMethodology.delete(index)
+    } else {
+      newExpandedMethodology.add(index)
+    }
+    setExpandedMethodology(newExpandedMethodology)
+  }
+
   if (!evaluation || !results) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -114,253 +147,673 @@ export function ResultsPage() {
           </p>
         </div>
 
-        {/* Executive Summary */}
-        <Card className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Executive Summary</h2>
-          <div className="grid grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-green-600 mb-1">{advanceCount}</div>
-              <div className="text-sm text-gray-600">Advance to Interview</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-yellow-600 mb-1">{phoneScreenCount}</div>
-              <div className="text-sm text-gray-600">Phone Screen First</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-gray-400 mb-1">{declineCount}</div>
-              <div className="text-sm text-gray-600">Decline</div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Summary Rankings */}
-        <Card className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Summary Rankings</h2>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Rank</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Candidate</th>
-                  <th className="text-center py-3 px-4 text-sm font-semibold text-gray-600">Score</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Recommendation</th>
-                  {results.mode === 'ai' && (
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Key Strength</th>
-                  )}
-                  {results.mode === 'regex' && (
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Matched</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {candidates.map((candidate, index) => (
-                  <tr key={index} className="border-b hover:bg-gray-50">
-                    <td className="py-4 px-4 text-gray-700">{index + 1}</td>
-                    <td className="py-4 px-4 font-semibold text-gray-900">{candidate.name}</td>
-                    <td className="py-4 px-4 text-center">
-                      <span className={`inline-flex items-center justify-center w-12 h-12 rounded-full font-bold ${
-                        candidate.score >= 85 ? 'bg-green-100 text-green-700' :
-                        candidate.score >= 70 ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
-                        {candidate.score}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
-                        candidate.recommendation === 'ADVANCE TO INTERVIEW' ? 'bg-green-100 text-green-800' :
-                        candidate.recommendation === 'PHONE SCREEN FIRST' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {candidate.recommendation}
-                      </span>
-                    </td>
-                    {results.mode === 'ai' && (
-                      <td className="py-4 px-4">
-                        <div className="text-sm text-gray-700">
-                          {candidate.keyStrengths && candidate.keyStrengths.length > 0
-                            ? candidate.keyStrengths[0]
-                            : 'N/A'}
-                        </div>
-                      </td>
-                    )}
-                    {results.mode === 'regex' && (
-                      <td className="py-4 px-4">
-                        <div className="text-sm">
-                          <div className="text-green-600">{candidate.matchedKeywords.join(', ')}</div>
-                          {candidate.missingKeywords.length > 0 && (
-                            <div className="text-gray-400 mt-1">Missing: {candidate.missingKeywords.join(', ')}</div>
-                          )}
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-        {/* AI Cost Summary */}
-        {results.mode === 'ai' && results.usage && (
-          <Card className="mb-6 bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">AI Evaluation Summary</h2>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
-                <div className="text-sm text-gray-600 mb-1">Total Cost</div>
-                <div className="text-2xl font-bold text-blue-600">${results.usage.cost.toFixed(4)}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-600 mb-1">Avg per Candidate</div>
-                <div className="text-lg font-semibold text-gray-700">${results.usage.avgCostPerCandidate.toFixed(4)}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-600 mb-1">Input Tokens</div>
-                <div className="text-lg font-semibold text-gray-700">{results.usage.inputTokens.toLocaleString()}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-600 mb-1">Output Tokens</div>
-                <div className="text-lg font-semibold text-gray-700">{results.usage.outputTokens.toLocaleString()}</div>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* Detailed Analysis for AI mode */}
+        {/* Detailed Analysis for AI mode - Modern Collapsible Table */}
         {results.mode === 'ai' && (
-          <div className="space-y-6 mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Detailed AI Analysis</h2>
-            {candidates.map((candidate, index) => (
-              <Card key={index} className="overflow-hidden">
-                {/* Candidate Header */}
-                <div className={`p-4 ${
-                  candidate.recommendation === 'ADVANCE TO INTERVIEW' ? 'bg-green-50 border-b border-green-200' :
-                  candidate.recommendation === 'PHONE SCREEN FIRST' ? 'bg-yellow-50 border-b border-yellow-200' :
-                  candidate.recommendation === 'ERROR' ? 'bg-red-50 border-b border-red-200' :
-                  'bg-gray-50 border-b border-gray-200'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900">
-                        #{index + 1} {candidate.name}
-                      </h3>
-                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold mt-1 ${
-                        candidate.recommendation === 'ADVANCE TO INTERVIEW' ? 'bg-green-100 text-green-800' :
-                        candidate.recommendation === 'PHONE SCREEN FIRST' ? 'bg-yellow-100 text-yellow-800' :
-                        candidate.recommendation === 'ERROR' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {candidate.recommendation}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <div className={`text-4xl font-bold ${
-                        candidate.score >= 85 ? 'text-green-600' :
-                        candidate.score >= 70 ? 'text-yellow-600' :
-                        'text-gray-600'
-                      }`}>
-                        {candidate.score}
-                      </div>
-                      <div className="text-sm text-gray-600">Overall Score</div>
-                    </div>
-                  </div>
+          <div className="mb-6">
+            {/* Header */}
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl tracking-tight font-semibold leading-tight text-gray-900">Detailed AI Analysis</h2>
+                <p className="mt-1 text-sm text-gray-500">Expandable rows with focused detail panels for faster evaluation.</p>
+              </div>
+            </div>
+
+            {/* Card with gradient accent */}
+            <div className="overflow-hidden rounded-2xl border border-gray-200/70 bg-white shadow-sm">
+              {/* Gradient accent bar */}
+              <div className="h-1 w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-700"></div>
+
+              {/* Table wrapper */}
+              <div className="overflow-x-auto">
+                <table className="w-full border-separate border-spacing-0 text-[14px]">
+                  <thead className="bg-gray-50/80 backdrop-blur">
+                    <tr className="text-[12px] uppercase text-gray-500">
+                      <th className="sticky top-0 z-10 px-4 py-3 text-left font-medium">Rank</th>
+                      <th className="sticky top-0 z-10 px-4 py-3 text-left font-medium">Candidate</th>
+                      <th className="sticky top-0 z-10 px-4 py-3 text-left font-medium">Overall Score</th>
+                      <th className="sticky top-0 z-10 px-4 py-3 text-left font-medium hidden md:table-cell">Qualifications</th>
+                      <th className="sticky top-0 z-10 px-4 py-3 text-left font-medium hidden md:table-cell">Experience</th>
+                      <th className="sticky top-0 z-10 px-4 py-3 text-left font-medium hidden lg:table-cell">Risk Flags</th>
+                      <th className="sticky top-0 z-10 px-4 py-3 text-left font-medium">Recommendation</th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-gray-200/80 text-gray-800">
+                    {candidates.map((candidate, index) => (
+                      <>
+                        {/* Main Row */}
+                        <tr
+                          key={`row-${index}`}
+                          className="group hover:bg-gray-50/60 transition-colors"
+                        >
+                          <td className="px-4 py-4 align-middle text-gray-700">#{index + 1}</td>
+                          <td className="px-4 py-4 align-middle">
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  toggleRow(index)
+                                }}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition"
+                                aria-expanded={expandedRows.has(index)}
+                              >
+                                <svg
+                                  className={`h-4 w-4 transition-transform duration-200 ${
+                                    expandedRows.has(index) ? '' : '-rotate-90'
+                                  }`}
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth={2}
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </button>
+                              <div className="min-w-[10rem]">
+                                <div className="font-semibold leading-tight tracking-tight">{candidate.name}</div>
+                                <div className="text-[12px] text-gray-500">{evaluation.job.title}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 align-middle">
+                            <div className={`inline-flex h-10 w-10 items-center justify-center rounded-full font-semibold ${
+                              candidate.score >= 85 ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100' :
+                              candidate.score >= 70 ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-100' :
+                              'bg-gray-100 text-gray-700 ring-1 ring-gray-200'
+                            }`}>
+                              {candidate.score}
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 align-middle hidden md:table-cell">
+                            {candidate.qualificationsScore ?? '-'}
+                          </td>
+                          <td className="px-4 py-4 align-middle hidden md:table-cell">
+                            {candidate.experienceScore ?? '-'}
+                          </td>
+                          <td className="px-4 py-4 align-middle hidden lg:table-cell">
+                            {candidate.riskFlagsScore ?? '-'}
+                          </td>
+                          <td className="px-4 py-4 align-middle">
+                            <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-medium ${
+                              candidate.recommendation === 'ADVANCE TO INTERVIEW' ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100' :
+                              candidate.recommendation === 'PHONE SCREEN FIRST' ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-100' :
+                              candidate.recommendation === 'ERROR' ? 'bg-red-50 text-red-700 ring-1 ring-red-100' :
+                              'bg-gray-100 text-gray-700 ring-1 ring-gray-200'
+                            }`}>
+                              {candidate.recommendation === 'ADVANCE TO INTERVIEW' && (
+                                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                              {candidate.recommendation === 'PHONE SCREEN FIRST' && (
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              )}
+                              {candidate.recommendation === 'ADVANCE TO INTERVIEW' ? 'Advance to interview' :
+                               candidate.recommendation === 'PHONE SCREEN FIRST' ? 'Phone screen first' :
+                               candidate.recommendation === 'DECLINE' ? 'Decline' :
+                               candidate.recommendation}
+                            </span>
+                          </td>
+                        </tr>
+
+                        {/* Expandable Details Row */}
+                        {expandedRows.has(index) && (
+                          <tr key={`details-${index}`} className="bg-gray-50/70">
+                            <td colSpan="7" className="px-6 sm:px-10 py-6">
+                              <div className="grid gap-6">
+                                {/* Key Strengths */}
+                                {candidate.keyStrengths && candidate.keyStrengths.length > 0 && (
+                                  <div className="flex items-start gap-3">
+                                    <div className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200">
+                                      <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                      </svg>
+                                    </div>
+                                    <div>
+                                      <h3 className="text-[15px] font-semibold tracking-tight text-emerald-800">Key Strengths</h3>
+                                      <ul className="mt-2 list-disc pl-5 space-y-1.5 text-[14px] text-gray-700">
+                                        {candidate.keyStrengths.map((strength, i) => (
+                                          <li key={i}>{strength}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Key Concerns */}
+                                {candidate.keyConcerns && candidate.keyConcerns.length > 0 && (
+                                  <div className="flex items-start gap-3">
+                                    <div className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-700 ring-1 ring-amber-200">
+                                      <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                      </svg>
+                                    </div>
+                                    <div>
+                                      <h3 className="text-[15px] font-semibold tracking-tight text-amber-800">Key Concerns</h3>
+                                      <ul className="mt-2 list-disc pl-5 space-y-1.5 text-[14px] text-gray-700">
+                                        {candidate.keyConcerns.map((concern, i) => (
+                                          <li key={i}>{concern}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Interview Questions */}
+                                {candidate.interviewQuestions && candidate.interviewQuestions.length > 0 && (
+                                  <div className="flex items-start gap-3">
+                                    <div className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 ring-1 ring-indigo-200">
+                                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      </svg>
+                                    </div>
+                                    <div>
+                                      <h3 className="text-[15px] font-semibold tracking-tight text-indigo-800">Suggested Interview Questions</h3>
+                                      <ol className="mt-2 list-decimal pl-5 space-y-1.5 text-[14px] text-gray-700">
+                                        {candidate.interviewQuestions.map((question, i) => (
+                                          <li key={i}>{question}</li>
+                                        ))}
+                                      </ol>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Reasoning */}
+                                {candidate.reasoning && (
+                                  <div className="rounded-lg border border-gray-200 bg-white p-4 text-[14px] text-gray-700">
+                                    <div className="font-medium text-gray-900">AI Reasoning</div>
+                                    <p className="mt-2 leading-6 whitespace-pre-line">
+                                      {candidate.reasoning}
+                                    </p>
+                                  </div>
+                                )}
+
+                                {/* Error Display */}
+                                {candidate.error && (
+                                  <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-[14px]">
+                                    <div className="font-medium text-red-900">Evaluation Error</div>
+                                    <p className="mt-2 leading-6 text-red-700">{candidate.error}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Footer note */}
+              <div className="flex items-center justify-between px-4 sm:px-6 py-4 text-[13px] text-gray-500 border-t border-gray-200/50">
+                <div className="flex items-center gap-2">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                  </svg>
+                  Scores combine qualifications (40%), experience (40%), and risk factors (20%). Higher scores indicate better fit.
                 </div>
-
-                {/* Score Breakdown */}
-                {candidate.qualificationsScore !== undefined && (
-                  <div className="p-4 bg-gray-50 border-b">
-                    <h4 className="font-semibold text-gray-900 mb-3">Score Breakdown</h4>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <div className="text-sm text-gray-600">Qualifications (40%)</div>
-                        <div className="text-2xl font-bold text-gray-900">{candidate.qualificationsScore}</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-gray-600">Experience (40%)</div>
-                        <div className="text-2xl font-bold text-gray-900">{candidate.experienceScore}</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-gray-600">Risk Flags (20%)</div>
-                        <div className="text-2xl font-bold text-gray-900">{candidate.riskFlagsScore}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Analysis Details */}
-                <div className="p-6 space-y-6">
-                  {/* Key Strengths */}
-                  {candidate.keyStrengths && candidate.keyStrengths.length > 0 && (
-                    <div>
-                      <h4 className="font-semibold text-green-900 mb-2 flex items-center gap-2">
-                        <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        Key Strengths
-                      </h4>
-                      <ul className="list-disc list-inside space-y-1 text-gray-700">
-                        {candidate.keyStrengths.map((strength, i) => (
-                          <li key={i}>{strength}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Key Concerns */}
-                  {candidate.keyConcerns && candidate.keyConcerns.length > 0 && (
-                    <div>
-                      <h4 className="font-semibold text-yellow-900 mb-2 flex items-center gap-2">
-                        <svg className="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        Key Concerns
-                      </h4>
-                      <ul className="list-disc list-inside space-y-1 text-gray-700">
-                        {candidate.keyConcerns.map((concern, i) => (
-                          <li key={i}>{concern}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Interview Questions */}
-                  {candidate.interviewQuestions && candidate.interviewQuestions.length > 0 && (
-                    <div>
-                      <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
-                        <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Suggested Interview Questions
-                      </h4>
-                      <ol className="list-decimal list-inside space-y-2 text-gray-700">
-                        {candidate.interviewQuestions.map((question, i) => (
-                          <li key={i} className="pl-2">{question}</li>
-                        ))}
-                      </ol>
-                    </div>
-                  )}
-
-                  {/* Reasoning */}
-                  {candidate.reasoning && (
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">AI Reasoning</h4>
-                      <p className="text-gray-700 whitespace-pre-line">{candidate.reasoning}</p>
-                    </div>
-                  )}
-
-                  {/* Error Display */}
-                  {candidate.error && (
-                    <div className="p-4 bg-red-50 border border-red-200 rounded">
-                      <h4 className="font-semibold text-red-900 mb-2">Evaluation Error</h4>
-                      <p className="text-red-700">{candidate.error}</p>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            ))}
+              </div>
+            </div>
           </div>
         )}
+
+        {/* Immediate Next Steps */}
+        <Card className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Immediate Next Steps</h2>
+
+          <div className="space-y-6">
+            {/* Phone Screens */}
+            {advanceCount > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  1. Conduct initial phone screens on top candidates
+                </h3>
+                <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                  {candidates
+                    .filter(c => c.recommendation === 'ADVANCE TO INTERVIEW')
+                    .map((c, i) => (
+                      <li key={i}>
+                        {c.name} ({c.score})
+                      </li>
+                    ))}
+                  <li className="mt-3 text-blue-600">
+                    📄 <a href="#" className="underline hover:no-underline">Phone Screen Script – {evaluation.job.title}</a>
+                  </li>
+                  <li className="text-blue-600">
+                    📄 <a href="#" className="underline hover:no-underline">Customized Interview Guide – {evaluation.job.title}</a>
+                  </li>
+                </ul>
+              </div>
+            )}
+
+            {/* Interview Panels */}
+            {advanceCount > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  2. Consider creating interview panels
+                </h3>
+                <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                  <li>Hiring manager and department leadership</li>
+                  <li>Peer team members</li>
+                  <li>Cross-functional stakeholders</li>
+                  <li className="mt-3 text-blue-600">
+                    📄 <a href="#" className="underline hover:no-underline">Candidate Evaluation Form</a> for standardized scoring
+                  </li>
+                  <li className="text-blue-600">
+                    📄 <a href="#" className="underline hover:no-underline">Customized Interview Guide – {evaluation.job.title}</a>
+                  </li>
+                </ul>
+              </div>
+            )}
+
+            {/* Decline Non-Qualified */}
+            {declineCount > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  3. Decline non-qualified candidates ({declineCount} total)
+                </h3>
+                <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                  <li>Send standard HR declination communications</li>
+                  <li className="text-blue-600">
+                    📄 <a href="#" className="underline hover:no-underline">Candidate Disposition Guide</a> for documentation and messaging
+                  </li>
+                </ul>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* FAQ Section - Collapsible */}
+        <Card className="mb-6 bg-gray-50">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Frequently Asked Questions (FAQ)</h2>
+          <p className="text-sm text-gray-600 mb-6">
+            Quick explanations of key steps in the hiring process for {evaluation.job.title}.
+            Designed to help search committee members, interviewers, and HR staff understand the why behind each action.
+          </p>
+
+          <div className="space-y-3">
+            {/* FAQ 1 */}
+            <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+              <button
+                onClick={() => toggleFaq(0)}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-left font-semibold text-gray-900">1. What is the purpose of a phone screen?</span>
+                <svg
+                  className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
+                    expandedFaqs.has(0) ? '' : '-rotate-90'
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {expandedFaqs.has(0) && (
+                <div className="px-4 pb-4 pt-2 bg-gray-50/50">
+                  <ul className="list-disc list-inside space-y-2 text-sm text-gray-700 ml-2">
+                    <li>A phone screen helps assess a candidate's communication skills, role fit, and alignment with company values before advancing to interviews</li>
+                    <li>It ensures only the most qualified candidates move forward, saving time for both the search team and applicants</li>
+                    <li className="text-blue-600">
+                      📄 Use the <a href="#" className="underline hover:no-underline">Phone Screen Script – {evaluation.job.title}</a> to maintain consistency and fairness
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* FAQ 2 */}
+            <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+              <button
+                onClick={() => toggleFaq(1)}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-left font-semibold text-gray-900">2. Why do we use interview panels?</span>
+                <svg
+                  className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
+                    expandedFaqs.has(1) ? '' : '-rotate-90'
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {expandedFaqs.has(1) && (
+                <div className="px-4 pb-4 pt-2 bg-gray-50/50">
+                  <ul className="list-disc list-inside space-y-2 text-sm text-gray-700 ml-2">
+                    <li>Panels bring multiple perspectives to the evaluation process, reducing individual bias</li>
+                    <li>They reflect collaborative and inclusive culture by including representatives from different teams and stakeholders</li>
+                    <li className="text-blue-600">
+                      📄 Refer to the <a href="#" className="underline hover:no-underline">Customized Interview Guide – {evaluation.job.title}</a> for panel structure and core questions
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* FAQ 3 */}
+            <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+              <button
+                onClick={() => toggleFaq(2)}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-left font-semibold text-gray-900">3. Why conduct reference checks?</span>
+                <svg
+                  className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
+                    expandedFaqs.has(2) ? '' : '-rotate-90'
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {expandedFaqs.has(2) && (
+                <div className="px-4 pb-4 pt-2 bg-gray-50/50">
+                  <ul className="list-disc list-inside space-y-2 text-sm text-gray-700 ml-2">
+                    <li>Reference checks verify past performance, leadership style, and interpersonal effectiveness</li>
+                    <li>They help validate cultural fit and confirm whether the candidate demonstrates company values in practice</li>
+                    <li className="text-blue-600">
+                      📄 Use the <a href="#" className="underline hover:no-underline">Reference Check Template – {evaluation.job.title}</a> for consistent and compliant documentation
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* FAQ 4 */}
+            <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+              <button
+                onClick={() => toggleFaq(3)}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-left font-semibold text-gray-900">4. What does "disposition" mean in the hiring process?</span>
+                <svg
+                  className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
+                    expandedFaqs.has(3) ? '' : '-rotate-90'
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {expandedFaqs.has(3) && (
+                <div className="px-4 pb-4 pt-2 bg-gray-50/50">
+                  <ul className="list-disc list-inside space-y-2 text-sm text-gray-700 ml-2">
+                    <li>"Dispositioning" refers to formally marking a candidate's application status (e.g., interviewed, not selected, declined)</li>
+                    <li>It ensures accurate record-keeping in the applicant tracking system (ATS) and triggers standard declination communications</li>
+                    <li className="text-blue-600">
+                      📄 Follow the <a href="#" className="underline hover:no-underline">Candidate Disposition Guide</a> to complete this step properly and respectfully
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* FAQ 5 */}
+            <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+              <button
+                onClick={() => toggleFaq(4)}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-left font-semibold text-gray-900">5. Why are internal candidate protocols important?</span>
+                <svg
+                  className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
+                    expandedFaqs.has(4) ? '' : '-rotate-90'
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {expandedFaqs.has(4) && (
+                <div className="px-4 pb-4 pt-2 bg-gray-50/50">
+                  <ul className="list-disc list-inside space-y-2 text-sm text-gray-700 ml-2">
+                    <li>Internal candidates must be evaluated with transparency and fairness while recognizing their current contributions</li>
+                    <li>Following internal candidate protocols ensures compliance with HR policies, avoids conflicts of interest, and maintains trust in the selection process</li>
+                    <li className="text-blue-600">
+                      📄 Confirm requirements with HR and reference the <a href="#" className="underline hover:no-underline">Internal Candidate Process Guide</a> before proceeding
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+
+        {/* Evaluation Methodology - Collapsible */}
+        <Card className="mb-6 bg-gray-50">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Evaluation Methodology</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            <strong>Screening Completed By:</strong> Claude 3.5 Haiku (AI Recruiting Assistant) •{' '}
+            <strong>Framework:</strong> Two-Stage Recruiting Evaluation, Stage 1 Resume Screening •{' '}
+            <strong>Evaluation Date:</strong> {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} •{' '}
+            <strong>Total Candidates:</strong> {candidates.length} •{' '}
+            <strong>Job Position:</strong> {evaluation.job.title}
+          </p>
+
+          <div className="space-y-3">
+            {/* Overview */}
+            <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+              <button
+                onClick={() => toggleMethodology(0)}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-left font-semibold text-gray-900">Scoring Overview & Calculation</span>
+                <svg
+                  className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
+                    expandedMethodology.has(0) ? '' : '-rotate-90'
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {expandedMethodology.has(0) && (
+                <div className="px-4 pb-4 pt-2 bg-gray-50/50">
+                  <p className="text-sm text-gray-700 mb-4">
+                    Each candidate receives a composite score (0-100) calculated using three weighted components.
+                    The final score determines the hiring recommendation based on predetermined thresholds.
+                  </p>
+                  <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded border-2 border-green-300">
+                    <h5 className="font-semibold text-gray-900 mb-2">Final Score Calculation</h5>
+                    <div className="text-sm font-mono text-gray-800 space-y-1">
+                      <p><strong>Overall Score = (Qualifications × 0.40) + (Experience × 0.40) + (Risk Flags × 0.20)</strong></p>
+                      <p className="text-xs text-gray-600 mt-2">Example: (88 × 0.40) + (80 × 0.40) + (85 × 0.20) = 35.2 + 32.0 + 17.0 = <strong>84.2 ≈ 84</strong></p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Qualifications Score */}
+            <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+              <button
+                onClick={() => toggleMethodology(1)}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                    <span className="text-lg font-bold text-blue-700">40%</span>
+                  </div>
+                  <span className="text-left font-semibold text-gray-900">Qualifications Score</span>
+                </div>
+                <svg
+                  className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
+                    expandedMethodology.has(1) ? '' : '-rotate-90'
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {expandedMethodology.has(1) && (
+                <div className="px-4 pb-4 pt-2 bg-gray-50/50">
+                  <p className="text-sm text-gray-700 mb-3">
+                    Evaluates education, certifications, licenses, and technical skills against job requirements.
+                  </p>
+                  <div className="bg-blue-50 p-3 rounded text-xs font-mono text-gray-800">
+                    <strong>Formula:</strong> Qualifications Score × 0.40 = Weighted Component<br/>
+                    <strong>Criteria:</strong> Degree match, required certifications, technical proficiencies, specialized training<br/>
+                    <strong>Scale:</strong> 0-100 (100 = exceeds all requirements, 0 = no qualifications match)
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Experience Score */}
+            <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+              <button
+                onClick={() => toggleMethodology(2)}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
+                    <span className="text-lg font-bold text-purple-700">40%</span>
+                  </div>
+                  <span className="text-left font-semibold text-gray-900">Experience Score</span>
+                </div>
+                <svg
+                  className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
+                    expandedMethodology.has(2) ? '' : '-rotate-90'
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {expandedMethodology.has(2) && (
+                <div className="px-4 pb-4 pt-2 bg-gray-50/50">
+                  <p className="text-sm text-gray-700 mb-3">
+                    Assesses years of relevant experience, role similarity, industry background, and demonstrated achievements.
+                  </p>
+                  <div className="bg-purple-50 p-3 rounded text-xs font-mono text-gray-800">
+                    <strong>Formula:</strong> Experience Score × 0.40 = Weighted Component<br/>
+                    <strong>Criteria:</strong> Years in role, industry relevance, leadership experience, measurable impact<br/>
+                    <strong>Scale:</strong> 0-100 (100 = extensive relevant experience, 0 = no relevant experience)
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Risk Flags Score */}
+            <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+              <button
+                onClick={() => toggleMethodology(3)}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                    <span className="text-lg font-bold text-amber-700">20%</span>
+                  </div>
+                  <span className="text-left font-semibold text-gray-900">Risk Flags Score</span>
+                </div>
+                <svg
+                  className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
+                    expandedMethodology.has(3) ? '' : '-rotate-90'
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {expandedMethodology.has(3) && (
+                <div className="px-4 pb-4 pt-2 bg-gray-50/50">
+                  <p className="text-sm text-gray-700 mb-3">
+                    Identifies potential concerns including employment gaps, job-hopping, credential mismatches, or missing requirements.
+                  </p>
+                  <div className="bg-amber-50 p-3 rounded text-xs font-mono text-gray-800">
+                    <strong>Formula:</strong> Risk Flags Score × 0.20 = Weighted Component<br/>
+                    <strong>Criteria:</strong> Employment gaps, role progression, requirement gaps, credential verification<br/>
+                    <strong>Scale:</strong> 0-100 (100 = no concerns, 0 = critical red flags present)
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Recommendation Thresholds */}
+            <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+              <button
+                onClick={() => toggleMethodology(4)}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-left font-semibold text-gray-900">Recommendation Thresholds</span>
+                <svg
+                  className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
+                    expandedMethodology.has(4) ? '' : '-rotate-90'
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {expandedMethodology.has(4) && (
+                <div className="px-4 pb-4 pt-2 bg-gray-50/50">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                        ADVANCE TO INTERVIEW
+                      </span>
+                      <span className="text-sm text-gray-700">Score ≥ 85 (Strong match, proceed directly to interviews)</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                        PHONE SCREEN FIRST
+                      </span>
+                      <span className="text-sm text-gray-700">Score 70-84 (Potential fit, conduct phone screen to clarify)</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
+                        DECLINE
+                      </span>
+                      <span className="text-sm text-gray-700">Score &lt; 70 (Insufficient match for this role)</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Legal Disclaimer */}
+          <div className="mt-6 pt-4 border-t border-gray-300 text-xs text-gray-600">
+            <p>
+              <strong>Note:</strong> AI evaluations are designed to augment human decision-making, not replace it.
+              Scores should be used as a screening tool alongside recruiter judgment, cultural fit assessment, and structured interviews.
+              All hiring decisions should comply with applicable employment laws and organizational policies.
+            </p>
+          </div>
+        </Card>
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-4 mb-8">
@@ -397,6 +850,31 @@ export function ResultsPage() {
                 <Button variant="secondary" size="sm" className="mt-3">
                   Run AI on Top {advanceCount + phoneScreenCount} Candidates (~${((advanceCount + phoneScreenCount) * 0.003).toFixed(3)})
                 </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* AI Cost Summary - Moved to bottom */}
+        {results.mode === 'ai' && results.usage && (
+          <Card className="mb-6 bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">AI Evaluation Summary</h2>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
+                <div className="text-sm text-gray-600 mb-1">Total Cost</div>
+                <div className="text-2xl font-bold text-blue-600">${results.usage.cost.toFixed(4)}</div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-600 mb-1">Avg per Candidate</div>
+                <div className="text-lg font-semibold text-gray-700">${results.usage.avgCostPerCandidate.toFixed(4)}</div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-600 mb-1">Input Tokens</div>
+                <div className="text-lg font-semibold text-gray-700">{results.usage.inputTokens.toLocaleString()}</div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-600 mb-1">Output Tokens</div>
+                <div className="text-lg font-semibold text-gray-700">{results.usage.outputTokens.toLocaleString()}</div>
               </div>
             </div>
           </Card>
