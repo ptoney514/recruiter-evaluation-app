@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { sessionStore } from '../services/storage/sessionStore'
+import { exportService } from '../services/exportService'
 
 export function ResultsPage() {
   const navigate = useNavigate()
@@ -40,6 +41,26 @@ export function ResultsPage() {
   const handleStage2 = () => {
     // TODO: Navigate to Stage 2 interview notes page
     alert('Stage 2 coming soon!')
+  }
+
+  const handleExportExcel = () => {
+    try {
+      const filename = exportService.exportToExcel(evaluation, results, results.mode)
+      alert(`✅ Excel file exported successfully: ${filename}`)
+    } catch (error) {
+      console.error('Export to Excel failed:', error)
+      alert(`❌ Export failed: ${error.message}`)
+    }
+  }
+
+  const handleExportPDF = () => {
+    try {
+      const filename = exportService.exportToPDF(evaluation, results, results.mode)
+      alert(`✅ PDF file exported successfully: ${filename}`)
+    } catch (error) {
+      console.error('Export to PDF failed:', error)
+      alert(`❌ Export failed: ${error.message}`)
+    }
   }
 
   if (!evaluation || !results) {
@@ -318,11 +339,17 @@ export function ResultsPage() {
           <Button variant="secondary" onClick={handleStartNew} className="flex-1">
             Start New Evaluation
           </Button>
-          <Button variant="secondary" onClick={handleStage2} className="flex-1">
-            Proceed to Stage 2 (Add Interview Notes)
+          <Button variant="secondary" onClick={handleExportExcel} className="flex-1">
+            <svg className="w-5 h-5 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+            Export to Excel
           </Button>
-          <Button className="flex-1">
-            Download Report (Coming Soon)
+          <Button onClick={handleExportPDF} className="flex-1">
+            <svg className="w-5 h-5 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd" />
+            </svg>
+            Export to PDF
           </Button>
         </div>
 

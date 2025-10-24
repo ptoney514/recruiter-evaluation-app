@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { TextArea } from '../components/ui/Input'
+import { ProgressModal } from '../components/ui/ProgressModal'
 import { sessionStore } from '../services/storage/sessionStore'
 import { COST_PER_CANDIDATE_AI } from '../constants/config'
 import { evaluationService } from '../services/evaluationService'
@@ -13,6 +14,8 @@ export function ReviewPage() {
   const [evaluationMode, setEvaluationMode] = useState('regex') // 'regex' or 'ai'
   const [additionalInstructions, setAdditionalInstructions] = useState('')
   const [isEvaluating, setIsEvaluating] = useState(false)
+  const [progress, setProgress] = useState(null)
+  const [showCostWarning, setShowCostWarning] = useState(false)
 
   useEffect(() => {
     const current = sessionStore.getCurrentEvaluation()
@@ -52,13 +55,17 @@ export function ReviewPage() {
         console.log('Regex results received:', results)
       } else {
         console.log('Calling AI evaluation API...')
-        // Run AI evaluation
+        // Initialize progress
+        setProgress({ current: 0, total: evaluation.resumes.length, currentCandidate: '' })
+
+        // Run AI evaluation with progress callback
         results = await evaluationService.evaluateWithAI(
           evaluation.job,
           evaluation.resumes,
           {
             stage: evaluation.stage || 1,
-            additionalInstructions
+            additionalInstructions,
+            onProgress: (progressData) => setProgress(progressData)
           }
         )
         console.log('AI results received:', results)
@@ -275,6 +282,26 @@ export function ReviewPage() {
           </div>
         </Card>
 
+        {/* Cost Warning for Large Batches */}
+        {evaluationMode === 'ai' && evaluation.resumes.length > 10 && (
+          <Card className="mb-6 bg-yellow-50 border-yellow-300">
+            <div className="flex items-start gap-3">
+              <svg className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <div>
+                <h4 className="font-semibold text-yellow-900 mb-1">Large Batch Warning</h4>
+                <p className="text-sm text-yellow-800 mb-2">
+                  You're about to evaluate {evaluation.resumes.length} candidates with AI. This will cost approximately ${estimatedCost} and take ~{Math.ceil(evaluation.resumes.length / 3 * 30)} seconds.
+                </p>
+                <p className="text-sm text-yellow-800">
+                  <strong>Tip:</strong> Consider running Regex evaluation first (free) to filter candidates, then run AI on top 5-10 performers.
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Navigation */}
         <div className="flex justify-between">
           <Button variant="secondary" onClick={handleBack}>
@@ -285,6 +312,9 @@ export function ReviewPage() {
           </Button>
         </div>
       </div>
+
+      {/* Progress Modal */}
+      <ProgressModal isOpen={isEvaluating && evaluationMode === 'ai'} progress={progress} />
     </div>
   )
 }
