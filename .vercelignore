@@ -1,0 +1,33 @@
+# Development files
+.env
+.env.local
+*.log
+.DS_Store
+
+# Local development servers (not needed on Vercel)
+api/flask_server.py
+api/dev_server.py
+api/simple_server.py
+
+# Test files
+api/tests/
+api/**/*test*.py
+
+# Documentation
+*.md
+!README.md
+
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Frontend dev
+frontend/node_modules/
+frontend/.env.local
