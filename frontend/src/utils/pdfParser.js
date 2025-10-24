@@ -7,6 +7,16 @@ import * as pdfjsLib from 'pdfjs-dist'
 // Set worker source - use jsdelivr CDN (more reliable than cloudflare)
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`
 
+// Suppress non-critical PDF.js warnings (like missing glyf tables)
+const originalConsoleWarn = console.warn
+console.warn = function(...args) {
+  // Filter out PDF.js font table warnings
+  if (args[0]?.includes?.('glyf') || args[0]?.includes?.('table is not found')) {
+    return
+  }
+  originalConsoleWarn.apply(console, args)
+}
+
 /**
  * Extract text from a PDF file
  * @param {File} file - PDF file object

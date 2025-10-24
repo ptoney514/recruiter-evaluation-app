@@ -26,6 +26,11 @@ export function ReviewPage() {
   }, [navigate])
 
   const handleEvaluate = async () => {
+    console.log('=== Starting Evaluation ===')
+    console.log('Mode:', evaluationMode)
+    console.log('Job:', evaluation.job)
+    console.log('Candidates count:', evaluation.resumes.length)
+
     // Save additional instructions and mode
     sessionStore.updateEvaluation({
       additionalInstructions,
@@ -38,12 +43,15 @@ export function ReviewPage() {
       let results
 
       if (evaluationMode === 'regex') {
+        console.log('Calling regex evaluation API...')
         // Run regex evaluation
         results = await evaluationService.evaluateWithRegex(
           evaluation.job,
           evaluation.resumes
         )
+        console.log('Regex results received:', results)
       } else {
+        console.log('Calling AI evaluation API...')
         // Run AI evaluation
         results = await evaluationService.evaluateWithAI(
           evaluation.job,
@@ -53,6 +61,7 @@ export function ReviewPage() {
             additionalInstructions
           }
         )
+        console.log('AI results received:', results)
       }
 
       // Save results to session storage
@@ -62,14 +71,20 @@ export function ReviewPage() {
         sessionStore.updateEvaluation({ aiResults: results })
       }
 
+      console.log('Navigating to results page...')
       // Navigate to results
       navigate('/results')
 
     } catch (error) {
-      console.error('Evaluation error:', error)
+      console.error('=== Evaluation Error ===')
+      console.error('Error type:', error.constructor.name)
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+      console.error('Full error:', error)
       alert(`Evaluation failed: ${error.message}`)
     } finally {
       setIsEvaluating(false)
+      console.log('=== Evaluation Complete ===')
     }
   }
 

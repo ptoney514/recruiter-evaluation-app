@@ -9,7 +9,12 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 function App() {
   return (
     <ErrorBoundary>
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true
+        }}
+      >
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/job-input" element={<JobInputPage />} />

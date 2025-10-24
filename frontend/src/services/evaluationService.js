@@ -5,6 +5,27 @@
 import { API_BASE_URL } from '../constants/config'
 
 /**
+ * Convert snake_case keys to camelCase
+ * @param {Object} obj - Object with snake_case keys
+ * @returns {Object} Object with camelCase keys
+ */
+function snakeToCamel(obj) {
+  if (Array.isArray(obj)) {
+    return obj.map(item => snakeToCamel(item))
+  }
+
+  if (obj !== null && typeof obj === 'object') {
+    return Object.keys(obj).reduce((result, key) => {
+      const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+      result[camelKey] = snakeToCamel(obj[key])
+      return result
+    }, {})
+  }
+
+  return obj
+}
+
+/**
  * Run regex-based evaluation on candidates
  * @param {Object} job - Job description data
  * @param {Array} candidates - Array of {name, text} objects
@@ -30,7 +51,10 @@ export async function evaluateWithRegex(job, candidates) {
     throw new Error(error.error || 'Regex evaluation failed')
   }
 
-  return await response.json()
+  const data = await response.json()
+
+  // Convert snake_case to camelCase for frontend consistency
+  return snakeToCamel(data)
 }
 
 /**

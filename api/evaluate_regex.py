@@ -253,6 +253,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
         self.wfile.write(json.dumps(data).encode('utf-8'))
+        self.wfile.flush()  # CRITICAL: Flush the buffer to actually send the response
 
     def _send_error(self, status_code, message):
         """Send error response"""
