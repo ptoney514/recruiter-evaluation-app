@@ -7,43 +7,48 @@ import * as pdfjsLib from 'pdfjs-dist'
 // Set worker source - use jsdelivr CDN (more reliable than cloudflare)
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`
 
-// Suppress non-critical PDF.js warnings (like missing glyf tables)
-const originalConsoleWarn = console.warn
-console.warn = function(...args) {
-  // Filter out PDF.js font table warnings
-  if (args[0]?.includes?.('glyf') || args[0]?.includes?.('table is not found')) {
-    return
-  }
-  originalConsoleWarn.apply(console, args)
-}
+// Set PDF.js verbosity to ERRORS only (suppresses warnings like missing glyf tables)
+// This is the proper way to configure PDF.js logging without global console override
+pdfjsLib.GlobalWorkerOptions.verbosity = pdfjsLib.VerbosityLevel.ERRORS
 
 /**
- * Extract text from a PDF file
+ * Extract text from a PDF file with parallel page processing
  * @param {File} file - PDF file object
+ * @param {Function} onProgress - Optional progress callback (current, total)
  * @returns {Promise<string>} Extracted text
  */
-export async function extractTextFromPDF(file) {
+export async function extractTextFromPDF(file, onProgress = null) {
   try {
     const arrayBuffer = await file.arrayBuffer()
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
 
-    const textParts = []
-
-    // Extract text from each page
+    // Extract text from all pages in parallel for better performance
+    const pagePromises = []
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum)
-      const textContent = await page.getTextContent()
+      pagePromises.push(
+        pdf.getPage(pageNum).then(async (page) => {
+          const textContent = await page.getTextContent()
+          const pageText = textContent.items
+            .map(item => item.str)
+            .join(' ')
 
-      const pageText = textContent.items
-        .map(item => item.str)
-        .join(' ')
+          // Report progress if callback provided
+          if (onProgress) {
+            onProgress(pageNum, pdf.numPages)
+          }
 
-      if (pageText.trim()) {
-        textParts.push(pageText)
-      }
+          return pageText.trim() || ''
+        })
+      )
     }
 
+    // Wait for all pages to complete
+    const pages = await Promise.all(pagePromises)
+
+    // Filter out empty pages and join
+    const textParts = pages.filter(text => text.length > 0)
     return textParts.join('\n\n')
+
   } catch (error) {
     console.error('Error extracting PDF text:', error)
     throw new Error(`Failed to parse PDF: ${file.name}`)

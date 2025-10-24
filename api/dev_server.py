@@ -1,5 +1,32 @@
 #!/usr/bin/env python3
 """
+⚠️  DEPRECATED - DO NOT USE ⚠️
+
+This dev server has a broken handler-wrapping architecture that causes
+BrokenPipe errors and prevents responses from reaching clients.
+
+USE flask_server.py INSTEAD:
+    cd api && python3 flask_server.py
+
+This file is kept for reference only and will be removed in a future release.
+"""
+
+# Exit immediately with helpful error message
+import sys
+print("=" * 70)
+print("❌ ERROR: dev_server.py is DEPRECATED and BROKEN")
+print("=" * 70)
+print("")
+print("This server causes BrokenPipe errors and doesn't work properly.")
+print("")
+print("✅ USE THIS INSTEAD:")
+print("   cd api && python3 flask_server.py")
+print("")
+print("=" * 70)
+sys.exit(1)
+
+# Original (broken) code below - DO NOT USE
+"""
 Simple local development server for testing API endpoints
 Mimics Vercel serverless function routing
 """
@@ -60,12 +87,15 @@ class DevServerHandler(BaseHTTPRequestHandler):
                     self.server
                 )
 
-                # Copy the important attributes
+                # Copy all important attributes from parent handler
                 handler_instance.rfile = self.rfile
                 handler_instance.wfile = self.wfile
                 handler_instance.headers = self.headers
                 handler_instance.command = self.command
                 handler_instance.path = self.path
+                handler_instance.request_version = self.request_version
+                handler_instance.requestline = self.requestline
+                handler_instance.close_connection = self.close_connection
 
                 # Call the handler's do_POST method
                 handler_instance.do_POST()

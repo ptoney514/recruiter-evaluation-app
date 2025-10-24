@@ -26,13 +26,40 @@ function snakeToCamel(obj) {
 }
 
 /**
+ * Fetch with timeout to prevent hanging requests
+ * @param {string} url - Request URL
+ * @param {Object} options - Fetch options
+ * @param {number} timeout - Timeout in milliseconds (default 30s)
+ * @returns {Promise<Response>} Fetch response
+ */
+async function fetchWithTimeout(url, options = {}, timeout = 30000) {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    })
+    clearTimeout(timeoutId)
+    return response
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timed out after ${timeout / 1000} seconds. The API server may be unresponsive.`)
+    }
+    throw error
+  }
+}
+
+/**
  * Run regex-based evaluation on candidates
  * @param {Object} job - Job description data
  * @param {Array} candidates - Array of {name, text} objects
  * @returns {Promise<Object>} Evaluation results
  */
 export async function evaluateWithRegex(job, candidates) {
-  const response = await fetch(`${API_BASE_URL}/api/evaluate_regex`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/evaluate_regex`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -44,7 +71,7 @@ export async function evaluateWithRegex(job, candidates) {
         text: c.text
       }))
     })
-  })
+  }, 30000) // 30 second timeout for regex evaluation
 
   if (!response.ok) {
     const error = await response.json()
