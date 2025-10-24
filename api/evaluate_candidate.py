@@ -1,8 +1,10 @@
 """
-Vercel Serverless Function to evaluate candidates using Claude Haiku API
+Vercel Serverless Function to evaluate candidates using multiple LLM providers
 Supports two-stage evaluation framework:
 - Stage 1: Resume Screening (determines who to interview)
 - Stage 2: Final Hiring Decision (incorporates interview + references)
+
+Supports multiple LLM providers: Anthropic Claude, OpenAI
 
 Endpoint: /api/evaluate_candidate
 """
@@ -23,20 +25,28 @@ class handler(BaseHTTPRequestHandler):
             job = data.get('job', {})
             candidate = data.get('candidate', {})
             stage = data.get('stage', 1)
+            provider = data.get('provider', 'anthropic')  # Default to Anthropic
+            model = data.get('model', None)  # Use provider default if None
 
             # Validate required data
             if not job or not candidate:
                 self._send_error(400, 'Missing job or candidate data')
                 return
 
-            # Call AI evaluator (uses ai_evaluator.py module)
-            result = evaluate_candidate_with_ai(job, candidate, stage)
+            # Call AI evaluator with provider and model (uses ai_evaluator.py module)
+            result = evaluate_candidate_with_ai(
+                job,
+                candidate,
+                stage=stage,
+                provider=provider,
+                model=model
+            )
 
             # Send response
             self._send_response(200, result)
 
         except ValueError as e:
-            # Handle missing API key or invalid stage
+            # Handle missing API key, invalid stage, or unsupported provider
             self._send_error(400, str(e))
         except NotImplementedError as e:
             self._send_error(501, str(e))

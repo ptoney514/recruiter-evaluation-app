@@ -40,12 +40,15 @@ export function ResultsPage() {
     setEvaluation(current)
 
     // Get actual results based on evaluation mode
-    const mode = current.evaluationMode || 'regex'
-    const evaluationResults = mode === 'regex' ? current.regexResults : current.aiResults
+    const mode = current.evaluationMode || 'openai'
+    // Both 'openai' and 'claude' use AI results (not regex)
+    const isAiMode = mode === 'openai' || mode === 'claude' || mode === 'ai'
+    const evaluationResults = isAiMode ? current.aiResults : current.regexResults
 
     if (evaluationResults) {
       setResults({
         mode,
+        isAiMode, // Add flag for easier checking
         ...evaluationResults
       })
     } else {
@@ -164,12 +167,12 @@ export function ResultsPage() {
             {evaluation.job.title} - Candidate Ranking
           </h1>
           <p className="text-gray-600">
-            {candidates.length} candidates evaluated • {results.mode === 'ai' ? 'AI Detailed Analysis' : 'Regex Keyword Matching'}
+            {candidates.length} candidates evaluated • {results.isAiMode ? `AI Detailed Analysis (${results.mode === 'openai' ? 'OpenAI GPT-4o Mini' : 'Claude 3.5 Haiku'})` : 'Regex Keyword Matching'}
           </p>
         </div>
 
         {/* Detailed Analysis for AI mode - Modern Collapsible Table */}
-        {results.mode === 'ai' && (
+        {results.isAiMode && (
           <div className="mb-6">
             {/* Header */}
             <div className="mb-6 flex items-center justify-between">
@@ -386,45 +389,74 @@ export function ResultsPage() {
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Immediate Next Steps</h2>
 
           <div className="space-y-6">
-            {/* Phone Screens */}
+            {/* Direct to Interview - High Scorers */}
             {advanceCount > 0 && (
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                  1. Conduct initial phone screens on top candidates
+                  1. Schedule interviews for top candidates ({advanceCount} total)
                 </h3>
                 <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
                   {candidates
                     .filter(c => c.recommendation === 'ADVANCE TO INTERVIEW')
+                    .slice(0, 5)
                     .map((c, i) => (
                       <li key={i}>
-                        {c.name} ({c.score})
+                        <strong>{c.name}</strong> - Score: {c.score}/100
                       </li>
                     ))}
                   <li className="mt-3 text-blue-600">
-                    📄 <a href="#" className="underline hover:no-underline">Phone Screen Script – {evaluation.job.title}</a>
+                    📄 <a href="#" className="underline hover:no-underline">Customized Interview Guide – {evaluation.job.title}</a>
                   </li>
                   <li className="text-blue-600">
-                    📄 <a href="#" className="underline hover:no-underline">Customized Interview Guide – {evaluation.job.title}</a>
+                    📄 <a href="#" className="underline hover:no-underline">Candidate Evaluation Form</a> for standardized scoring
                   </li>
                 </ul>
               </div>
             )}
 
-            {/* Interview Panels */}
-            {advanceCount > 0 && (
+            {/* Phone Screen Candidates */}
+            {phoneScreenCount > 0 && (
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                  2. Consider creating interview panels
+                  {advanceCount > 0 ? '2' : '1'}. Conduct phone screens to clarify fit ({phoneScreenCount} total)
+                </h3>
+                <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                  {candidates
+                    .filter(c => c.recommendation === 'PHONE SCREEN FIRST')
+                    .slice(0, 5)
+                    .map((c, i) => (
+                      <li key={i}>
+                        <strong>{c.name}</strong> - Score: {c.score}/100
+                      </li>
+                    ))}
+                  {candidates.filter(c => c.recommendation === 'PHONE SCREEN FIRST').length > 5 && (
+                    <li className="text-gray-500">...and {candidates.filter(c => c.recommendation === 'PHONE SCREEN FIRST').length - 5} more</li>
+                  )}
+                  <li className="mt-3 text-gray-700">
+                    <strong>Focus areas for phone screen:</strong>
+                  </li>
+                  <li className="ml-4">Clarify concerns identified in AI analysis (see Key Concerns above)</li>
+                  <li className="ml-4">Verify qualifications and experience claims</li>
+                  <li className="ml-4">Assess cultural fit and motivation for the role</li>
+                  <li className="mt-3 text-blue-600">
+                    📄 <a href="#" className="underline hover:no-underline">Phone Screen Script – {evaluation.job.title}</a>
+                  </li>
+                </ul>
+              </div>
+            )}
+
+            {/* Interview Panels - Only if we have candidates to interview */}
+            {(advanceCount > 0 || phoneScreenCount > 0) && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  {advanceCount > 0 && phoneScreenCount > 0 ? '3' : advanceCount > 0 || phoneScreenCount > 0 ? '2' : '1'}. Prepare interview panels
                 </h3>
                 <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
                   <li>Hiring manager and department leadership</li>
-                  <li>Peer team members</li>
-                  <li>Cross-functional stakeholders</li>
+                  <li>Peer team members (assess collaboration fit)</li>
+                  <li>Cross-functional stakeholders (if applicable)</li>
                   <li className="mt-3 text-blue-600">
                     📄 <a href="#" className="underline hover:no-underline">Candidate Evaluation Form</a> for standardized scoring
-                  </li>
-                  <li className="text-blue-600">
-                    📄 <a href="#" className="underline hover:no-underline">Customized Interview Guide – {evaluation.job.title}</a>
                   </li>
                 </ul>
               </div>
@@ -907,7 +939,7 @@ export function ResultsPage() {
         )}
 
         {/* AI Cost Summary - Moved to bottom */}
-        {results.mode === 'ai' && results.usage && (
+        {results.isAiMode && results.usage && (
           <Card className="mb-6 bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">AI Evaluation Summary</h2>
             <div className="grid grid-cols-4 gap-4">

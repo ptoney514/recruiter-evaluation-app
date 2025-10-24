@@ -7,10 +7,31 @@ import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 
 /**
+ * Helper function to check if mode is an AI mode (openai, claude, or legacy 'ai')
+ * @param {string} mode - Evaluation mode
+ * @returns {boolean} True if AI mode
+ */
+function isAiMode(mode) {
+  return mode === 'openai' || mode === 'claude' || isAiMode(mode)
+}
+
+/**
+ * Get display name for evaluation mode
+ * @param {string} mode - Evaluation mode
+ * @returns {string} Display name
+ */
+function getModeName(mode) {
+  if (mode === 'openai') return 'AI Evaluation (OpenAI GPT-4o Mini)'
+  if (mode === 'claude') return 'AI Evaluation (Claude 3.5 Haiku)'
+  if (isAiMode(mode)) return 'AI Evaluation (Claude Haiku)'
+  return 'Regex Keyword Matching'
+}
+
+/**
  * Export evaluation results to Excel
  * @param {Object} evaluation - Evaluation data from session
  * @param {Object} results - Results data (regex or AI)
- * @param {string} mode - Evaluation mode ('regex' or 'ai')
+ * @param {string} mode - Evaluation mode ('openai', 'claude', or 'regex')
  */
 export function exportToExcel(evaluation, results, mode) {
   const workbook = XLSX.utils.book_new()
@@ -20,7 +41,7 @@ export function exportToExcel(evaluation, results, mode) {
     ['Candidate Evaluation Report'],
     [''],
     ['Job Title', evaluation.job.title],
-    ['Evaluation Mode', mode === 'ai' ? 'AI Evaluation (Claude Haiku)' : 'Regex Keyword Matching'],
+    ['Evaluation Mode', getModeName(mode)],
     ['Evaluation Date', new Date().toLocaleDateString()],
     ['Total Candidates', results.summary?.totalCandidates || results.results?.length || 0],
     [''],
@@ -30,7 +51,7 @@ export function exportToExcel(evaluation, results, mode) {
     ['Declined', results.summary?.declined || 0],
   ]
 
-  if (mode === 'ai' && results.usage) {
+  if (isAiMode(mode) && results.usage) {
     summaryData.push([''], ['Cost Analysis'])
     summaryData.push(['Total Cost', `$${results.usage.cost.toFixed(4)}`])
     summaryData.push(['Avg Cost per Candidate', `$${results.usage.avgCostPerCandidate.toFixed(4)}`])
@@ -47,7 +68,7 @@ export function exportToExcel(evaluation, results, mode) {
     ['Rank', 'Candidate Name', 'Score', 'Recommendation']
   ]
 
-  if (mode === 'ai') {
+  if (isAiMode(mode)) {
     rankingsData[0].push('Qualifications Score', 'Experience Score', 'Risk Flags Score')
   } else {
     rankingsData[0].push('Matched Keywords', 'Missing Keywords')
@@ -61,7 +82,7 @@ export function exportToExcel(evaluation, results, mode) {
       candidate.recommendation
     ]
 
-    if (mode === 'ai') {
+    if (isAiMode(mode)) {
       row.push(
         candidate.qualificationsScore || 'N/A',
         candidate.experienceScore || 'N/A',
@@ -81,7 +102,7 @@ export function exportToExcel(evaluation, results, mode) {
   XLSX.utils.book_append_sheet(workbook, rankingsSheet, 'Rankings')
 
   // Sheet 3: Detailed Analysis (AI mode only)
-  if (mode === 'ai') {
+  if (isAiMode(mode)) {
     const analysisData = [['Candidate', 'Key Strengths', 'Key Concerns', 'Interview Questions', 'Reasoning']]
 
     candidates.forEach(candidate => {
@@ -136,7 +157,7 @@ export function exportToPDF(evaluation, results, mode) {
   doc.setFontSize(12)
   doc.setFont(undefined, 'normal')
   doc.text(`Job Title: ${evaluation.job.title}`, 14, 30)
-  doc.text(`Evaluation Mode: ${mode === 'ai' ? 'AI Evaluation (Claude Haiku)' : 'Regex Keyword Matching'}`, 14, 36)
+  doc.text(`Evaluation Mode: ${getModeName(mode)}`, 14, 36)
   doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 42)
 
   // Summary Statistics
@@ -152,7 +173,7 @@ export function exportToPDF(evaluation, results, mode) {
 
   // Cost info (AI mode only)
   let yPosition = 82
-  if (mode === 'ai' && results.usage) {
+  if (isAiMode(mode) && results.usage) {
     doc.text(`Total Cost: $${results.usage.cost.toFixed(4)}`, 14, yPosition)
     yPosition += 6
   }
@@ -173,7 +194,7 @@ export function exportToPDF(evaluation, results, mode) {
       candidate.recommendation
     ]
 
-    if (mode === 'ai') {
+    if (isAiMode(mode)) {
       row.push(
         `Q:${candidate.qualificationsScore || 'N/A'}\nE:${candidate.experienceScore || 'N/A'}\nR:${candidate.riskFlagsScore || 'N/A'}`
       )
@@ -182,7 +203,7 @@ export function exportToPDF(evaluation, results, mode) {
     return row
   })
 
-  const tableHeaders = mode === 'ai'
+  const tableHeaders = isAiMode(mode)
     ? ['Rank', 'Name', 'Score', 'Recommendation', 'Breakdown']
     : ['Rank', 'Name', 'Score', 'Recommendation']
 
@@ -193,7 +214,7 @@ export function exportToPDF(evaluation, results, mode) {
     theme: 'striped',
     headStyles: { fillColor: [79, 70, 229] }, // primary-600
     styles: { fontSize: 9 },
-    columnStyles: mode === 'ai' ? {
+    columnStyles: isAiMode(mode) ? {
       0: { cellWidth: 15 },
       1: { cellWidth: 40 },
       2: { cellWidth: 20 },
@@ -208,7 +229,7 @@ export function exportToPDF(evaluation, results, mode) {
   })
 
   // Detailed Analysis (AI mode only)
-  if (mode === 'ai') {
+  if (isAiMode(mode)) {
     candidates.forEach((candidate, index) => {
       // Add new page for each candidate (except first)
       if (index > 0) {

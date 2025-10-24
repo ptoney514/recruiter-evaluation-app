@@ -3,15 +3,37 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { TextArea } from '../components/ui/Input'
+import { Select } from '../components/ui/Select'
 import { ProgressModal } from '../components/ui/ProgressModal'
 import { sessionStore } from '../services/storage/sessionStore'
 import { COST_PER_CANDIDATE_AI } from '../constants/config'
 import { evaluationService } from '../services/evaluationService'
 
+// LLM Provider configurations
+const LLM_PROVIDERS = {
+  anthropic: {
+    name: 'Anthropic Claude',
+    models: [
+      { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', cost: 0.003 },
+      { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', cost: 0.015 },
+    ]
+  },
+  openai: {
+    name: 'OpenAI',
+    models: [
+      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', cost: 0.001 },
+      { id: 'gpt-4o', name: 'GPT-4o', cost: 0.008 },
+      { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', cost: 0.020 },
+    ]
+  }
+}
+
 export function ReviewPage() {
   const navigate = useNavigate()
   const [evaluation, setEvaluation] = useState(null)
-  const [evaluationMode, setEvaluationMode] = useState('regex') // 'regex' or 'ai'
+  const [evaluationMode, setEvaluationMode] = useState('openai') // 'openai' or 'claude'
+  const [llmProvider, setLlmProvider] = useState('openai')
+  const [llmModel, setLlmModel] = useState('gpt-4o-mini')
   const [additionalInstructions, setAdditionalInstructions] = useState('')
   const [isEvaluating, setIsEvaluating] = useState(false)
   const [progress, setProgress] = useState(null)
@@ -26,57 +48,68 @@ export function ReviewPage() {
     }
     setEvaluation(current)
     setAdditionalInstructions(current.additionalInstructions || '')
+    setLlmProvider(current.llmProvider || 'openai')
+    setLlmModel(current.llmModel || 'gpt-4o-mini')
   }, [navigate])
+
+  // Handle evaluation mode change - sets provider and model
+  const handleModeChange = (mode) => {
+    setEvaluationMode(mode)
+    if (mode === 'openai') {
+      setLlmProvider('openai')
+      setLlmModel('gpt-4o-mini')
+    } else if (mode === 'claude') {
+      setLlmProvider('anthropic')
+      setLlmModel('claude-3-5-haiku-20241022')
+    }
+  }
+
+  // Get current model cost
+  const getCurrentModelCost = () => {
+    const provider = LLM_PROVIDERS[llmProvider]
+    const model = provider?.models.find(m => m.id === llmModel)
+    return model?.cost || COST_PER_CANDIDATE_AI
+  }
 
   const handleEvaluate = async () => {
     console.log('=== Starting Evaluation ===')
     console.log('Mode:', evaluationMode)
+    console.log('LLM Provider:', llmProvider)
+    console.log('LLM Model:', llmModel)
     console.log('Job:', evaluation.job)
     console.log('Candidates count:', evaluation.resumes.length)
 
-    // Save additional instructions and mode
+    // Save additional instructions, mode, and LLM settings
     sessionStore.updateEvaluation({
       additionalInstructions,
-      evaluationMode
+      evaluationMode,
+      llmProvider,
+      llmModel
     })
 
     setIsEvaluating(true)
 
     try {
-      let results
+      console.log('Calling AI evaluation API...')
+      // Initialize progress
+      setProgress({ current: 0, total: evaluation.resumes.length, currentCandidate: '' })
 
-      if (evaluationMode === 'regex') {
-        console.log('Calling regex evaluation API...')
-        // Run regex evaluation
-        results = await evaluationService.evaluateWithRegex(
-          evaluation.job,
-          evaluation.resumes
-        )
-        console.log('Regex results received:', results)
-      } else {
-        console.log('Calling AI evaluation API...')
-        // Initialize progress
-        setProgress({ current: 0, total: evaluation.resumes.length, currentCandidate: '' })
-
-        // Run AI evaluation with progress callback
-        results = await evaluationService.evaluateWithAI(
-          evaluation.job,
-          evaluation.resumes,
-          {
-            stage: evaluation.stage || 1,
-            additionalInstructions,
-            onProgress: (progressData) => setProgress(progressData)
-          }
-        )
-        console.log('AI results received:', results)
-      }
+      // Run AI evaluation with progress callback
+      const results = await evaluationService.evaluateWithAI(
+        evaluation.job,
+        evaluation.resumes,
+        {
+          stage: evaluation.stage || 1,
+          additionalInstructions,
+          provider: llmProvider,
+          model: llmModel,
+          onProgress: (progressData) => setProgress(progressData)
+        }
+      )
+      console.log('AI results received:', results)
 
       // Save results to session storage
-      if (evaluationMode === 'regex') {
-        sessionStore.updateEvaluation({ regexResults: results })
-      } else {
-        sessionStore.updateEvaluation({ aiResults: results })
-      }
+      sessionStore.updateEvaluation({ aiResults: results })
 
       console.log('Navigating to results page...')
       // Navigate to results
@@ -103,9 +136,7 @@ export function ReviewPage() {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>
   }
 
-  const estimatedCost = evaluationMode === 'ai'
-    ? (evaluation.resumes.length * COST_PER_CANDIDATE_AI).toFixed(3)
-    : '0.00'
+  const estimatedCost = (evaluation.resumes.length * getCurrentModelCost()).toFixed(3)
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -172,13 +203,13 @@ export function ReviewPage() {
 
         {/* Evaluation Mode Selection */}
         <Card className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Choose Evaluation Mode</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Choose AI Model</h3>
 
           <div className="space-y-4">
-            {/* Regex Mode */}
+            {/* OpenAI Mode (Fast & Cheap) */}
             <label
               className={`block p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                evaluationMode === 'regex'
+                evaluationMode === 'openai'
                   ? 'border-primary-600 bg-primary-50'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
@@ -187,32 +218,32 @@ export function ReviewPage() {
                 <input
                   type="radio"
                   name="evaluationMode"
-                  value="regex"
-                  checked={evaluationMode === 'regex'}
-                  onChange={(e) => setEvaluationMode(e.target.value)}
+                  value="openai"
+                  checked={evaluationMode === 'openai'}
+                  onChange={(e) => handleModeChange(e.target.value)}
                   className="mt-1"
                 />
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-gray-900">Regex Evaluation (Free)</span>
-                    <span className="text-sm font-semibold text-green-600">$0.00</span>
+                    <span className="font-semibold text-gray-900">OpenAI GPT-4o Mini (Fast Screening)</span>
+                    <span className="text-sm font-semibold text-green-600">${evaluationMode === 'openai' ? estimatedCost : (evaluation.resumes.length * 0.001).toFixed(3)}</span>
                   </div>
                   <p className="text-sm text-gray-600">
-                    Instant keyword matching against job requirements. Fast filtering to identify strong candidates. Best for initial screening of large batches.
+                    Cheapest option (~$0.001/candidate). Fast AI-powered screening to quickly filter candidates. Great for initial evaluation of large batches.
                   </p>
                   <div className="mt-2 flex gap-2">
-                    <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded">Instant</span>
-                    <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded">Free</span>
-                    <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded">Basic</span>
+                    <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded">Fastest</span>
+                    <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded">Cheapest</span>
+                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">AI-Powered</span>
                   </div>
                 </div>
               </div>
             </label>
 
-            {/* AI Mode */}
+            {/* Claude Mode (Deep Analysis) */}
             <label
               className={`block p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                evaluationMode === 'ai'
+                evaluationMode === 'claude'
                   ? 'border-primary-600 bg-primary-50'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
@@ -221,22 +252,22 @@ export function ReviewPage() {
                 <input
                   type="radio"
                   name="evaluationMode"
-                  value="ai"
-                  checked={evaluationMode === 'ai'}
-                  onChange={(e) => setEvaluationMode(e.target.value)}
+                  value="claude"
+                  checked={evaluationMode === 'claude'}
+                  onChange={(e) => handleModeChange(e.target.value)}
                   className="mt-1"
                 />
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-gray-900">AI Evaluation (Claude Haiku)</span>
-                    <span className="text-sm font-semibold text-primary-600">${estimatedCost}</span>
+                    <span className="font-semibold text-gray-900">Claude 3.5 Haiku (Deep Analysis)</span>
+                    <span className="text-sm font-semibold text-primary-600">${evaluationMode === 'claude' ? estimatedCost : (evaluation.resumes.length * 0.003).toFixed(3)}</span>
                   </div>
                   <p className="text-sm text-gray-600">
-                    Detailed analysis with scoring breakdown, strengths, concerns, and tailored interview questions. Matches your current Claude Desktop workflow.
+                    Premium analysis (~$0.003/candidate). Detailed scoring breakdown, strengths, concerns, and tailored interview questions. Best for final candidate evaluation.
                   </p>
                   <div className="mt-2 flex gap-2">
                     <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">~30s per candidate</span>
-                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">Detailed</span>
+                    <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded">Detailed Analysis</span>
                     <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded">Full Report</span>
                   </div>
                 </div>
@@ -244,13 +275,11 @@ export function ReviewPage() {
             </label>
           </div>
 
-          {evaluationMode === 'ai' && (
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
-              <p className="text-blue-800">
-                💡 <strong>Tip:</strong> Start with Regex (free) to filter candidates, then run AI evaluation on top performers only to save costs.
-              </p>
-            </div>
-          )}
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+            <p className="text-blue-800">
+              💡 <strong>Recommended workflow:</strong> Start with OpenAI for fast screening, then run Claude on top 5-10 candidates for detailed analysis.
+            </p>
+          </div>
         </Card>
 
         {/* Additional Instructions */}
@@ -283,19 +312,19 @@ export function ReviewPage() {
         </Card>
 
         {/* Cost Warning for Large Batches */}
-        {evaluationMode === 'ai' && evaluation.resumes.length > 10 && (
+        {evaluationMode === 'claude' && evaluation.resumes.length > 15 && (
           <Card className="mb-6 bg-yellow-50 border-yellow-300">
             <div className="flex items-start gap-3">
               <svg className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
               <div>
-                <h4 className="font-semibold text-yellow-900 mb-1">Large Batch Warning</h4>
+                <h4 className="font-semibold text-yellow-900 mb-1">Large Batch - Consider OpenAI First</h4>
                 <p className="text-sm text-yellow-800 mb-2">
-                  You're about to evaluate {evaluation.resumes.length} candidates with AI. This will cost approximately ${estimatedCost} and take ~{Math.ceil(evaluation.resumes.length / 3 * 30)} seconds.
+                  You're about to evaluate {evaluation.resumes.length} candidates with Claude. This will cost approximately ${estimatedCost} and take ~{Math.ceil(evaluation.resumes.length / 3 * 30)} seconds.
                 </p>
                 <p className="text-sm text-yellow-800">
-                  <strong>Tip:</strong> Consider running Regex evaluation first (free) to filter candidates, then run AI on top 5-10 performers.
+                  <strong>Tip:</strong> Consider running OpenAI screening first (3x cheaper) to filter candidates, then run Claude on top 5-10 performers.
                 </p>
               </div>
             </div>
@@ -308,13 +337,13 @@ export function ReviewPage() {
             Back
           </Button>
           <Button onClick={handleEvaluate} disabled={isEvaluating}>
-            {isEvaluating ? 'Evaluating...' : `Run ${evaluationMode === 'ai' ? 'AI' : 'Regex'} Evaluation`}
+            {isEvaluating ? 'Evaluating...' : `Run ${evaluationMode === 'openai' ? 'OpenAI' : 'Claude'} Evaluation`}
           </Button>
         </div>
       </div>
 
       {/* Progress Modal */}
-      <ProgressModal isOpen={isEvaluating && evaluationMode === 'ai'} progress={progress} />
+      <ProgressModal isOpen={isEvaluating} progress={progress} />
     </div>
   )
 }

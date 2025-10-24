@@ -1,13 +1,13 @@
 """
-AI Candidate Evaluator using Claude Haiku API
+AI Candidate Evaluator supporting multiple LLM providers
 Provides Stage 1 (Resume Screening) and Stage 2 (Final Hiring) evaluations
 
 This module contains the core AI evaluation logic extracted from evaluate_candidate.py
-and refactored for use with Flask server.
+and refactored for use with Flask server. Supports multiple LLM providers via abstraction layer.
 """
 import os
 import re
-import anthropic
+from llm_providers import get_provider
 
 
 # Path to recruiting-evaluation skill
@@ -181,30 +181,25 @@ def parse_stage1_response(response_text):
     return evaluation
 
 
-def evaluate_candidate_with_ai(job_data, candidate_data, stage=1, api_key=None):
+def evaluate_candidate_with_ai(job_data, candidate_data, stage=1, provider='anthropic', model=None, api_key=None):
     """
-    Evaluate a single candidate using Claude Haiku API
+    Evaluate a single candidate using specified LLM provider
 
     Args:
         job_data: Dictionary containing job details
         candidate_data: Dictionary containing candidate details
         stage: Evaluation stage (1 or 2)
-        api_key: Anthropic API key (if None, reads from environment)
+        provider: LLM provider to use ('anthropic' or 'openai')
+        model: Specific model to use (if None, uses provider default)
+        api_key: API key for the provider (if None, reads from environment)
 
     Returns:
         Dictionary with evaluation results and usage metrics
 
     Raises:
-        ValueError: If API key is missing or stage is invalid
+        ValueError: If API key is missing, stage is invalid, or provider is unsupported
         Exception: If API call fails
     """
-    # Get API key
-    if api_key is None:
-        api_key = os.environ.get('ANTHROPIC_API_KEY')
-
-    if not api_key:
-        raise ValueError('Missing ANTHROPIC_API_KEY environment variable')
-
     # Validate stage
     if stage not in [1, 2]:
         raise ValueError('Invalid stage. Must be 1 or 2.')
@@ -219,35 +214,28 @@ def evaluate_candidate_with_ai(job_data, candidate_data, stage=1, api_key=None):
     # Build prompt
     prompt = build_stage1_prompt(skill_instructions, job_data, candidate_data)
 
-    # Call Claude API
-    client = anthropic.Anthropic(api_key=api_key)
+    # Get LLM provider instance
+    try:
+        llm_provider = get_provider(provider, api_key=api_key, model=model)
+    except ValueError as e:
+        raise ValueError(f'Failed to initialize {provider} provider: {str(e)}')
 
-    message = client.messages.create(
-        model="claude-3-5-haiku-20241022",  # Claude Haiku for cost efficiency
-        max_tokens=4096,
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
-    )
+    # Call LLM provider
+    response_text, usage_metadata = llm_provider.evaluate(prompt)
 
     # Parse response
-    response_text = message.content[0].text
     evaluation_data = parse_stage1_response(response_text)
-
-    # Calculate cost (Haiku pricing)
-    input_cost = (message.usage.input_tokens / 1_000_000) * 0.25
-    output_cost = (message.usage.output_tokens / 1_000_000) * 1.25
-    total_cost = input_cost + output_cost
 
     return {
         'success': True,
         'stage': stage,
         'evaluation': evaluation_data,
         'usage': {
-            'input_tokens': message.usage.input_tokens,
-            'output_tokens': message.usage.output_tokens,
-            'cost': round(total_cost, 4)
+            'input_tokens': usage_metadata['input_tokens'],
+            'output_tokens': usage_metadata['output_tokens'],
+            'cost': usage_metadata['cost']
         },
-        'model': 'claude-3-5-haiku-20241022',
+        'model': usage_metadata['model'],
+        'provider': llm_provider.get_provider_name(),
         'raw_response': response_text  # Include for debugging
     }

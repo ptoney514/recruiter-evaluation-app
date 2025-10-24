@@ -93,9 +93,27 @@ export async function evaluateWithRegex(job, candidates) {
  * @returns {Promise<Object>} Evaluation result
  */
 async function evaluateSingleCandidate(job, candidate, options, retryCount = 0) {
-  const { stage = 1, additionalInstructions, maxRetries = 2 } = options
+  const { stage = 1, additionalInstructions, provider = 'anthropic', model = null, maxRetries = 2 } = options
 
   try {
+    const requestBody = {
+      job,
+      candidate: {
+        name: candidate.name,
+        text: candidate.text,
+        full_name: candidate.name,
+        email: candidate.email || ''
+      },
+      stage,
+      additional_instructions: additionalInstructions,
+      provider,
+    }
+
+    // Only include model if specified
+    if (model) {
+      requestBody.model = model
+    }
+
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/evaluate_candidate`,
       {
@@ -103,17 +121,7 @@ async function evaluateSingleCandidate(job, candidate, options, retryCount = 0) 
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          job,
-          candidate: {
-            name: candidate.name,
-            text: candidate.text,
-            full_name: candidate.name,
-            email: candidate.email || ''
-          },
-          stage,
-          additional_instructions: additionalInstructions
-        })
+        body: JSON.stringify(requestBody)
       },
       90000 // 90 second timeout
     )
@@ -231,19 +239,22 @@ async function processBatch(candidates, evaluateFn, concurrency = 3, onProgress 
  * Run AI-based evaluation on candidates
  * @param {Object} job - Job description data
  * @param {Array} candidates - Array of {name, text} objects
- * @param {Object} options - Additional options (stage, instructions, onProgress, etc.)
+ * @param {Object} options - Additional options (stage, instructions, provider, model, onProgress, etc.)
  * @returns {Promise<Object>} Evaluation results with rankings and cost
  */
 export async function evaluateWithAI(job, candidates, options = {}) {
   const {
     stage = 1,
     additionalInstructions,
+    provider = 'anthropic',
+    model = null,
     onProgress = null,
     concurrency = 3, // Max 3 parallel requests (respects 10/min rate limit)
     maxRetries = 2
   } = options
 
   console.log(`[AI Evaluation] Starting evaluation for ${candidates.length} candidates...`)
+  console.log(`[AI Evaluation] Provider: ${provider}, Model: ${model || 'default'}`)
   console.log(`[AI Evaluation] Concurrency: ${concurrency}, Max retries: ${maxRetries}`)
 
   let totalInputTokens = 0
@@ -259,6 +270,8 @@ export async function evaluateWithAI(job, candidates, options = {}) {
       const result = await evaluateSingleCandidate(job, candidate, {
         stage,
         additionalInstructions,
+        provider,
+        model,
         maxRetries
       })
 
