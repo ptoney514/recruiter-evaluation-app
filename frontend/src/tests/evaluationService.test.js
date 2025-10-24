@@ -267,7 +267,7 @@ describe('Evaluation Service', () => {
       expect(result.summary.errors).toBe(1)
     })
 
-    it('should evaluate multiple candidates sequentially', async () => {
+    it('should evaluate multiple candidates in parallel', async () => {
       const mockAIResponse = (score) => ({
         success: true,
         stage: 1,
@@ -289,12 +289,15 @@ describe('Evaluation Service', () => {
         }
       })
 
-      let callCount = 0
+      // Return different scores for each candidate
+      const scores = [92, 78, 85]
+      let callIndex = 0
       global.fetch = vi.fn(() => {
-        callCount++
+        const score = scores[callIndex % scores.length]
+        callIndex++
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve(mockAIResponse(80 + callCount)),
+          json: () => Promise.resolve(mockAIResponse(score)),
         })
       })
 
@@ -310,9 +313,10 @@ describe('Evaluation Service', () => {
       expect(fetch).toHaveBeenCalledTimes(3)
       expect(result.results).toHaveLength(3)
 
-      // Verify results are sorted by score descending
-      expect(result.results[0].score).toBeGreaterThan(result.results[1].score)
-      expect(result.results[1].score).toBeGreaterThan(result.results[2].score)
+      // Verify results are sorted by score descending (92, 85, 78)
+      expect(result.results[0].score).toBe(92)
+      expect(result.results[1].score).toBe(85)
+      expect(result.results[2].score).toBe(78)
 
       // Verify cost aggregation (use toBeCloseTo for floating point comparison)
       expect(result.usage.cost).toBeCloseTo(0.009, 5) // 3 candidates × 0.003

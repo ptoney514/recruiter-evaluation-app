@@ -85,93 +85,179 @@ export async function evaluateWithRegex(job, candidates) {
 }
 
 /**
- * Run AI-based evaluation on candidates
- * @param {Object} job - Job description data
- * @param {Array} candidates - Array of {name, text} objects
- * @param {Object} options - Additional options (stage, instructions, etc.)
- * @returns {Promise<Object>} Evaluation results with rankings and cost
+ * Evaluate a single candidate with retry logic
+ * @param {Object} job - Job description
+ * @param {Object} candidate - Candidate data
+ * @param {Object} options - Evaluation options
+ * @param {number} retryCount - Current retry attempt
+ * @returns {Promise<Object>} Evaluation result
  */
-export async function evaluateWithAI(job, candidates, options = {}) {
-  const { stage = 1, additionalInstructions } = options
+async function evaluateSingleCandidate(job, candidate, options, retryCount = 0) {
+  const { stage = 1, additionalInstructions, maxRetries = 2 } = options
 
-  console.log(`[AI Evaluation] Starting evaluation for ${candidates.length} candidates...`)
-
-  const results = []
-  let totalInputTokens = 0
-  let totalOutputTokens = 0
-  let totalCost = 0
-
-  // Evaluate each candidate individually
-  // Note: We could parallelize this, but sequential is safer for rate limiting
-  for (let i = 0; i < candidates.length; i++) {
-    const candidate = candidates[i]
-    console.log(`[AI Evaluation] Evaluating candidate ${i + 1}/${candidates.length}: ${candidate.name}`)
-
-    try {
-      const response = await fetchWithTimeout(
-        `${API_BASE_URL}/api/evaluate_candidate`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            job,
-            candidate: {
-              name: candidate.name,
-              text: candidate.text,
-              full_name: candidate.name,
-              email: candidate.email || ''
-            },
-            stage,
-            additional_instructions: additionalInstructions
-          })
+  try {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/evaluate_candidate`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        90000 // 90 second timeout for AI evaluation (Claude API can be slow)
-      )
+        body: JSON.stringify({
+          job,
+          candidate: {
+            name: candidate.name,
+            text: candidate.text,
+            full_name: candidate.name,
+            email: candidate.email || ''
+          },
+          stage,
+          additional_instructions: additionalInstructions
+        })
+      },
+      90000 // 90 second timeout
+    )
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || `AI evaluation failed for ${candidate.name}`)
-      }
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || `AI evaluation failed for ${candidate.name}`)
+    }
 
-      const data = await response.json()
+    const data = await response.json()
+    const camelData = snakeToCamel(data)
 
-      // Convert snake_case to camelCase
-      const camelData = snakeToCamel(data)
-
-      // Add candidate name to the evaluation result
-      const evaluation = {
+    return {
+      success: true,
+      evaluation: {
         name: candidate.name,
         ...camelData.evaluation
-      }
+      },
+      usage: camelData.usage
+    }
+  } catch (error) {
+    // Retry logic
+    if (retryCount < maxRetries) {
+      console.log(`[AI Evaluation] Retrying ${candidate.name} (attempt ${retryCount + 1}/${maxRetries})...`)
+      await new Promise(resolve => setTimeout(resolve, 2000)) // Wait 2s before retry
+      return evaluateSingleCandidate(job, candidate, options, retryCount + 1)
+    }
 
-      results.push(evaluation)
-
-      // Accumulate usage metrics
-      if (camelData.usage) {
-        totalInputTokens += camelData.usage.inputTokens || 0
-        totalOutputTokens += camelData.usage.outputTokens || 0
-        totalCost += camelData.usage.cost || 0
-      }
-
-      console.log(`[AI Evaluation] ✓ ${candidate.name}: Score ${evaluation.score}/100`)
-
-    } catch (error) {
-      console.error(`[AI Evaluation] ✗ Failed for ${candidate.name}:`, error.message)
-      // Add a failed result so we don't lose track of this candidate
-      results.push({
+    // Max retries reached, return error result
+    return {
+      success: false,
+      evaluation: {
         name: candidate.name,
         score: 0,
         recommendation: 'ERROR',
         error: error.message,
         keyStrengths: [],
-        keyConcerns: [`Evaluation failed: ${error.message}`],
+        keyConcerns: [`Evaluation failed after ${maxRetries + 1} attempts: ${error.message}`],
         interviewQuestions: [],
-        reasoning: 'AI evaluation failed. Please try again or use regex evaluation.'
-      })
+        reasoning: 'AI evaluation failed. You can retry this candidate later.'
+      },
+      usage: { inputTokens: 0, outputTokens: 0, cost: 0 }
     }
   }
+}
+
+/**
+ * Process candidates in parallel with concurrency control
+ * @param {Array} candidates - Candidates to evaluate
+ * @param {Function} evaluateFn - Evaluation function
+ * @param {number} concurrency - Max parallel requests (default: 3)
+ * @param {Function} onProgress - Progress callback
+ * @returns {Promise<Array>} Array of results
+ */
+async function processBatch(candidates, evaluateFn, concurrency = 3, onProgress = null) {
+  const results = []
+  const executing = []
+
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i]
+
+    const promise = evaluateFn(candidate, i).then(result => {
+      results[i] = result
+      if (onProgress) {
+        onProgress({
+          current: results.filter(r => r !== undefined).length,
+          total: candidates.length,
+          currentCandidate: candidate.name,
+          result
+        })
+      }
+      return result
+    })
+
+    executing.push(promise)
+
+    if (executing.length >= concurrency) {
+      await Promise.race(executing)
+      executing.splice(0, executing.findIndex(p => p === promise) + 1)
+    }
+  }
+
+  await Promise.all(executing)
+  return results
+}
+
+/**
+ * Run AI-based evaluation on candidates
+ * @param {Object} job - Job description data
+ * @param {Array} candidates - Array of {name, text} objects
+ * @param {Object} options - Additional options (stage, instructions, onProgress, etc.)
+ * @returns {Promise<Object>} Evaluation results with rankings and cost
+ */
+export async function evaluateWithAI(job, candidates, options = {}) {
+  const {
+    stage = 1,
+    additionalInstructions,
+    onProgress = null,
+    concurrency = 3, // Max 3 parallel requests (respects 10/min rate limit)
+    maxRetries = 2
+  } = options
+
+  console.log(`[AI Evaluation] Starting evaluation for ${candidates.length} candidates...`)
+  console.log(`[AI Evaluation] Concurrency: ${concurrency}, Max retries: ${maxRetries}`)
+
+  let totalInputTokens = 0
+  let totalOutputTokens = 0
+  let totalCost = 0
+
+  // Evaluate candidates with parallel processing and concurrency control
+  const evaluationResults = await processBatch(
+    candidates,
+    async (candidate, index) => {
+      console.log(`[AI Evaluation] Evaluating candidate ${index + 1}/${candidates.length}: ${candidate.name}`)
+
+      const result = await evaluateSingleCandidate(job, candidate, {
+        stage,
+        additionalInstructions,
+        maxRetries
+      })
+
+      if (result.success) {
+        console.log(`[AI Evaluation] ✓ ${candidate.name}: Score ${result.evaluation.score}/100`)
+      } else {
+        console.error(`[AI Evaluation] ✗ Failed for ${candidate.name}: ${result.evaluation.error}`)
+      }
+
+      return result
+    },
+    concurrency,
+    onProgress
+  )
+
+  // Process results
+  const results = evaluationResults.map(r => r.evaluation)
+
+  // Accumulate usage metrics
+  evaluationResults.forEach(r => {
+    if (r.usage) {
+      totalInputTokens += r.usage.inputTokens || 0
+      totalOutputTokens += r.usage.outputTokens || 0
+      totalCost += r.usage.cost || 0
+    }
+  })
 
   // Sort by score descending
   results.sort((a, b) => b.score - a.score)
