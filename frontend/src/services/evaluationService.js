@@ -89,11 +89,129 @@ export async function evaluateWithRegex(job, candidates) {
  * @param {Object} job - Job description data
  * @param {Array} candidates - Array of {name, text} objects
  * @param {Object} options - Additional options (stage, instructions, etc.)
- * @returns {Promise<Object>} Evaluation results
+ * @returns {Promise<Object>} Evaluation results with rankings and cost
  */
 export async function evaluateWithAI(job, candidates, options = {}) {
-  // TODO: Implement AI evaluation (Issue #18)
-  throw new Error('AI evaluation not yet implemented. Use regex mode for now.')
+  const { stage = 1, additionalInstructions } = options
+
+  console.log(`[AI Evaluation] Starting evaluation for ${candidates.length} candidates...`)
+
+  const results = []
+  let totalInputTokens = 0
+  let totalOutputTokens = 0
+  let totalCost = 0
+
+  // Evaluate each candidate individually
+  // Note: We could parallelize this, but sequential is safer for rate limiting
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i]
+    console.log(`[AI Evaluation] Evaluating candidate ${i + 1}/${candidates.length}: ${candidate.name}`)
+
+    try {
+      const response = await fetchWithTimeout(
+        `${API_BASE_URL}/api/evaluate_candidate`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            job,
+            candidate: {
+              name: candidate.name,
+              text: candidate.text,
+              full_name: candidate.name,
+              email: candidate.email || ''
+            },
+            stage,
+            additional_instructions: additionalInstructions
+          })
+        },
+        90000 // 90 second timeout for AI evaluation (Claude API can be slow)
+      )
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || `AI evaluation failed for ${candidate.name}`)
+      }
+
+      const data = await response.json()
+
+      // Convert snake_case to camelCase
+      const camelData = snakeToCamel(data)
+
+      // Add candidate name to the evaluation result
+      const evaluation = {
+        name: candidate.name,
+        ...camelData.evaluation
+      }
+
+      results.push(evaluation)
+
+      // Accumulate usage metrics
+      if (camelData.usage) {
+        totalInputTokens += camelData.usage.inputTokens || 0
+        totalOutputTokens += camelData.usage.outputTokens || 0
+        totalCost += camelData.usage.cost || 0
+      }
+
+      console.log(`[AI Evaluation] ✓ ${candidate.name}: Score ${evaluation.score}/100`)
+
+    } catch (error) {
+      console.error(`[AI Evaluation] ✗ Failed for ${candidate.name}:`, error.message)
+      // Add a failed result so we don't lose track of this candidate
+      results.push({
+        name: candidate.name,
+        score: 0,
+        recommendation: 'ERROR',
+        error: error.message,
+        keyStrengths: [],
+        keyConcerns: [`Evaluation failed: ${error.message}`],
+        interviewQuestions: [],
+        reasoning: 'AI evaluation failed. Please try again or use regex evaluation.'
+      })
+    }
+  }
+
+  // Sort by score descending
+  results.sort((a, b) => b.score - a.score)
+
+  // Generate summary
+  const advanceCount = results.filter(r => r.recommendation === 'ADVANCE TO INTERVIEW').length
+  const phoneCount = results.filter(r => r.recommendation === 'PHONE SCREEN FIRST').length
+  const declineCount = results.filter(r => r.recommendation === 'DECLINE').length
+  const errorCount = results.filter(r => r.recommendation === 'ERROR').length
+
+  const summary = {
+    totalCandidates: results.length,
+    advanceToInterview: advanceCount,
+    phoneScreen: phoneCount,
+    declined: declineCount,
+    errors: errorCount,
+    topCandidate: results.length > 0 ? results[0].name : null,
+    topScore: results.length > 0 ? results[0].score : 0
+  }
+
+  console.log('[AI Evaluation] Complete:', {
+    total: results.length,
+    advance: advanceCount,
+    phoneScreen: phoneCount,
+    decline: declineCount,
+    errors: errorCount,
+    totalCost: totalCost.toFixed(4)
+  })
+
+  return {
+    success: true,
+    results,
+    summary,
+    usage: {
+      inputTokens: totalInputTokens,
+      outputTokens: totalOutputTokens,
+      cost: totalCost,
+      avgCostPerCandidate: totalCost / (results.length || 1)
+    }
+  }
 }
 
 export const evaluationService = {

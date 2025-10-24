@@ -153,15 +153,164 @@ export function ResultsPage() {
           </div>
         </Card>
 
-        {/* Detailed Analysis (placeholder for AI mode) */}
-        {results.mode === 'ai' && (
-          <Card className="mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Detailed Analysis</h2>
-            <div className="p-8 bg-gray-50 rounded-lg text-center text-gray-500">
-              <p>Detailed per-candidate analysis with strengths, concerns, and interview questions will appear here.</p>
-              <p className="text-sm mt-2">(Coming soon - will match your Claude Desktop markdown format)</p>
+        {/* AI Cost Summary */}
+        {results.mode === 'ai' && results.usage && (
+          <Card className="mb-6 bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">AI Evaluation Summary</h2>
+            <div className="grid grid-cols-4 gap-4">
+              <div>
+                <div className="text-sm text-gray-600 mb-1">Total Cost</div>
+                <div className="text-2xl font-bold text-blue-600">${results.usage.cost.toFixed(4)}</div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-600 mb-1">Avg per Candidate</div>
+                <div className="text-lg font-semibold text-gray-700">${results.usage.avgCostPerCandidate.toFixed(4)}</div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-600 mb-1">Input Tokens</div>
+                <div className="text-lg font-semibold text-gray-700">{results.usage.inputTokens.toLocaleString()}</div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-600 mb-1">Output Tokens</div>
+                <div className="text-lg font-semibold text-gray-700">{results.usage.outputTokens.toLocaleString()}</div>
+              </div>
             </div>
           </Card>
+        )}
+
+        {/* Detailed Analysis for AI mode */}
+        {results.mode === 'ai' && (
+          <div className="space-y-6 mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Detailed AI Analysis</h2>
+            {candidates.map((candidate, index) => (
+              <Card key={index} className="overflow-hidden">
+                {/* Candidate Header */}
+                <div className={`p-4 ${
+                  candidate.recommendation === 'ADVANCE TO INTERVIEW' ? 'bg-green-50 border-b border-green-200' :
+                  candidate.recommendation === 'PHONE SCREEN FIRST' ? 'bg-yellow-50 border-b border-yellow-200' :
+                  candidate.recommendation === 'ERROR' ? 'bg-red-50 border-b border-red-200' :
+                  'bg-gray-50 border-b border-gray-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">
+                        #{index + 1} {candidate.name}
+                      </h3>
+                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold mt-1 ${
+                        candidate.recommendation === 'ADVANCE TO INTERVIEW' ? 'bg-green-100 text-green-800' :
+                        candidate.recommendation === 'PHONE SCREEN FIRST' ? 'bg-yellow-100 text-yellow-800' :
+                        candidate.recommendation === 'ERROR' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {candidate.recommendation}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-4xl font-bold ${
+                        candidate.score >= 85 ? 'text-green-600' :
+                        candidate.score >= 70 ? 'text-yellow-600' :
+                        'text-gray-600'
+                      }`}>
+                        {candidate.score}
+                      </div>
+                      <div className="text-sm text-gray-600">Overall Score</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Score Breakdown */}
+                {candidate.qualificationsScore !== undefined && (
+                  <div className="p-4 bg-gray-50 border-b">
+                    <h4 className="font-semibold text-gray-900 mb-3">Score Breakdown</h4>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <div className="text-sm text-gray-600">Qualifications (40%)</div>
+                        <div className="text-2xl font-bold text-gray-900">{candidate.qualificationsScore}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-600">Experience (40%)</div>
+                        <div className="text-2xl font-bold text-gray-900">{candidate.experienceScore}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-600">Risk Flags (20%)</div>
+                        <div className="text-2xl font-bold text-gray-900">{candidate.riskFlagsScore}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Analysis Details */}
+                <div className="p-6 space-y-6">
+                  {/* Key Strengths */}
+                  {candidate.keyStrengths && candidate.keyStrengths.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-green-900 mb-2 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        Key Strengths
+                      </h4>
+                      <ul className="list-disc list-inside space-y-1 text-gray-700">
+                        {candidate.keyStrengths.map((strength, i) => (
+                          <li key={i}>{strength}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Key Concerns */}
+                  {candidate.keyConcerns && candidate.keyConcerns.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-yellow-900 mb-2 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        Key Concerns
+                      </h4>
+                      <ul className="list-disc list-inside space-y-1 text-gray-700">
+                        {candidate.keyConcerns.map((concern, i) => (
+                          <li key={i}>{concern}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Interview Questions */}
+                  {candidate.interviewQuestions && candidate.interviewQuestions.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Suggested Interview Questions
+                      </h4>
+                      <ol className="list-decimal list-inside space-y-2 text-gray-700">
+                        {candidate.interviewQuestions.map((question, i) => (
+                          <li key={i} className="pl-2">{question}</li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+
+                  {/* Reasoning */}
+                  {candidate.reasoning && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2">AI Reasoning</h4>
+                      <p className="text-gray-700 whitespace-pre-line">{candidate.reasoning}</p>
+                    </div>
+                  )}
+
+                  {/* Error Display */}
+                  {candidate.error && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded">
+                      <h4 className="font-semibold text-red-900 mb-2">Evaluation Error</h4>
+                      <p className="text-red-700">{candidate.error}</p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
         )}
 
         {/* Actions */}
