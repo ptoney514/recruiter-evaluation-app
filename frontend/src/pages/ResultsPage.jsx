@@ -75,9 +75,18 @@ export function ResultsPage() {
   }
 
   const candidates = results.results || results.candidates || []
-  const advanceCount = results.summary?.advance_to_interview || candidates.filter(c => c.recommendation === 'ADVANCE TO INTERVIEW').length
-  const phoneScreenCount = results.summary?.phone_screen || candidates.filter(c => c.recommendation === 'PHONE SCREEN FIRST').length
-  const declineCount = results.summary?.declined || candidates.filter(c => c.recommendation === 'DECLINE').length
+
+  // Handle both camelCase (AI) and snake_case (regex) summary fields
+  const advanceCount = results.summary?.advanceToInterview ??
+                        results.summary?.advance_to_interview ??
+                        candidates.filter(c => c?.recommendation === 'ADVANCE TO INTERVIEW').length
+
+  const phoneScreenCount = results.summary?.phoneScreen ??
+                           results.summary?.phone_screen ??
+                           candidates.filter(c => c?.recommendation === 'PHONE SCREEN FIRST').length
+
+  const declineCount = results.summary?.declined ??
+                       candidates.filter(c => c?.recommendation === 'DECLINE').length
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
