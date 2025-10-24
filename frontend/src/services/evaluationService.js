@@ -162,42 +162,69 @@ async function evaluateSingleCandidate(job, candidate, options, retryCount = 0) 
 
 /**
  * Process candidates in parallel with concurrency control
+ * Uses a simple queue-based approach for reliable concurrency limiting
  * @param {Array} candidates - Candidates to evaluate
  * @param {Function} evaluateFn - Evaluation function
  * @param {number} concurrency - Max parallel requests (default: 3)
  * @param {Function} onProgress - Progress callback
- * @returns {Promise<Array>} Array of results
+ * @returns {Promise<Array>} Array of results (guaranteed no nulls)
  */
 async function processBatch(candidates, evaluateFn, concurrency = 3, onProgress = null) {
   const results = []
-  const executing = []
+  let currentIndex = 0
+  let completed = 0
 
-  for (let i = 0; i < candidates.length; i++) {
-    const candidate = candidates[i]
+  // Worker function that processes one candidate then gets the next
+  const worker = async () => {
+    while (currentIndex < candidates.length) {
+      const index = currentIndex++
+      const candidate = candidates[index]
 
-    const promise = evaluateFn(candidate, i).then(result => {
-      results[i] = result
-      if (onProgress) {
-        onProgress({
-          current: results.filter(r => r !== undefined).length,
-          total: candidates.length,
-          currentCandidate: candidate.name,
-          result
-        })
+      try {
+        const result = await evaluateFn(candidate, index)
+        results[index] = result
+        completed++
+
+        if (onProgress) {
+          onProgress({
+            current: completed,
+            total: candidates.length,
+            currentCandidate: candidate.name,
+            result
+          })
+        }
+      } catch (error) {
+        console.error(`Worker error for candidate ${index}:`, error)
+        // Store error result
+        results[index] = {
+          evaluation: {
+            name: candidate.name,
+            score: 0,
+            recommendation: 'ERROR',
+            error: error.message,
+            keyStrengths: [],
+            keyConcerns: [`Worker error: ${error.message}`],
+            interviewQuestions: [],
+            reasoning: 'Processing error occurred.'
+          },
+          usage: { inputTokens: 0, outputTokens: 0, cost: 0 }
+        }
+        completed++
       }
-      return result
-    })
-
-    executing.push(promise)
-
-    if (executing.length >= concurrency) {
-      await Promise.race(executing)
-      executing.splice(0, executing.findIndex(p => p === promise) + 1)
     }
   }
 
-  await Promise.all(executing)
-  return results
+  // Start N concurrent workers
+  const workers = []
+  for (let i = 0; i < Math.min(concurrency, candidates.length); i++) {
+    workers.push(worker())
+  }
+
+  // Wait for all workers to complete
+  await Promise.all(workers)
+
+  // Filter out any null/undefined results and return
+  return results.filter(r => r != null)
 }
 
 /**

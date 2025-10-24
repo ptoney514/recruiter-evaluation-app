@@ -74,19 +74,26 @@ export function ResultsPage() {
     )
   }
 
-  const candidates = results.results || results.candidates || []
+  // Filter out any null/undefined candidates from the results array
+  const allCandidates = results.results || results.candidates || []
+  const candidates = allCandidates.filter(c => c != null && c.name != null)
+
+  // Log for debugging
+  if (allCandidates.length !== candidates.length) {
+    console.warn(`Filtered out ${allCandidates.length - candidates.length} null candidates from results`)
+  }
 
   // Handle both camelCase (AI) and snake_case (regex) summary fields
   const advanceCount = results.summary?.advanceToInterview ??
                         results.summary?.advance_to_interview ??
-                        candidates.filter(c => c?.recommendation === 'ADVANCE TO INTERVIEW').length
+                        candidates.filter(c => c.recommendation === 'ADVANCE TO INTERVIEW').length
 
   const phoneScreenCount = results.summary?.phoneScreen ??
                            results.summary?.phone_screen ??
-                           candidates.filter(c => c?.recommendation === 'PHONE SCREEN FIRST').length
+                           candidates.filter(c => c.recommendation === 'PHONE SCREEN FIRST').length
 
   const declineCount = results.summary?.declined ??
-                       candidates.filter(c => c?.recommendation === 'DECLINE').length
+                       candidates.filter(c => c.recommendation === 'DECLINE').length
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -126,9 +133,9 @@ export function ResultsPage() {
           </div>
         </Card>
 
-        {/* Ranked Results */}
+        {/* Summary Rankings */}
         <Card className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Candidate Rankings</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Summary Rankings</h2>
 
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -138,6 +145,9 @@ export function ResultsPage() {
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Candidate</th>
                   <th className="text-center py-3 px-4 text-sm font-semibold text-gray-600">Score</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Recommendation</th>
+                  {results.mode === 'ai' && (
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Key Strength</th>
+                  )}
                   {results.mode === 'regex' && (
                     <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Matched</th>
                   )}
@@ -166,6 +176,15 @@ export function ResultsPage() {
                         {candidate.recommendation}
                       </span>
                     </td>
+                    {results.mode === 'ai' && (
+                      <td className="py-4 px-4">
+                        <div className="text-sm text-gray-700">
+                          {candidate.keyStrengths && candidate.keyStrengths.length > 0
+                            ? candidate.keyStrengths[0]
+                            : 'N/A'}
+                        </div>
+                      </td>
+                    )}
                     {results.mode === 'regex' && (
                       <td className="py-4 px-4">
                         <div className="text-sm">

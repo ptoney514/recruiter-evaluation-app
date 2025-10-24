@@ -383,5 +383,89 @@ describe('Evaluation Service', () => {
       expect(result.results[0].recommendation).toBe('ERROR')
       expect(result.results[0].error).toContain('timed out')
     })
+
+    it('should evaluate 6 candidates with parallel processing without null entries', async () => {
+      // This test replicates the real-world scenario causing the bug
+      const scores = [92, 78, 85, 67, 88, 74]
+      let callIndex = 0
+
+      global.fetch = vi.fn(() => {
+        const score = scores[callIndex % scores.length]
+        callIndex++
+
+        // Simulate varying response times
+        const delay = Math.random() * 100
+
+        return new Promise(resolve => {
+          setTimeout(() => {
+            resolve({
+              ok: true,
+              json: () => Promise.resolve({
+                success: true,
+                stage: 1,
+                evaluation: {
+                  score,
+                  qualifications_score: score,
+                  experience_score: score,
+                  risk_flags_score: score,
+                  recommendation: score >= 85 ? 'ADVANCE TO INTERVIEW' :
+                                score >= 70 ? 'PHONE SCREEN FIRST' : 'DECLINE',
+                  key_strengths: [`Strength for candidate ${callIndex}`],
+                  key_concerns: [`Concern for candidate ${callIndex}`],
+                  interview_questions: ['Q1', 'Q2', 'Q3'],
+                  reasoning: `Reasoning for candidate ${callIndex}`
+                },
+                usage: {
+                  input_tokens: 1000,
+                  output_tokens: 300,
+                  cost: 0.003
+                }
+              })
+            })
+          }, delay)
+        })
+      })
+
+      const candidates = [
+        { name: 'Alice Johnson', text: 'Resume 1' },
+        { name: 'Bob Smith', text: 'Resume 2' },
+        { name: 'Carol Davis', text: 'Resume 3' },
+        { name: 'David Wilson', text: 'Resume 4' },
+        { name: 'Emma Brown', text: 'Resume 5' },
+        { name: 'Frank Miller', text: 'Resume 6' }
+      ]
+
+      const result = await evaluateWithAI(itSecurityJob, candidates)
+
+      // CRITICAL: Verify all 6 candidates evaluated
+      expect(fetch).toHaveBeenCalledTimes(6)
+      expect(result.results).toHaveLength(6)
+
+      // CRITICAL: Verify NO null/undefined entries
+      result.results.forEach((candidate, index) => {
+        expect(candidate, `Candidate at index ${index} should not be null`).toBeTruthy()
+        expect(candidate.name, `Name for candidate ${index} should exist`).toBeTruthy()
+        expect(candidate.score, `Score for candidate ${index} should exist`).toBeDefined()
+        expect(candidate.recommendation).toBeDefined()
+      })
+
+      // Verify correct sorting (descending by score)
+      expect(result.results[0].score).toBe(92)
+      expect(result.results[5].score).toBe(67)
+
+      // Verify all names are present
+      const names = result.results.map(r => r.name)
+      expect(names).toContain('Alice Johnson')
+      expect(names).toContain('Frank Miller')
+
+      // Verify summary
+      expect(result.summary.totalCandidates).toBe(6)
+      expect(result.summary.advanceToInterview).toBe(3)
+      expect(result.summary.phoneScreen).toBe(2)
+      expect(result.summary.declined).toBe(1)
+
+      // Verify cost
+      expect(result.usage.cost).toBeCloseTo(0.018, 5)
+    })
   })
 })

@@ -161,10 +161,22 @@ def parse_stage1_response(response_text):
             evaluation['key_concerns'].append(line[2:])
         elif line.startswith(('1.', '2.', '3.')) and current_section == 'questions':
             evaluation['interview_questions'].append(line[3:].strip())
-        elif current_section == 'reasoning' and line:
-            evaluation['reasoning'] += line + ' '
+        elif current_section == 'reasoning':
+            if line:
+                # Add line with space, but detect sentence endings
+                if evaluation['reasoning'] and evaluation['reasoning'][-1] not in '.!?':
+                    evaluation['reasoning'] += ' '
+                evaluation['reasoning'] += line + ' '
+            else:
+                # Empty line = paragraph break
+                if evaluation['reasoning'] and not evaluation['reasoning'].endswith('\n\n'):
+                    evaluation['reasoning'] = evaluation['reasoning'].strip() + '\n\n'
 
+    # Clean up reasoning and ensure proper paragraph formatting
     evaluation['reasoning'] = evaluation['reasoning'].strip()
+    # Replace multiple spaces with single space within paragraphs
+    import re
+    evaluation['reasoning'] = re.sub(r'  +', ' ', evaluation['reasoning'])
 
     return evaluation
 
