@@ -1,31 +1,29 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { JobsPage } from './pages/JobsPage'
-import { JobDetailPage } from './pages/JobDetailPage'
-import { DashboardPage } from './pages/DashboardPage'
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-      staleTime: 5 * 60 * 1000 // 5 minutes
-    }
-  }
-})
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { HomePage } from './pages/HomePage'
+import { JobInputPage } from './pages/JobInputPage'
+import { ResumeUploadPage } from './pages/ResumeUploadPage'
+import { ReviewPage } from './pages/ReviewPage'
+import { ResultsPage } from './pages/ResultsPage'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true
+        }}
+      >
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/jobs" element={<JobsPage />} />
-          <Route path="/jobs/:id" element={<JobDetailPage />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/job-input" element={<JobInputPage />} />
+          <Route path="/upload-resumes" element={<ResumeUploadPage />} />
+          <Route path="/review" element={<ReviewPage />} />
+          <Route path="/results" element={<ResultsPage />} />
         </Routes>
       </BrowserRouter>
-    </QueryClientProvider>
+    </ErrorBoundary>
   )
 }
 

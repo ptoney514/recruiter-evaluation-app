@@ -4,14 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-AI-powered candidate evaluation system that helps recruiters make data-driven hiring decisions using Claude API. Uses a two-stage evaluation framework to screen resumes and make final hiring decisions.
+**Batch Resume Ranker** - A web app that helps recruiters quickly evaluate and rank multiple candidates using AI-powered analysis. Integrates with ATS exports (like Oracle Recruiting Cloud) to provide instant keyword matching (free) or detailed Claude API evaluations (paid, selective).
+
+**Key Value Proposition:**
+- Upload 1-50 resumes at once
+- Instant regex-based ranking (free)
+- Selective AI deep-dive on top candidates (cost-optimized)
+- Get formatted evaluation reports matching Claude Desktop output
+- ATS-agnostic (works with Oracle, career fair resumes, any PDFs)
 
 ## Quick Start (New Developer)
 
 **Prerequisites:**
 - Node.js 18+
-- Docker Desktop (for local Supabase)
-- Supabase CLI: `brew install supabase/tap/supabase`
+- Python 3.13+ (for API)
+- Anthropic API key (for AI evaluations)
 
 **Setup Steps:**
 
@@ -22,63 +29,59 @@ AI-powered candidate evaluation system that helps recruiters make data-driven hi
    cd frontend && npm install && cd ..
    ```
 
-2. **Start Local Supabase**
+2. **Configure API Environment**
    ```bash
-   supabase start
-   # Wait for containers to start (first time takes ~2 minutes)
-   ```
-
-3. **Configure Frontend Environment**
-   ```bash
-   # Copy local Supabase credentials
-   cd frontend
+   cd api
    cp .env.example .env
-   # Update .env with local Supabase URL and anon key from `supabase status`
+   # Add your ANTHROPIC_API_KEY to .env
    ```
 
-4. **Start Development Server**
+3. **Install Python Dependencies**
    ```bash
-   npm run dev
-   # Frontend runs at http://localhost:5173 (or :3000 if configured)
+   # From project root
+   pip3 install --break-system-packages anthropic pdfplumber python-docx Pillow
+   ```
+
+4. **Start Development Servers**
+   ```bash
+   # Terminal 1: Start API server
+   cd api && python3 dev_server.py 8000
+
+   # Terminal 2: Start frontend
+   cd frontend && npm run dev
    ```
 
 5. **Access Local Services**
-   - **Frontend**: http://localhost:5173
-   - **Supabase Studio**: http://127.0.0.1:54323 (Database UI)
-   - **API**: http://127.0.0.1:54321
-   - **Database**: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+   - **Frontend**: http://localhost:3000
+   - **API Server**: http://localhost:8000
 
-6. **Verify Setup**
-   ```bash
-   # Check Supabase status
-   supabase status
-
-   # View tables in database
-   docker exec supabase_db_recruiter-evaluation-app psql -U postgres -d postgres -c "\dt"
-   # Should show: jobs, candidates, evaluations, candidate_rankings, interview_ratings, reference_checks
-   ```
+6. **Test the Workflow**
+   - Navigate to http://localhost:3000
+   - Upload a job description (or use a template)
+   - Upload sample resume PDFs
+   - Run regex evaluation (instant, free)
+   - Optionally run AI evaluation on selected candidates
 
 **Common Commands:**
 ```bash
-# Stop Supabase
-supabase stop
+# Start API server
+cd api && python3 dev_server.py 8000
 
-# Reset database to migrations
-supabase db reset
+# Start frontend dev server
+cd frontend && npm run dev
 
-# View Supabase logs
-supabase logs
-
-# Open Studio UI
-open http://127.0.0.1:54323
+# Test API endpoint
+curl -X OPTIONS http://localhost:8000/api/parse_resume
 ```
 
 ## Tech Stack
 
-- **Frontend**: Vite + React, Tailwind CSS, React Router, React Query (TanStack Query), Zustand
-- **Backend**: Python serverless functions (Vercel), Supabase (PostgreSQL + Storage)
+- **Frontend**: Vite + React, Tailwind CSS, React Router
+- **State Management**: Browser sessionStorage (no persistent database)
+- **Backend**: Python serverless functions (Vercel)
 - **AI**: Claude 3.5 Haiku API via Anthropic SDK
-- **Deployment**: Vercel (frontend + API), Supabase (database)
+- **PDF Parsing**: pdfplumber (Python), PDF.js (client-side)
+- **Deployment**: Vercel (frontend + API functions)
 
 ## Development Commands
 
