@@ -1,203 +1,191 @@
 # Project Status
 
-Last Updated: 2025-10-23
+Last Updated: 2025-10-24
 
 ## Current Focus
 
-**MAJOR PIVOT**: Simplifying architecture to build a batch resume ranker that integrates with Oracle Recruiting Cloud (ATS-agnostic). Removing unnecessary complexity (Supabase, job CRUD UI) to focus on core value: uploading resumes + getting AI-ranked evaluations.
+**STRATEGIC PIVOT**: Building foundation for sellable product with web + iOS apps. Adding Supabase for user authentication, persistent storage, and multi-device access. Following Claude Code 2.0 best practices for project organization.
 
 ## In Progress 🚧
 
-**Current Branch**: `refactor/batch-resume-ranker`
+- [ ] Documentation restructuring (Claude Code 2.0 best practices)
+  - Created STATUS.md for current work tracking ✅
+  - Refactoring CLAUDE.md to stable architecture only
+  - Moving ARCHITECTURE_ANALYSIS.md to docs/ folder
+  - Status: In progress
 
-### Architecture Refactor
-- [ ] Remove Supabase database and all persistence layer
-- [ ] Remove Jobs CRUD UI (not needed - Oracle handles this)
-- [ ] Remove Interview Rating Forms (replace with flexible text input)
-- [ ] Implement session-based storage (browser sessionStorage)
-- [ ] Build regex-based evaluator (free, instant keyword matching)
-- [ ] Add selective AI evaluation (run AI only on chosen candidates)
-- [ ] Create job description templates (Nurse, Professor, etc.)
-- [ ] Build batch upload workflow (1-50 resumes at once)
-- [ ] Format AI output to match existing markdown report format
+- [ ] Supabase integration preparation
+  - Local Supabase running in Docker ✅
+  - Migrations 001-003 applied to local DB ✅
+  - Need migration 004: Add user_id columns and RLS policies
+  - Frontend Supabase client setup
+  - useAuth hook creation
+  - Login/signup pages
+  - Blocker: Decide on Supabase cloud project setup
+
+- [ ] React Query integration
+  - Install @tanstack/react-query
+  - Replace sessionStorage service with Supabase queries
+  - Add server state caching
+  - Status: Not started
 
 ## Recently Completed ✅
 
-- **Architecture Discovery** (Oct 23)
-  - Clarified actual use case: Batch resume ranker, NOT full ATS
-  - User has Oracle Recruiting Cloud for candidate management
-  - Identified workflow: Download resumes from Oracle → Upload to tool → Get AI rankings
-  - Current working system: Claude Desktop app with markdown reports
-  - Goal: Replicate Claude Desktop workflow as web app
+- **Architecture Analysis & MVP Roadmap** (Oct 24)
+  - Reviewed PRD against current codebase
+  - Decision: Keep Python backend (better for PDF/AI than Node.js)
+  - Decision: Use hybrid storage (Supabase + sessionStorage for anonymous)
+  - Created 4-6 week MVP roadmap
+  - Documented marketing strategy and go-to-market plan
 
-- **Job Upload Feature** (Oct 23)
-  - Created regex-based job parser (parse_job_simple.py)
-  - Removed expensive AI-based parsing
-  - Built dev server for local API testing
-  - Interview rating form (will be replaced with flexible text input)
+- **Multi-LLM Provider Support** (Oct 24)
+  - Added OpenAI GPT-4o Mini support alongside Claude Haiku
+  - Provider selection via API parameter
+  - Migration 003 tracks provider/model used
+  - Cost optimization: Haiku = $0.003/eval (5x cheaper than Sonnet)
 
-- Local Supabase setup with migration 002 deployed (Oct 22)
+- **ResultsPage UI Redesign** (Oct 23)
+  - Modern collapsible sections for better UX
+  - Enhanced readability and navigation
+  - Improved mobile responsiveness
+
+- **Bug Fixes** (Oct 22-23)
+  - Fixed AI evaluation null errors for 6+ resume batches
+  - Added camelCase/snake_case compatibility for API responses
+  - Increased rate limit for parallel processing in local dev
+
+- **Local Supabase Setup** (Oct 22)
   - Initialized Supabase CLI in project
   - Started local Supabase instance in Docker
-  - Applied migration 002_interview_and_references.sql successfully
-  - Verified `interview_ratings` and `reference_checks` tables created
-  - Verified all indexes and constraints in place
-  - Created frontend/.env with local Supabase credentials
-  - **Issue #1 completed for local development!**
-
-- Updated project to Claude Code v2.0 structure (Oct 22)
-  - Created CLAUDE.md with architectural guidance
-  - Created STATUS.md for tracking current work
-  - Added Key Design Decisions, Trade-offs, Constraints sections
-  - Added Testing Philosophy and Current Phase
-
-- Created GitHub issues for next development phase (Oct 22)
-  - Issue #1: Supabase migration setup
-  - Issue #2: Stage 1 API testing
-  - Issue #3: Stage 2 API testing
-  - Issue #4: Interview rating form UI
-  - Issue #5: Reference check form UI
-
-- Two-stage evaluation API implementation (Oct 22)
-  - Stage 1: Resume screening with 0-100 scoring
-  - Stage 2: Final decision with weighted scoring (25% resume + 50% interview + 25% references)
-
-- Database schema for Stage 2 data (Oct 22)
-  - `interview_ratings` table with competency ratings
-  - `reference_checks` table with reference data
-  - Updated `evaluations` table with stage tracking
-
-- Skills sync: recruiting-evaluation skill (Oct 21)
-  - Integrated evaluation criteria from skill file
-  - Fallback to inline instructions if skill not found
+  - Applied migrations 001-003 successfully
+  - Configured auth settings for localhost:3000
 
 ## Known Issues 🐛
 
-- Port mismatch in documentation
-  - README states `localhost:3000`
-  - Vite defaults to `localhost:5173`
-  - Need to standardize documentation
-
-- Need to verify CORS configuration
-  - Ensure all API endpoints have proper CORS headers
-  - Test cross-origin requests from frontend
-
-- Hardcoded skill path in evaluate_candidate.py
-  - Currently points to `~/.claude/skills/recruiting-evaluation/SKILL.md`
-  - May break if skill file doesn't exist or path changes
-  - Fallback logic exists but should be tested
+- GitHub Issue #1: Supabase migrations need cloud deployment
+- GitHub Issue #2: API endpoint testing and validation needed
+- GitHub Issue #3: Error handling improvements across app
+- GitHub Issue #4: Interview rating form UI (Stage 2 evaluations)
+- GitHub Issue #5: Reference check form UI (Stage 2 evaluations)
+- Port mismatch: README says 3000, Vite uses 5173 (document standardize)
+- Need CORS verification on all API endpoints
 
 ## Next Session Goals
 
-1. **Complete Supabase Setup** (Issue #1)
-   - Access Supabase dashboard
-   - Run 002_interview_and_references.sql migration
-   - Verify tables and indexes created successfully
-
-2. **Validate API Endpoints** (Issues #2, #3)
-   - Create test payloads for Stage 1 and Stage 2
-   - Execute API calls and document responses
-   - Verify scoring calculations match expected formulas
-   - Document cost per evaluation
-
-3. **Start Frontend UI Development** (Issues #4, #5)
-   - Design interview rating form layout
-   - Design reference check form layout
-   - Plan component architecture and data flow
-
-## New Architecture (Simplified)
-
-### What We're Building
-**A batch resume ranker** that integrates with Oracle Recruiting Cloud exports. User workflow:
-
-1. Export 1-50 resumes from Oracle (individual PDFs)
-2. Upload to web app with job description
-3. Choose evaluation mode:
-   - **Regex (Free)**: Instant keyword matching → Quick filter
-   - **AI (Paid)**: Detailed Claude analysis → Full report
-4. Get ranked markdown report (matches current Claude Desktop output)
-5. For Stage 2: Add interview notes → Re-evaluate with weighted scoring
-
-### What We're Removing
-- ❌ Supabase database (no persistent storage needed)
-- ❌ Jobs CRUD UI (Oracle handles job management)
-- ❌ Complex interview rating forms (replace with flexible text input)
-- ❌ Candidate management (Oracle tracks candidates)
-- ❌ Authentication (MVP is public access)
-
-### What We're Keeping/Adding
-- ✅ React frontend (existing)
-- ✅ Python API with Claude integration (existing)
-- ✅ PDF parsing (existing)
-- ✅ Dev server for local testing (new)
-- ✅ Regex evaluator for cost control (new)
-- ✅ Selective AI evaluation (new)
-- ✅ Job templates (Nurse, Professor, etc.) (new)
-- ✅ Session-based storage (browser only) (new)
-
-### Cost Optimization
-**Current**: 50 candidates × $0.003 = $0.15 per evaluation
-
-**Optimized**:
-- Regex filter (free) → Top 5 candidates
-- AI on 5 only = $0.015 per evaluation
-- **90% cost savings**
+1. Complete documentation restructuring (CLAUDE.md + STATUS.md)
+2. Create docs/ folder and organize files
+3. Create new branch: `feature/supabase-integration`
+4. Create migration 004: Add user_id and RLS policies
+5. Set up frontend Supabase client (lib/supabase.js)
+6. Create useAuth hook for authentication state
+7. Build login/signup pages
 
 ## Recent Decisions 📝
 
-- **Oct 23**: **MAJOR PIVOT** - Discovered actual use case is batch resume ranker, not full ATS. User has Oracle for candidate management, needs tool for AI-powered ranking of exported resumes.
+- **Oct 24**: **STRATEGIC PIVOT** - Building for sellable product with iOS app. Need persistent storage, user accounts, and scalable architecture. Reverting Oct 23 decision to remove Supabase.
 
-- **Oct 23**: Dual-mode evaluation (Regex vs AI) for cost control. Regex provides instant free filtering, AI gives detailed analysis on selected candidates only.
+- **Oct 24**: Follow Claude Code 2.0 guide - CLAUDE.md for stable architecture, STATUS.md for current work. Keep docs minimal and updated.
 
-- **Oct 23**: Remove Supabase entirely - no persistent storage needed. Use browser sessionStorage instead.
+- **Oct 24**: Keep Python backend over Node.js rewrite - Better PDF parsing, AI libraries, already working well.
 
-- **Oct 23**: ATS-agnostic design - works with Oracle exports, career fair resumes, or any PDF resumes.
+- **Oct 24**: Claude Haiku as default LLM - 5x cheaper than Sonnet ($0.003 vs $0.015), sufficient quality for structured evaluations.
 
-- **Oct 22**: Using local Supabase for development and testing before deploying to production. **NOTE**: This decision is now reversed - removing database entirely.
+- **Oct 24**: Hybrid storage approach - Supabase for authenticated users (persistent), sessionStorage for anonymous users (try before signup).
 
-- **Oct 21**: Using Claude 3.5 Haiku for cost optimization (~$0.003 per evaluation vs ~$0.015 for Sonnet)
+- **Oct 24**: Start with local Supabase, deploy to cloud after MVP validation.
+
+- **Oct 21**: Using Claude 3.5 Haiku for cost optimization over Sonnet.
 
 ## Blockers
 
-None currently - local development environment is fully operational!
+### Critical Decisions Needed
 
-**Recently Resolved:**
-- ✅ **Supabase Access**: Local Supabase running successfully. Production deployment TBD.
-- ✅ **Development Environment**: Local setup complete with all migrations applied.
+1. **Supabase Cloud Setup**
+   - Create new Supabase project? Or link existing?
+   - If new: Project name, region selection
+   - If existing: Project ref/URL for linking
 
-## Production Deployment Checklist
+2. **Anonymous User Strategy**
+   - Should anonymous users be able to use the tool?
+   - Recommended: Yes (growth hack - try before signup)
+   - Implementation: sessionStorage fallback if not authenticated
 
-**When ready to deploy migrations to production Supabase:**
+## Architecture Direction
 
-1. **Pre-Deployment**
-   - [ ] Test all migrations thoroughly on local Supabase
-   - [ ] Verify all table structures match schema requirements
-   - [ ] Document rollback plan for each migration
-   - [ ] Backup production database (Supabase dashboard → Database → Backups)
-   - [ ] Notify team of planned deployment window
+### What We're Building (Updated Oct 24)
 
-2. **Deployment**
-   - [ ] Link to production Supabase: `supabase link --project-ref <production-ref> --password <db-password>`
-   - [ ] Review pending migrations: `supabase db remote commit`
-   - [ ] Push migrations: `supabase db push`
-   - [ ] Verify migration success in Supabase dashboard
+**Resume Scanner Pro**: AI-powered recruiting assistant for web + iOS
+- User authentication (Supabase Auth)
+- Persistent job and resume storage
+- Multi-device access (web + iOS)
+- Batch resume evaluation (1-50 resumes)
+- Two-stage evaluation framework
+- Interview guide generation
+- Export to PDF
+- Freemium pricing model
 
-3. **Post-Deployment Verification**
-   - [ ] Verify all 6 tables exist in production
-   - [ ] Verify indexes created: `idx_interview_ratings_*`, `idx_reference_checks_*`
-   - [ ] Verify foreign key constraints working
-   - [ ] Test frontend connection to production database
-   - [ ] Run smoke tests on critical user flows
-   - [ ] Monitor error logs for 24 hours
+### Tech Stack (Confirmed)
 
-4. **Rollback Plan (if needed)**
-   - [ ] Have rollback SQL ready
-   - [ ] Document data migration strategy for rollback
-   - [ ] Test rollback procedure on staging first
+**Frontend**: React 18, Vite, Tailwind, React Router, Zustand, React Query
+**Backend**: Python 3.13 serverless (Vercel)
+**Database**: Supabase (PostgreSQL + Auth + Storage)
+**AI**: Claude Haiku (primary), OpenAI GPT-4o Mini (optional)
+**PDF Parsing**: pdfplumber (Python)
+
+### Data Flow (Target Architecture)
+
+**Authenticated Users**:
+1. Login → Supabase Auth
+2. CRUD jobs → Supabase DB
+3. Upload resumes → Supabase Storage + Python parse API
+4. Run evaluation → Python AI API + save to Supabase
+5. View results → Query Supabase with React Query
+6. Export PDF → Client-side jspdf
+
+**Anonymous Users**:
+1. Use sessionStorage (no signup)
+2. Same evaluation flow
+3. Prompt to save results (signup conversion)
+
+## MVP Timeline (4-6 Weeks)
+
+**Week 1-2**: Supabase Foundation
+- Auth integration
+- RLS policies
+- Frontend client setup
+
+**Week 3-4**: Connect Existing Flow
+- Job CRUD with Supabase
+- Resume storage
+- Evaluation persistence
+
+**Week 5**: Interview Guides
+- Guide generation API
+- PDF export
+
+**Week 6**: Polish & Launch
+- Error handling
+- Documentation
+- ProductHunt launch
+
+**Week 7-10**: iOS App (After Web MVP)
+- SwiftUI app
+- Same Python API
+- Supabase Swift SDK
+
+## Tech Debt
+
+- Update Supabase CLI: v2.40.7 → v2.53.6 (low priority)
+- Add React Query (planned for Supabase integration)
+- Implement error boundaries
+- Add loading states for all async operations
+- Create comprehensive test suite (currently manual only)
+- Standardize port documentation (3000 vs 5173)
 
 ## Notes
 
-- Following GitHub Flow branching strategy (feature branches from main)
-- Using conventional commit format (feat:, fix:, docs:, etc.)
-- Keeping PRs under 400 lines when possible
-- All new features should include tests (target: Vitest + React Testing Library)
+- Following GitHub Flow branching strategy
+- Conventional commit format (feat:, fix:, docs:, etc.)
+- PRs under 400 lines when possible
+- All new features should include tests (Vitest + RTL)
+- Focus on MVP - ship fast, iterate faster
