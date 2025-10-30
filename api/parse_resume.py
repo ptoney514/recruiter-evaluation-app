@@ -8,6 +8,7 @@ import base64
 import io
 import pdfplumber
 from docx import Document
+from http_utils import ResponseHelper
 
 
 class handler(BaseHTTPRequestHandler):
@@ -73,19 +74,12 @@ class handler(BaseHTTPRequestHandler):
         return '\n\n'.join(text_parts)
 
     def _send_response(self, status_code, data):
-        """Send JSON response"""
-        self.send_response(status_code)
-        self.send_header('Content-type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.end_headers()
-        self.wfile.write(json.dumps(data).encode('utf-8'))
+        """Send JSON response - delegates to ResponseHelper"""
+        ResponseHelper.send_json(self, status_code, data)
 
     def _send_error(self, status_code, message):
-        """Send error response"""
-        self._send_response(status_code, {
-            'success': False,
-            'error': message
-        })
+        """Send error response - delegates to ResponseHelper"""
+        ResponseHelper.send_error(self, status_code, message)
 
     def do_OPTIONS(self):
         """Handle CORS preflight"""
