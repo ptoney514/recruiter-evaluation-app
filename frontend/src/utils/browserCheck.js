@@ -43,11 +43,11 @@ export function checkBrowserCompatibility() {
   // Check for modern JavaScript features
   try {
     // Check for arrow functions
-    eval('() => {}')
+    const arrowTest = () => {}
     // Check for async/await
-    eval('async () => {}')
+    const asyncTest = async () => {}
     // Check for spread operator
-    eval('[...[], {}]')
+    const spreadTest = [...[], {}]
   } catch (e) {
     missing.push('Modern JavaScript (ES2017+)')
   }

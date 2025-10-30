@@ -11,7 +11,11 @@ from llm_providers import get_provider
 
 
 # Path to recruiting-evaluation skill
-SKILL_PATH = "/Users/pernelltoney/.claude/skills/recruiting-evaluation/SKILL.md"
+# Use environment variable if set, otherwise use standard Claude skills location
+SKILL_PATH = os.environ.get(
+    'RECRUITING_SKILL_PATH',
+    os.path.join(os.path.expanduser('~'), '.claude', 'skills', 'recruiting-evaluation', 'SKILL.md')
+)
 
 
 def load_skill_instructions():
