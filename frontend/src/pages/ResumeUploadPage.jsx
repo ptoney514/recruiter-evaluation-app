@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
+import { storageManager } from '../services/storage/storageManager'
 import { sessionStore } from '../services/storage/sessionStore'
 import { extractTextFromFile } from '../utils/pdfParser'
 import { MAX_FILE_SIZE_MB, MAX_RESUMES_BATCH, SUPPORTED_FILE_TYPES } from '../constants/config'
@@ -17,10 +18,13 @@ export function ResumeUploadPage() {
 
   // Load existing resumes if available
   useEffect(() => {
-    const existing = sessionStore.getCurrentEvaluation()
-    if (existing && existing.resumes) {
-      setResumes(existing.resumes)
+    async function loadExisting() {
+      const existing = await storageManager.getCurrentEvaluation()
+      if (existing && existing.resumes) {
+        setResumes(existing.resumes)
+      }
     }
+    loadExisting()
   }, [])
 
   // Extract candidate name from filename
@@ -120,8 +124,8 @@ export function ResumeUploadPage() {
       const updated = [...resumes, ...newResumes]
       setResumes(updated)
 
-      // Save to session storage
-      sessionStore.updateEvaluation({ resumes: updated })
+      // Save to storage (auto-routes to session or database)
+      await storageManager.updateEvaluation({ resumes: updated })
 
       // Show errors if any
       if (errors.length > 0) {
@@ -137,10 +141,10 @@ export function ResumeUploadPage() {
     }
   }
 
-  const clearAllResumes = () => {
+  const clearAllResumes = async () => {
     if (window.confirm('Remove all uploaded resumes?')) {
       setResumes([])
-      sessionStore.updateEvaluation({ resumes: [] })
+      await storageManager.updateEvaluation({ resumes: [] })
     }
   }
 
@@ -167,10 +171,10 @@ export function ResumeUploadPage() {
     handleFiles(e.target.files)
   }
 
-  const removeResume = (id) => {
+  const removeResume = async (id) => {
     const updated = resumes.filter(r => r.id !== id)
     setResumes(updated)
-    sessionStore.updateEvaluation({ resumes: updated })
+    await storageManager.updateEvaluation({ resumes: updated })
   }
 
   const handleNext = () => {

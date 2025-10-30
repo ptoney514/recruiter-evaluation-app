@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
+import { storageManager } from '../services/storage/storageManager'
 import { sessionStore } from '../services/storage/sessionStore'
 import { exportService } from '../services/exportService'
 
@@ -32,33 +33,36 @@ export function ResultsPage() {
   const [expandedMethodology, setExpandedMethodology] = useState(new Set())
 
   useEffect(() => {
-    const current = sessionStore.getCurrentEvaluation()
-    if (!current || !current.job.title || !current.resumes.length) {
-      navigate('/')
-      return
-    }
-    setEvaluation(current)
+    async function loadEvaluation() {
+      const current = await storageManager.getCurrentEvaluation()
+      if (!current || !current.job?.title || !current.resumes?.length) {
+        navigate('/')
+        return
+      }
+      setEvaluation(current)
 
-    // Get actual results based on evaluation mode
-    const mode = current.evaluationMode || 'openai'
-    // Both 'openai' and 'claude' use AI results (not regex)
-    const isAiMode = mode === 'openai' || mode === 'claude' || mode === 'ai'
-    const evaluationResults = isAiMode ? current.aiResults : current.regexResults
+      // Get actual results based on evaluation mode
+      const mode = current.evaluationMode || 'openai'
+      // Both 'openai' and 'claude' use AI results (not regex)
+      const isAiMode = mode === 'openai' || mode === 'claude' || mode === 'ai'
+      const evaluationResults = isAiMode ? current.aiResults : current.regexResults
 
-    if (evaluationResults) {
-      setResults({
-        mode,
-        isAiMode, // Add flag for easier checking
-        ...evaluationResults
-      })
-    } else {
-      // No results yet, shouldn't happen
-      navigate('/review')
+      if (evaluationResults) {
+        setResults({
+          mode,
+          isAiMode, // Add flag for easier checking
+          ...evaluationResults
+        })
+      } else {
+        // No results yet, shouldn't happen
+        navigate('/review')
+      }
     }
+    loadEvaluation()
   }, [navigate])
 
-  const handleStartNew = () => {
-    sessionStore.clearEvaluation()
+  const handleStartNew = async () => {
+    await storageManager.clearEvaluation()
     navigate('/')
   }
 

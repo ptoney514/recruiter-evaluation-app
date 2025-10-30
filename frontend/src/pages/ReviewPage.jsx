@@ -5,6 +5,7 @@ import { Card } from '../components/ui/Card'
 import { TextArea } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { ProgressModal } from '../components/ui/ProgressModal'
+import { storageManager } from '../services/storage/storageManager'
 import { sessionStore } from '../services/storage/sessionStore'
 import { COST_PER_CANDIDATE_AI } from '../constants/config'
 import { evaluationService } from '../services/evaluationService'
@@ -40,16 +41,19 @@ export function ReviewPage() {
   const [showCostWarning, setShowCostWarning] = useState(false)
 
   useEffect(() => {
-    const current = sessionStore.getCurrentEvaluation()
-    if (!current || !current.job.title || !current.resumes.length) {
-      // Missing data, go back to start
-      navigate('/')
-      return
+    async function loadEvaluation() {
+      const current = await storageManager.getCurrentEvaluation()
+      if (!current || !current.job?.title || !current.resumes?.length) {
+        // Missing data, go back to start
+        navigate('/')
+        return
+      }
+      setEvaluation(current)
+      setAdditionalInstructions(current.additionalInstructions || '')
+      setLlmProvider(current.llmProvider || 'openai')
+      setLlmModel(current.llmModel || 'gpt-4o-mini')
     }
-    setEvaluation(current)
-    setAdditionalInstructions(current.additionalInstructions || '')
-    setLlmProvider(current.llmProvider || 'openai')
-    setLlmModel(current.llmModel || 'gpt-4o-mini')
+    loadEvaluation()
   }, [navigate])
 
   // Handle evaluation mode change - sets provider and model
@@ -80,7 +84,7 @@ export function ReviewPage() {
     console.log('Candidates count:', evaluation.resumes.length)
 
     // Save additional instructions, mode, and LLM settings
-    sessionStore.updateEvaluation({
+    await storageManager.updateEvaluation({
       additionalInstructions,
       evaluationMode,
       llmProvider,
@@ -108,8 +112,8 @@ export function ReviewPage() {
       )
       console.log('AI results received:', results)
 
-      // Save results to session storage
-      sessionStore.updateEvaluation({ aiResults: results })
+      // Save results to storage (auto-routes to session or database)
+      await storageManager.updateEvaluation({ aiResults: results })
 
       console.log('Navigating to results page...')
       // Navigate to results
