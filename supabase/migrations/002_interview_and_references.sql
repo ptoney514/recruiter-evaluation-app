@@ -3,7 +3,7 @@
 
 -- Interview ratings table
 CREATE TABLE interview_ratings (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   candidate_id UUID REFERENCES candidates(id) ON DELETE CASCADE,
 
   -- Interview metadata
@@ -38,7 +38,7 @@ CREATE TABLE interview_ratings (
 
 -- Reference checks table
 CREATE TABLE reference_checks (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   candidate_id UUID REFERENCES candidates(id) ON DELETE CASCADE,
 
   -- Reference information
