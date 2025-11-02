@@ -245,52 +245,53 @@ ship check
 
 ---
 
-## Integration with Linear
+## Integration with GitHub Issues
 
-### Setup Linear CLI
+### Setup GitHub CLI
 
 ```bash
-# Install Linear CLI
-brew install linearctl  # or npm install -g linearctl
+# Verify GitHub CLI is installed
+gh --version
 
-# Authenticate
-lc auth login
+# If not installed:
+brew install gh  # macOS
 
-# Configure team (get from Linear settings)
-lc team list
-export LINEAR_TEAM=RSP  # Resume Scanner Pro team code
+# Authenticate (if not already)
+gh auth login
 ```
 
-### Linear Workflow
+### GitHub Issues Workflow
 
-**Weekly tasks from Ship Plan → Linear issues:**
+**Weekly tasks from Ship Plan → GitHub issues:**
 
-1. Create Linear issues from Weekly Ship Plan tasks (one-time setup)
+1. Create GitHub issues from Weekly Ship Plan tasks (one-time setup)
 2. Use Shipping Coach to break large tasks into subtasks
 3. Shipping Coach manages task state transitions:
-   - Start session → "In Progress"
-   - Ship check → "Done"
+   - Start session → Add "in-progress" label
+   - Ship check → Close issue
    - I'm stuck → Add blocker comment
 
-**Example Linear board:**
+**Example GitHub Issues board:**
 ```
 ┌─────────────┬──────────────┬──────────┐
-│   TODO      │ IN PROGRESS  │   DONE   │
+│   OPEN      │ IN PROGRESS  │  CLOSED  │
 ├─────────────┼──────────────┼──────────┤
-│ RSP-7       │ RSP-5        │ RSP-1 ✅ │
+│ #7          │ #5           │ #1 ✅    │
 │ useAuth     │ user_id cols │ Docs     │
 │ hook        │ (1pt - 60m)  │          │
-│ (1pt)       │              │ RSP-2 ✅ │
+│ (1pt)       │              │ #2 ✅    │
 │             │              │ RLS jobs │
-│ RSP-8       │              │          │
-│ Login page  │              │ RSP-3 ✅ │
+│ #8          │              │          │
+│ Login page  │              │ #3 ✅    │
 │ (1pt)       │              │ RLS rest │
 │             │              │          │
-│ RSP-9       │              │ RSP-4 ✅ │
+│ #9          │              │ #4 ✅    │
 │ Signup page │              │ Client   │
 │ (1pt)       │              │ setup    │
 └─────────────┴──────────────┴──────────┘
 ```
+
+**See detailed workflow:** [GitHub Issues Workflow Guide](GITHUB_ISSUES_WORKFLOW.md)
 
 ---
 
@@ -506,29 +507,20 @@ Recommendation: Option 1 (reduce scope). Ship the form.
 "size this task: [description]"
 ```
 
-### 3. Linear CLI (Required for Shipping Coach)
+### 3. GitHub CLI (Required for Shipping Coach)
 
 ```bash
-# Install
-brew install linearctl  # macOS
-# or
-npm install -g linearctl  # Any platform
+# Install (if not already)
+brew install gh  # macOS
 
 # Authenticate
-lc auth login
-
-# Set team
-export LINEAR_TEAM=RSP  # Your team code
+gh auth login
 
 # Test
-lc issue mine
+gh issue list
 ```
 
-**Configure team permanently:**
-Add to `~/.zshrc` or `~/.bashrc`:
-```bash
-export LINEAR_TEAM=RSP
-```
+**See full workflow:** [GitHub Issues Workflow Guide](GITHUB_ISSUES_WORKFLOW.md)
 
 ---
 
@@ -541,9 +533,9 @@ export LINEAR_TEAM=RSP
 - **Shipping Coach alone:** Great for execution, but lacks strategic direction
 - **Both together:** Plan strategically, execute tactically, ship consistently
 
-### Q: Can I use Shipping Coach without Linear?
+### Q: Can I use Shipping Coach without GitHub Issues?
 
-**A:** Partially. You can use task sizing and anti-pattern prevention, but task management commands (`start session`, `ship check`) won't work without Linear CLI.
+**A:** Partially. You can use task sizing and anti-pattern prevention, but task management commands (`start session`, `ship check`) work best with GitHub Issues integration via `gh` CLI.
 
 ### Q: How often should I use Product & Growth Lead?
 
@@ -624,17 +616,17 @@ Coach: ✅ Shipped! 3 tasks done this week.
 
 ## Next Steps
 
-1. **Set up Linear CLI** (if not already done)
+1. **Set up GitHub CLI** (if not already done)
    ```bash
-   brew install linearctl
-   lc auth login
-   export LINEAR_TEAM=RSP
+   gh --version  # Check if installed
+   gh auth login  # Authenticate
    ```
 
-2. **Create Linear issues from Week 1 Ship Plan**
-   - Copy tasks from [WEEKLY_SHIP_PLAN.md](product/WEEKLY_SHIP_PLAN.md#week-1)
-   - Create issues in Linear with `lc issue create`
-   - Assign to yourself
+2. **Create GitHub issues from Week 1 Ship Plan**
+   - Follow the [GitHub Issues Workflow Guide](GITHUB_ISSUES_WORKFLOW.md)
+   - Create labels first: `gh label create ...`
+   - Create Week 1 issues: `gh issue create ...`
+   - Assign to yourself: `gh issue edit [NUMBER] --add-assignee @me`
 
 3. **Start your first session**
    ```bash
