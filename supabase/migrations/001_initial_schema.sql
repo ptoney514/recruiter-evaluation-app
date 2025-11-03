@@ -1,9 +1,6 @@
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- Jobs table
+-- Jobs table (using gen_random_uuid which is built into PostgreSQL 13+)
 CREATE TABLE jobs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title VARCHAR(255) NOT NULL,
   department VARCHAR(100),
   location VARCHAR(100),
@@ -27,7 +24,7 @@ CREATE TABLE jobs (
 
 -- Candidates table
 CREATE TABLE candidates (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   job_id UUID REFERENCES jobs(id) ON DELETE CASCADE,
 
   -- Basic info
@@ -60,7 +57,7 @@ CREATE TABLE candidates (
 
 -- Evaluations table
 CREATE TABLE evaluations (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   candidate_id UUID REFERENCES candidates(id) ON DELETE CASCADE,
   job_id UUID REFERENCES jobs(id) ON DELETE CASCADE,
 
@@ -86,7 +83,7 @@ CREATE TABLE evaluations (
 
 -- Rankings table (for manual overrides)
 CREATE TABLE candidate_rankings (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   job_id UUID REFERENCES jobs(id) ON DELETE CASCADE,
   candidate_id UUID REFERENCES candidates(id) ON DELETE CASCADE,
 
