@@ -203,7 +203,8 @@ All wireframes are lo-fi, ASCII/text-based for fast iteration.
 │  │ ☑️ Jane Smith                         Score 92/100  │   │
 │  │ Status: Shortlisted • Added 2 days ago             │   │
 │  │                                                     │   │
-│  │ ✅ Recommendation: INTERVIEW                        │   │
+│  │ 🎯 Recommendation: CONTACT - Strong Match           │   │
+│  │    → Phone screen recommended                       │   │
 │  │                                                     │   │
 │  │ Score Breakdown:                                    │   │
 │  │ Qualifications: 38/40  ███████████████████░        │   │
@@ -226,7 +227,22 @@ All wireframes are lo-fi, ASCII/text-based for fast iteration.
 │  │ ☐ John Doe                            Score 88/100  │   │
 │  │ Status: Pending • Added 2 days ago                 │   │
 │  │                                                     │   │
-│  │ ✅ Recommendation: INTERVIEW                        │   │
+│  │ 🎯 Recommendation: CONTACT - Strong Match           │   │
+│  │    → Phone screen recommended                       │   │
+│  │                                                     │   │
+│  │ 💬 Your notes: [Click to add your context...]      │   │
+│  │                                                     │   │
+│  │ ▼ AI Analysis (click to expand)                    │   │
+│  │                                                     │   │
+│  │ [📄 View Resume] [Shortlist] [Reject]              │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ ☐ Bob Johnson                         Score 76/100  │   │
+│  │ Status: Pending • Added 2 days ago                 │   │
+│  │                                                     │   │
+│  │ 🟡 Recommendation: REVIEW - Potential Fit           │   │
+│  │    → Consider for phone screen                      │   │
 │  │                                                     │   │
 │  │ 💬 Your notes: [Click to add your context...]      │   │
 │  │                                                     │   │
@@ -250,7 +266,8 @@ All wireframes are lo-fi, ASCII/text-based for fast iteration.
 │ Status: Shortlisted • Added 2 days ago                      │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  ✅ Recommendation: INTERVIEW                                │
+│  🎯 Recommendation: CONTACT - Strong Match                   │
+│     → Phone screen recommended                               │
 │                                                             │
 │  Score Breakdown:                                           │
 │  Qualifications: 38/40  ███████████████████░               │
@@ -371,7 +388,7 @@ All wireframes are lo-fi, ASCII/text-based for fast iteration.
 │  │ scrappy execution at 20-person company aligns with  │   │
 │  │ our current stage."                                 │   │
 │  │                                                     │   │
-│  │ Recommendation: INTERVIEW (unchanged)               │   │
+│  │ Recommendation: CONTACT - Strong Match (unchanged)  │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
@@ -382,10 +399,11 @@ All wireframes are lo-fi, ASCII/text-based for fast iteration.
 │  │ AI response: "Re-evaluated with emphasis on        │   │
 │  │ adaptability and scrappy execution recruiter        │   │
 │  │ highlighted. Candidate's ability to wear multiple   │   │
-│  │ hats at small companies is valuable. Raised from    │   │
-│  │ DECLINE → PHONE SCREEN."                            │   │
+│  │ hats at small companies is valuable. Moved from     │   │
+│  │ PASS tier to REVIEW tier."                          │   │
 │  │                                                     │   │
-│  │ Recommendation: DECLINE → PHONE SCREEN (moved up!)  │   │
+│  │ Recommendation: PASS → REVIEW - Potential Fit       │   │
+│  │ (moved up!)                                         │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
@@ -532,33 +550,33 @@ All wireframes are lo-fi, ASCII/text-based for fast iteration.
 │                                                             │
 │  ─────────────────────────────────────────────────────      │
 │                                                             │
-│  ✅ STRONG CANDIDATES (10)                                  │
-│  Scores 85-95 • Recommend interview                        │
+│  🎯 PRIORITY CONTACT (8)                                    │
+│  Scores 85-100 • Phone screen recommended                  │
 │                                                             │
 │  • Jane Smith (92) - 10yr Python, led teams               │
 │  • John Doe (88) - Strong tech + culture fit              │
 │  • Sarah Lee (86) - Excellent communication skills         │
-│  ... 7 more                                                │
+│  ... 5 more                                                │
 │                                                             │
-│  [Move Strong to Shortlist →]                              │
-│  (Future reruns will focus on these 10)                    │
+│  [Move to Shortlist →]                                      │
+│  (Future reruns will focus on these 8)                     │
 │                                                             │
 │  ─────────────────────────────────────────────────────      │
 │                                                             │
-│  🟡 MAYBE CANDIDATES (12)                                   │
-│  Scores 70-84 • Consider phone screen first                │
+│  🟡 REVIEW CLOSELY (14)                                     │
+│  Scores 70-84 • Consider for phone screen                  │
 │                                                             │
 │  • Mike Johnson (78) - Good skills, limited exp           │
 │  • Lisa Chen (74) - Promising but gaps                    │
 │  • Bob Lee (72) - Junior level, growth potential          │
-│  ... 9 more                                                │
+│  ... 11 more                                               │
 │                                                             │
-│  [Review Maybe Tier]                                        │
+│  [Review Potential Fits]                                    │
 │                                                             │
 │  ─────────────────────────────────────────────────────      │
 │                                                             │
-│  ❌ NOT RECOMMENDED (28)                                    │
-│  Scores <70 • Missing key requirements                     │
+│  ❌ PASS - MISSING REQUIREMENTS (28)                        │
+│  Scores <70 • Not recommended                              │
 │                                                             │
 │  Most are missing 3+ must-have requirements.               │
 │  You can still review if interested.                       │
@@ -567,8 +585,9 @@ All wireframes are lo-fi, ASCII/text-based for fast iteration.
 │                                                             │
 │  ─────────────────────────────────────────────────────      │
 │                                                             │
-│  💡 Tip: Start with Strong tier. Add your notes, then      │
-│  rerun to refine rankings. This saves time and tokens!     │
+│  💡 Tip: Start with Priority Contact tier (8 candidates).  │
+│  Add your notes, then rerun to refine rankings.            │
+│  This saves time and tokens!                               │
 │                                                             │
 │  [Review All Candidates] [Skip to Export]                  │
 │                                                             │
@@ -594,15 +613,16 @@ SUMMARY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Total Candidates Evaluated: 15
-Shortlisted for Interview: 3
-Recommended for Phone Screen: 2
-Not Recommended: 10
+Priority Contact (Strong Match): 3
+Review Closely (Potential Fit): 2
+Pass (Missing Requirements): 10
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CANDIDATE 1: Jane Smith
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Score: 92/100 | Recommendation: INTERVIEW
+Score: 92/100 | Recommendation: CONTACT - Strong Match
+Action: Phone screen recommended
 Status: Shortlisted
 
 Score Breakdown:
