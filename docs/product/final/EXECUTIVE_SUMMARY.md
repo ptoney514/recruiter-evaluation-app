@@ -214,39 +214,50 @@ A senior recruiter tested our AI tool. Her reaction revealed the fatal flaw in e
 
 ## Pricing Model (Final)
 
-### Free Tier (Generous but Capped)
-**Purpose:** Small teams might never upgrade - that's OK! Low CAC ($0.45 total AI cost)
+### Free Tier (Token-Based, Generous but Capped)
+**Purpose:** Small teams might never upgrade - that's OK! Low CAC (~$0.45 total AI cost)
 
 **Limits:**
-- 3 AI-powered jobs EVER (not active, total)
-- 50 AI runs per job (150 total)
-- Unlimited regex-only jobs (no AI cost)
-- All collaborative features (notes, rerun, export)
-- 50 candidates per run max
+- **150,000 tokens per month** (~50-150 candidate evaluations)
+- **3 AI jobs per month** (resets monthly)
+- **Unlimited regex-only jobs** (no tokens used)
+- All collaborative features (notes, smart rerun, "Rerun All")
+- 50 candidates per batch max
+- IP-based rate limiting (max 5 accounts per IP)
+
+**Why Token-Based is Better:**
+- ✨ **Transparency:** Users see exactly what AI costs
+- ✨ **Flexibility:** Run many small batches or few large ones
+- ✨ **Incentive:** Encourages efficient use (shortlist early, use smart rerun)
+- ✨ **Education:** Shows AI isn't "magic" (has real compute cost)
+- ✨ **Industry standard:** Matches OpenAI/Anthropic model
 
 **Economics:**
-- CAC: 150 runs × $0.003 = $0.45
-- If 10% convert to Pro: $49 / 10 = $4.90 > $0.45 CAC ✅
-- Generous enough to prove value
-- Clear upgrade path for power users
+- Typical usage: 100 evaluations = 100,000 tokens
+- CAC: 100,000 tokens × $0.003/1000 = $0.30
+- If 18% convert to Pro: $49 × 0.18 = $8.82 revenue
+- **LTV:CAC = 168:1** ✅
 
 ### Pro Tier ($49/month)
 **Purpose:** High margin, targets agencies + high-volume recruiters
 
 **Includes:**
-- Unlimited AI jobs
-- Unlimited runs
-- 200 candidates per run max
+- **Unlimited AI jobs**
+- **Unlimited tokens** (no monthly cap)
+- 200 candidates per batch max (vs 50 free)
 - Smart rerun optimization (auto-skip low-ranked)
-- Premium exports (hiring manager reports)
+- "Rerun All" with token transparency
+- Manual drag-to-reorder with reasoning (P1)
+- Premium exports (hiring manager reports, Excel)
 - Interview guide generation
 - Priority support
 
 **Economics:**
 - Revenue: $49/month
-- Typical usage: 200 runs/month = $0.60 AI cost
-- **Gross margin: 98.8%**
-- Break-even: 16,333 runs/month (impossible to hit)
+- Typical usage: 600 evaluations = 600,000 tokens
+- AI cost: 600,000 × $0.003/1000 = $1.80/month
+- **Gross margin: 96.3%** ✅
+- Break-even: 16.3M tokens/month (impossible to hit)
 
 **Why Premium Pricing Works:**
 - Feedback loop = differentiator (not commodity AI)
@@ -415,23 +426,28 @@ Upload resumes → Extract text → Claude Haiku evaluation → Score + reasonin
 
 ---
 
-## Cost Analysis & Unit Economics
+## Cost Analysis & Unit Economics (Token-Based)
 
 ### Free Tier Economics
 
 **Assumptions:**
-- Avg user creates 2 AI jobs
+- Avg user creates 2 AI jobs per month
 - Avg 25 candidates per job
-- Avg 2 runs per job (initial + 1 rerun)
+- Avg 2 runs per job (initial + 1 smart rerun)
+- **Total: 100 candidate evaluations**
+
+**Token Usage:**
+- 100 evaluations × 1,000 tokens = **100,000 tokens used**
+- Remaining: 50,000 tokens (33% buffer)
 
 **Costs:**
-- 2 jobs × 25 candidates × 2 runs × $0.003 = **$0.30 CAC**
+- 100,000 tokens × $0.003/1000 = **$0.30 CAC**
 
 **Conversion:**
-- If 15% convert to Pro at $49/mo
-- Revenue per signup: $49 × 0.15 = **$7.35**
-- LTV (6 months): $49 × 6 × 0.15 = **$44.10**
-- **LTV:CAC ratio = 147:1** ✅
+- If 18% convert to Pro at $49/mo (improved from 15% due to better UX)
+- Revenue per signup: $49 × 0.18 = **$8.82**
+- LTV (6 months): $49 × 6 × 0.18 = **$52.92**
+- **LTV:CAC ratio = 176:1** ✅ (improved!)
 
 ### Pro Tier Economics
 
@@ -439,9 +455,16 @@ Upload resumes → Extract text → Claude Haiku evaluation → Score + reasonin
 - Pro user creates 8 AI jobs/month
 - Avg 30 candidates per job
 - Avg 2.5 runs per job (initial + 1.5 reruns)
+- **Total: 600 candidate evaluations**
+
+**Token Usage:**
+- 600 evaluations × 1,000 tokens = **600,000 tokens used**
+- Unlimited tier, no cap
 
 **Costs:**
-- 8 jobs × 30 candidates × 2.5 runs × $0.003 = **$1.80/month**
+- 600,000 tokens × $0.003/1000 = **$1.80/month AI cost**
+- Supabase + Vercel: **$0.80/month infrastructure**
+- **Total COGS: $2.60/month**
 
 **Margins:**
 - Revenue: $49/month

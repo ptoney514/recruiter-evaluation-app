@@ -65,6 +65,39 @@ A senior recruiter tested our prototype. Her reaction revealed the fundamental f
 
 **Tagline:** "Teach the AI what great looks like for YOUR team"
 
+### Long-Term Vision: AI That Learns From YOU
+
+**The Promise:** Over time, the system becomes YOUR recruiting assistant - not a generic AI.
+
+**How it works:**
+1. **Manual reorder with reasoning** (P1 feature)
+   - Drag candidates to reorder
+   - System asks: "Why did you move this candidate?"
+   - Captures tacit knowledge: "Overqualified = flight risk"
+
+2. **AI learns from corrections**
+   - After 50+ manual reorders, AI detects patterns
+   - "This candidate might be overqualified (similar to 3 you downranked)"
+   - Personalized ranking based on YOUR past decisions
+
+3. **Becomes truly collaborative**
+   - Initial rankings = AI baseline
+   - Feedback/reorder = teach AI YOUR preferences
+   - Future rankings = AI + your learned preferences
+   - **Result: Your recruiting assistant, not generic AI**
+
+**Marketing hook:** "The more you use it, the better it gets at predicting what YOU would do"
+
+**Competitive moat:** Other tools provide generic AI. Ours learns YOUR hiring patterns.
+
+**Technical approach:**
+- Store manual overrides in `candidate_rankings` table
+- Build dataset of recruiter corrections
+- Train lightweight model (or prompt engineering) on user's historical overrides
+- Apply learned preferences to future evaluations
+
+**Timeline:** P2 feature (Week 8+), after 100+ users with enough override data
+
 ---
 
 ## Target Users
@@ -269,15 +302,15 @@ A senior recruiter tested our prototype. Her reaction revealed the fundamental f
 - ✅ Interview guide generation (P1)
 - ✅ Premium exports (P1)
 
-**Cost:**
-- Initial: 20 candidates × $0.003 = $0.06
-- Rerun: 12 candidates × $0.003 = $0.036
-- **Total: $0.096 per job**
+**Tokens:**
+- Initial: 20 candidates × ~1,000 tokens = ~20,000 tokens
+- Smart rerun: 12 candidates × ~1,000 tokens = ~12,000 tokens
+- **Total: ~32,000 tokens per job** (~$0.096)
 
-**Tier Limits:**
-- 3 AI jobs (total, not active)
-- 50 runs per job (150 total)
-- Upgrade to Pro for unlimited
+**Free Tier Limits:**
+- 150,000 tokens per month (~4.7 jobs with this usage pattern)
+- 3 AI jobs per month (resets monthly)
+- Unlimited regex-only jobs (no tokens)
 
 ---
 
@@ -1542,34 +1575,45 @@ Format as structured interview guide.
 **Purpose:** Small teams might never upgrade - that's OK! Low CAC, viral growth.
 
 **Limits:**
-- ✅ **3 AI-powered jobs EVER** (not active, total lifetime)
-- ✅ **50 AI runs per job** (150 total runs)
-- ✅ **Unlimited regex-only jobs** (no AI cost)
+- ✅ **150,000 tokens per month** (~50-150 candidate evaluations depending on complexity)
+- ✅ **3 AI jobs per month** (resets monthly)
+- ✅ **Unlimited regex-only jobs** (no tokens used)
 - ✅ **All collaborative features** (notes, rerun, export)
-- ✅ **50 candidates per run** max
+- ✅ **50 candidates per batch** max
+- ✅ **IP-based rate limiting** (max 5 accounts per IP)
 
 **What's Included:**
 - Job creation + management
 - Candidate upload + parsing
-- Regex-only evaluation (unlimited)
-- AI evaluation (3 jobs, 50 runs each)
+- Regex-only evaluation (unlimited, no tokens)
+- AI evaluation (token-based, ~1,000 tokens per candidate)
 - Inline notes
 - Smart rerun (optimized for cost)
+- "Rerun All" option (uses more tokens)
 - PDF export (basic)
 - Status tracking
 - 30-day data retention
 
-**Economics:**
-- Typical usage: 2 AI jobs, 25 candidates each, 2 runs per job
-- Cost: 2 × 25 × 2 × $0.003 = $0.30 CAC
-- If 15% convert to Pro: $49 × 0.15 = $7.35 revenue per signup
-- **LTV:CAC = 147:1** ✅
+**Token Economics:**
+- 1 candidate evaluation ≈ 1,000 tokens (~$0.003)
+- Typical usage: 2 AI jobs, 25 candidates each, 2 runs per job = 100 evaluations
+- Cost: 100 × 1,000 tokens = 100,000 tokens used (~$0.30 CAC)
+- If 18% convert to Pro: $49 × 0.18 = $8.82 revenue per signup
+- **LTV:CAC = 168:1** ✅
+
+**Why Token-Based is Better:**
+- ✨ **Transparency:** Users see exactly what AI costs
+- ✨ **Flexibility:** Can run many small batches or few large ones
+- ✨ **Education:** Shows AI isn't "magic" (has real compute cost)
+- ✨ **Incentive:** Encourages efficient use (shortlist early, use smart rerun)
+- ✨ **Industry standard:** Matches OpenAI/Anthropic model (familiar)
 
 **Upgrade Prompts:**
-- At 2/3 AI jobs: "1 job remaining"
-- At 3/3 AI jobs: Hard stop, show upgrade modal
-- At 40/50 runs: "Approaching limit (10 runs left)"
-- At 50/50 runs: Hard stop, show options (export, upgrade, new job)
+- At 120,000/150,000 tokens (80%): "30,000 tokens remaining"
+- At 140,000/150,000 tokens (93%): "Approaching limit (10,000 tokens left)"
+- At 150,000/150,000 tokens: Hard stop, show options (wait for reset, upgrade)
+- At 2/3 jobs: "1 AI job remaining this month"
+- At 3/3 jobs: "Job limit reached, resets in X days"
 
 ---
 
@@ -1579,11 +1623,13 @@ Format as structured interview guide.
 
 **Includes:**
 - ✅ **Unlimited AI jobs**
-- ✅ **Unlimited runs per job**
-- ✅ **200 candidates per run** max (vs 50 free)
+- ✅ **Unlimited tokens** (no monthly cap)
+- ✅ **200 candidates per batch** max (vs 50 free)
 - ✅ **Smart rerun optimization** (auto-skip low-ranked)
+- ✅ **"Rerun All" with token transparency**
 - ✅ **Premium exports** (hiring manager reports, Excel)
 - ✅ **Interview guide generation**
+- ✅ **Manual drag-to-reorder with reasoning** (P1 feature)
 - ✅ **90-day data retention** (vs 30-day free)
 - ✅ **Priority support** (email within 24hr)
 - ✅ **Team collaboration** (P1, 3 users)
@@ -1811,10 +1857,10 @@ Format as structured interview guide.
 - Option B: Never include (export is summary only)
 - **Recommendation:** Option A (some managers want full text)
 
-**Q10: Tier limit warnings - when to show?**
-- Option A: 40/50 runs (10 left)
-- Option B: 45/50 runs (5 left)
-- **Recommendation:** Option A (earlier warning, less panic)
+**Q10: Token limit warnings - when to show?**
+- Option A: 120,000/150,000 tokens (80% used, 30,000 left)
+- Option B: 140,000/150,000 tokens (93% used, 10,000 left)
+- **Recommendation:** Both (first at 80%, urgent at 93%)
 
 ---
 

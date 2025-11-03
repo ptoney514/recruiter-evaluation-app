@@ -1,8 +1,10 @@
 # Wireframes - Resume Scanner Pro
 
-**Version:** 3.0 FINAL | **Date:** 2025-11-02
+**Version:** 4.0 TOKEN-BASED | **Date:** 2025-11-03
 
 All wireframes are lo-fi, ASCII/text-based for fast iteration.
+
+**Major Update:** Switched from run-based limits to token-based limits for transparency and flexibility.
 
 ---
 
@@ -15,8 +17,9 @@ All wireframes are lo-fi, ASCII/text-based for fast iteration.
 │                                                             │
 │  Your Jobs (3)                          [+ Create New Job]  │
 │                                                             │
-│  🤖 AI Jobs: 2/3 used  ━━━━━━━━━━━━━━━━░░░░░░░░ 67%       │
-│  1 AI job remaining (upgrade to Pro for unlimited)         │
+│  🪙 Token Balance                                           │
+│  124,500 / 150,000 tokens  ████████████████████░░░░░░ 83%  │
+│  Resets in 18 days • [Upgrade to Unlimited]                │
 │                                                             │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
@@ -24,9 +27,7 @@ All wireframes are lo-fi, ASCII/text-based for fast iteration.
 │  │ Senior Software Engineer                           │   │
 │  │ Engineering • San Francisco • Created 2 days ago    │   │
 │  │                                                     │   │
-│  │ 🤖 AI-powered • 2/50 runs used                      │   │
-│  │ ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 4%           │   │
-│  │                                                     │   │
+│  │ 🤖 AI-powered • 15,000 tokens used                  │   │
 │  │ 📊 15 candidates • 3 shortlisted • 0 hired         │   │
 │  │                                                     │   │
 │  │ [Open Job →]                      [⚙️ Settings]     │   │
@@ -36,8 +37,7 @@ All wireframes are lo-fi, ASCII/text-based for fast iteration.
 │  │ Product Manager                                    │   │
 │  │ Product • Remote • Created 1 week ago              │   │
 │  │                                                     │   │
-│  │ 📝 Regex-only                                       │   │
-│  │                                                     │   │
+│  │ 📝 Regex-only (no tokens used)                      │   │
 │  │ 📊 42 candidates • 8 shortlisted • 1 hired         │   │
 │  │                                                     │   │
 │  │ [Open Job →]                      [⚙️ Settings]     │   │
@@ -47,7 +47,7 @@ All wireframes are lo-fi, ASCII/text-based for fast iteration.
 │  │ Customer Success Manager                           │   │
 │  │ Operations • SF • Created 3 weeks ago • Closed     │   │
 │  │                                                     │   │
-│  │ 🤖 AI-powered • 8/50 runs used                      │   │
+│  │ 🤖 AI-powered • 10,500 tokens used                  │   │
 │  │ ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 16%              │   │
 │  │                                                     │   │
 │  │ 📊 28 candidates • 5 shortlisted • 1 hired         │   │
@@ -195,7 +195,7 @@ All wireframes are lo-fi, ASCII/text-based for fast iteration.
 │                                                             │
 │  Filter: [All] [Pending] [Shortlisted] [Finalist] [Hired] [Rejected]
 │                                                             │
-│  [🔄 Rerun with Your Context (2 notes)]  (Cost: ~$0.024)   │
+│  [🔄 Rerun with Your Context (2 notes)]  (~12,000 tokens)  │
 │                                                             │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
@@ -320,7 +320,7 @@ All wireframes are lo-fi, ASCII/text-based for fast iteration.
 
 ---
 
-## W5: Rerun Confirmation Modal
+## W5: Rerun Confirmation Modal (Smart Rerun)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -333,31 +333,83 @@ All wireframes are lo-fi, ASCII/text-based for fast iteration.
 │                                                             │
 │  ─────────────────────────────────────────────────────      │
 │                                                             │
-│  This will re-evaluate (smart rerun):                       │
-│  • 5 shortlisted candidates                                 │
-│  • 2 candidates with new notes                              │
-│  • Total: 7 candidates                                      │
+│  Rerun Strategy:                                            │
 │                                                             │
-│  ─────────────────────────────────────────────────────      │
+│  ● Smart Rerun (Recommended)                                │
+│    12 candidates (shortlisted + noted)                     │
+│    Token cost: ~12,000 tokens                              │
 │                                                             │
-│  Cost Breakdown:                                            │
-│  7 candidates × $0.003 per evaluation = $0.021             │
+│  ○ Rerun All                                                │
+│    50 candidates (full list)                               │
+│    Token cost: ~50,000 tokens                              │
+│    ⚠️ Uses 4.2x more tokens                                 │
 │                                                             │
-│  💡 Smart savings:                                          │
-│  Full rerun would cost: $0.15 (50 candidates)              │
-│  Smart rerun saves:     $0.129 (86% savings!)              │
+│  [Switch to Rerun All]                                      │
 │                                                             │
 │  ─────────────────────────────────────────────────────      │
 │                                                             │
 │  Processing time: ~10-15 seconds                            │
 │                                                             │
-│  Run usage: 2/50 → 3/50 after this rerun                   │
+│  After this run:                                            │
+│  Estimated 112,500 tokens remaining (75%)                  │
 │                                                             │
 │  ─────────────────────────────────────────────────────      │
 │                                                             │
 │  Your feedback will help AI understand:                     │
 │  • Jane: Why startup experience matters for our stage      │
 │  • Bob: Skills AI initially missed                         │
+│                                                             │
+│  💡 The system learns from your input to become YOUR       │
+│     recruiting assistant over time                          │
+│                                                             │
+│  ─────────────────────────────────────────────────────      │
+│                                                             │
+│  [Cancel]                          [Confirm Rerun →]        │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## W5b: Rerun Confirmation Modal (Rerun All Selected)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Rerun Ranking with Your Context                        [×] │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  You added notes to 2 candidates:                           │
+│  • Jane Smith: "Culture fit insight"                        │
+│  • Bob Lee: "Hidden gem, startup experience undervalued"    │
+│                                                             │
+│  ─────────────────────────────────────────────────────      │
+│                                                             │
+│  Rerun Strategy:                                            │
+│                                                             │
+│  ○ Smart Rerun (Recommended)                                │
+│    12 candidates (shortlisted + noted)                     │
+│    Token cost: ~12,000 tokens                              │
+│                                                             │
+│  ● Rerun All                                                │
+│    50 candidates (full list)                               │
+│    Token cost: ~50,000 tokens                              │
+│    ⚠️ Uses 4.2x more tokens                                 │
+│                                                             │
+│  [Switch to Smart Rerun]                                    │
+│                                                             │
+│  ─────────────────────────────────────────────────────      │
+│                                                             │
+│  ⚠️ Token Usage Warning:                                    │
+│  Rerunning all 50 candidates will use significant tokens.  │
+│  Consider using Smart Rerun unless you need to re-evaluate │
+│  candidates who were previously passed.                     │
+│                                                             │
+│  ─────────────────────────────────────────────────────      │
+│                                                             │
+│  Processing time: ~45-60 seconds                            │
+│                                                             │
+│  After this run:                                            │
+│  Estimated 74,500 tokens remaining (50%)                   │
 │                                                             │
 │  ─────────────────────────────────────────────────────      │
 │                                                             │
