@@ -1,18 +1,52 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { sessionStore } from '../services/storage/sessionStore'
+import { JobCreationModal } from '../components/jobs/JobCreationModal'
 
 export function HomePage() {
   const navigate = useNavigate()
   const hasActive = sessionStore.hasActiveEvaluation()
+  const [isJobModalOpen, setIsJobModalOpen] = useState(false)
 
   const startNewEvaluation = () => {
     // Clear any existing evaluation
     sessionStore.clearEvaluation()
-    // Create new and navigate to job input
+    // Create new evaluation
     sessionStore.saveEvaluation(sessionStore.createNewEvaluation())
-    navigate('/job-input')
+    // Open modal for job creation
+    setIsJobModalOpen(true)
+  }
+
+  const handleJobCreated = async (jobData) => {
+    // Save job data to session storage
+    const currentEvaluation = sessionStore.getCurrentEvaluation()
+
+    // Transform jobData to match expected format
+    const job = {
+      title: jobData.title,
+      department: jobData.department,
+      location: jobData.location,
+      employmentType: jobData.employmentType,
+      summary: '',
+      requirements: jobData.mustHaveRequirements,
+      preferredQualifications: jobData.preferredQualifications,
+      duties: [],
+      education: '',
+      licenses: '',
+      evaluationTrack: jobData.evaluationTrack
+    }
+
+    // Update evaluation with job data
+    await sessionStore.saveEvaluation({
+      ...currentEvaluation,
+      job
+    })
+
+    // Close modal and navigate to resume upload
+    setIsJobModalOpen(false)
+    navigate('/upload-resumes')
   }
 
   const continueEvaluation = () => {
@@ -97,6 +131,13 @@ export function HomePage() {
           <p>ATS-agnostic • Works with Oracle, LinkedIn, career fairs</p>
         </div>
       </Card>
+
+      {/* Job Creation Modal */}
+      <JobCreationModal
+        isOpen={isJobModalOpen}
+        onClose={() => setIsJobModalOpen(false)}
+        onJobCreated={handleJobCreated}
+      />
     </div>
   )
 }
