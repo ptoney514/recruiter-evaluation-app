@@ -40,3 +40,54 @@ console.warn = (...args) => {
   }
   originalWarn(...args)
 }
+
+// Mock imports
+import { vi } from 'vitest'
+
+// Mock useAuth hook
+vi.mock('../hooks/useAuth', () => ({
+  useAuth: vi.fn(() => ({
+    user: null,
+    session: null,
+    loading: false,
+    error: null,
+    signUp: vi.fn(),
+    login: vi.fn(),
+    logout: vi.fn(),
+    getCurrentUser: vi.fn(),
+    initialize: vi.fn(),
+    clearError: vi.fn(),
+  })),
+  useUser: vi.fn(() => null),
+  useIsAuthenticated: vi.fn(() => false),
+}))
+
+// Mock Supabase for tests
+vi.mock('../lib/supabase', () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn(() => Promise.resolve({ data: { session: null }, error: null })),
+      getUser: vi.fn(() => Promise.resolve({ data: { user: null }, error: null })),
+      signUp: vi.fn(() => Promise.resolve({ data: { user: null, session: null }, error: null })),
+      signInWithPassword: vi.fn(() => Promise.resolve({ data: { user: null, session: null }, error: null })),
+      signOut: vi.fn(() => Promise.resolve({ error: null })),
+      onAuthStateChange: vi.fn(() => ({
+        data: { subscription: { unsubscribe: vi.fn() } },
+      })),
+    },
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ data: [], error: null })),
+      })),
+      insert: vi.fn(() => Promise.resolve({ data: null, error: null })),
+      update: vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ data: null, error: null })),
+      })),
+      delete: vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ data: null, error: null })),
+      })),
+    })),
+  },
+  isSupabaseConfigured: vi.fn(() => true),
+  testConnection: vi.fn(() => Promise.resolve(true)),
+}))

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './lib/queryClient'
@@ -8,13 +8,22 @@ import { JobInputPage } from './pages/JobInputPage'
 import { ResumeUploadPage } from './pages/ResumeUploadPage'
 import { ReviewPage } from './pages/ReviewPage'
 import { ResultsPage } from './pages/ResultsPage'
+import { LoginPage } from './pages/LoginPage'
+import { SignupPage } from './pages/SignupPage'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { UserMenu } from './components/auth/UserMenu'
 import { AuthModal } from './components/auth/AuthModal'
+import { useAuth } from './hooks/useAuth'
 
 function App() {
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [authMode, setAuthMode] = useState('login')
+  const initialize = useAuth((state) => state.initialize)
+
+  // Initialize auth state on mount
+  useEffect(() => {
+    initialize()
+  }, [initialize])
 
   const openAuthModal = (mode = 'login') => {
     setAuthMode(mode)
@@ -46,6 +55,8 @@ function App() {
             {/* Routes */}
             <Routes>
               <Route path="/" element={<HomePage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
               <Route path="/job-input" element={<JobInputPage />} />
               <Route path="/upload-resumes" element={<ResumeUploadPage />} />
               <Route path="/review" element={<ReviewPage />} />
