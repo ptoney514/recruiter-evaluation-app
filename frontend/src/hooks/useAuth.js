@@ -1,6 +1,14 @@
 /**
  * Authentication Hook with Zustand
  * Manages user authentication state and provides auth methods
+ *
+ * IMPORTANT FOR WEEK 2+:
+ * All data mutations (jobs, candidates, evaluations, etc.) MUST include user_id
+ * from this auth state, or RLS policies will reject the operation.
+ *
+ * Example:
+ *   const user = useAuth((state) => state.user)
+ *   await supabase.from('jobs').insert({ ...jobData, user_id: user.id })
  */
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
@@ -12,6 +20,8 @@ export const useAuth = create((set, get) => ({
   error: null,
 
   // Initialize auth state and set up listener
+  // NOTE: Should only be called once during app initialization (App.jsx useEffect)
+  // The auth listener is not cleaned up since this is a singleton store
   initialize: async () => {
     try {
       set({ loading: true })
@@ -31,7 +41,8 @@ export const useAuth = create((set, get) => ({
         loading: false
       })
 
-      // Listen for auth state changes
+      // Listen for auth state changes (login, logout, token refresh)
+      // This listener persists for the lifetime of the app
       supabase.auth.onAuthStateChange((_event, session) => {
         set({
           session,

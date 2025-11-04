@@ -42,7 +42,9 @@ export function LoginPage() {
       return
     }
 
-    if (!formData.email.includes('@')) {
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email)) {
       setLocalError('Please enter a valid email address')
       return
     }
