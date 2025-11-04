@@ -41,11 +41,13 @@ function App() {
             }}
           >
             {/* Navigation Header */}
-            <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
+            <nav className="bg-white/80 backdrop-blur-xl border-b border-white/20 sticky top-0 z-40 shadow-lg">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-center h-16">
-                  <Link to="/" className="flex items-center">
-                    <span className="text-xl font-bold text-primary-600">Resume Scanner Pro</span>
+                <div className="flex justify-between items-center h-20">
+                  <Link to="/" className="flex items-center group">
+                    <span className="text-2xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent group-hover:from-purple-700 group-hover:to-pink-700 transition-all duration-300">
+                      Resume Scanner Pro
+                    </span>
                   </Link>
                   <UserMenu onOpenAuth={openAuthModal} />
                 </div>

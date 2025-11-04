@@ -86,48 +86,52 @@ export function JobInputPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-teal-50 py-12">
       <div className="max-w-4xl mx-auto px-4">
         {/* Progress indicator */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-primary-600 font-semibold">Step 1 of 3</span>
-            <span className="text-gray-500">Job Description</span>
+        <div className="mb-10">
+          <div className="flex items-center justify-between text-sm mb-3">
+            <span className="text-gradient font-bold text-base">Step 1 of 3</span>
+            <span className="text-gray-700 font-medium">Job Description</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div className="bg-primary-600 h-2 rounded-full" style={{ width: '33%' }}></div>
+          <div className="w-full bg-white/50 backdrop-blur-sm rounded-full h-3 shadow-inner">
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 h-3 rounded-full shadow-lg transition-all duration-500" style={{ width: '33%' }}></div>
           </div>
         </div>
 
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Job Description</h1>
-        <p className="text-gray-600 mb-8">
-          Enter the job details or select a template to get started
-        </p>
+        <div className="mb-8 animate-fade-in">
+          <h1 className="text-4xl font-extrabold mb-3">
+            <span className="text-gradient">Job Description</span>
+          </h1>
+          <p className="text-gray-700 text-lg font-medium">
+            Enter the job details or select a template to get started quickly
+          </p>
+        </div>
 
         {/* Template Selector */}
-        <Card className="mb-6">
-          <label className="label mb-3">Quick Start Template (Optional)</label>
+        <Card glass className="mb-6 animate-slide-up">
+          <label className="label mb-4 text-base">🚀 Quick Start Template (Optional)</label>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {Object.entries(JOB_TEMPLATES).map(([key, template]) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => handleTemplateChange(key)}
-                className={`p-3 rounded-lg border-2 transition-all ${
+                className={`p-4 rounded-2xl border-2 transition-all duration-300 font-semibold text-sm ${
                   selectedTemplate === key
-                    ? 'border-primary-600 bg-primary-50 text-primary-700'
-                    : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                    ? 'border-purple-600 bg-gradient-to-br from-purple-100 to-pink-100 text-purple-700 shadow-lg scale-105'
+                    : 'border-white/40 bg-white/30 hover:border-purple-300 hover:bg-white/50 text-gray-700 hover:scale-105'
                 }`}
               >
-                <div className="font-semibold text-sm">{template.name}</div>
+                {template.name}
               </button>
             ))}
           </div>
         </Card>
 
         {/* Job Form */}
-        <Card>
-          <div className="space-y-6">
+        <Card glass className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <div className="space-y-7">
             <Input
               label="Job Title"
               name="title"
@@ -164,12 +168,12 @@ export function JobInputPage() {
               </div>
               <div className="space-y-2">
                 {jobData.requirements.map((req, index) => (
-                  <div key={index} className="flex items-center justify-between bg-gray-50 border rounded-lg px-4 py-2">
-                    <span className="text-sm text-gray-700">• {req}</span>
+                  <div key={index} className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl px-4 py-3 hover:shadow-md transition-all duration-300">
+                    <span className="text-sm text-gray-800 font-medium">• {req}</span>
                     <button
                       type="button"
                       onClick={() => removeRequirement(index)}
-                      className="text-gray-400 hover:text-red-600 ml-2"
+                      className="text-gray-400 hover:text-red-600 ml-2 text-xl font-bold transition-colors duration-200"
                     >
                       ×
                     </button>
@@ -196,12 +200,12 @@ export function JobInputPage() {
               </div>
               <div className="space-y-2">
                 {jobData.duties.map((duty, index) => (
-                  <div key={index} className="flex items-center justify-between bg-gray-50 border rounded-lg px-4 py-2">
-                    <span className="text-sm text-gray-700">• {duty}</span>
+                  <div key={index} className="flex items-center justify-between bg-gradient-to-r from-teal-50 to-blue-50 border-2 border-teal-200 rounded-xl px-4 py-3 hover:shadow-md transition-all duration-300">
+                    <span className="text-sm text-gray-800 font-medium">• {duty}</span>
                     <button
                       type="button"
                       onClick={() => removeDuty(index)}
-                      className="text-gray-400 hover:text-red-600 ml-2"
+                      className="text-gray-400 hover:text-red-600 ml-2 text-xl font-bold transition-colors duration-200"
                     >
                       ×
                     </button>
