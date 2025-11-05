@@ -18,7 +18,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Tech Stack
 
 - **Frontend**: React 18 + Vite, Tailwind CSS, React Router, Zustand
-- **State**: React Query (server state), Zustand (client state), sessionStorage (anonymous users)
+- **State**: React Query (server state), Zustand (client state)
 - **Backend**: Python 3.13 serverless functions (Vercel)
 - **Database**: Supabase (PostgreSQL + Auth + Storage)
 - **AI**: Claude 3.5 Haiku (primary), OpenAI GPT-4o Mini (optional)
@@ -172,10 +172,18 @@ POST /api/evaluate_candidate
 
 **Why:** Faster iteration, built-in auth/storage, real-time subscriptions, RLS for security. Reduces infrastructure overhead for solo developer MVP.
 
-### Hybrid Storage Approach
-**Decision:** Supabase for authenticated users, sessionStorage for anonymous users
+### B2B Signup-First Model (Authentication Required)
+**Decision:** Require account creation before trial usage (like Frill, Greenhouse, LinkedIn Recruiter)
 
-**Why:** Anonymous users can try the tool without signup (growth hack). Authenticated users get persistent storage across devices. Best of both worlds.
+**Why:**
+- **Qualified leads:** Filters tire-kickers, captures email for nurture campaigns
+- **B2B expectations:** Corporate recruiters expect signup for SaaS trials - signals legitimacy
+- **Simpler architecture:** Single storage system (Supabase only), no sessionStorage migration flows
+- **Better conversion:** Email captured upfront, easier to track trial → paid conversion
+- **Prevents abuse:** Account requirement reduces spam, throwaway usage
+- **Focus on niche:** Target serious corporate/agency recruiters, not mass consumer market
+
+**Implementation:** Marketing landing page → Signup → Tool access (all data persisted to Supabase)
 
 ### Serverless over Traditional Backend
 **Decision:** Python serverless functions (Vercel) instead of Express/FastAPI server
