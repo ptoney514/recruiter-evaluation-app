@@ -1,40 +1,50 @@
 # Project Status
 
-Last Updated: 2025-10-24
+Last Updated: 2025-11-04
 
 ## Current Focus
 
-**STRATEGIC PIVOT**: Building foundation for sellable product with web + iOS apps. Adding Supabase for user authentication, persistent storage, and multi-device access. Following Claude Code 2.0 best practices for project organization.
+**B2B SIGNUP-FIRST MODEL**: Pivoting to require account creation before trial (like Frill, Greenhouse, LinkedIn Recruiter). Prioritizing marketing landing page to convert qualified recruiter leads, then implementing Supabase Auth. Simpler architecture, better conversion, focus on niche B2B market.
 
 ## In Progress 🚧
 
-- [ ] Documentation restructuring (Claude Code 2.0 best practices)
-  - Created STATUS.md for current work tracking ✅
-  - Refactoring CLAUDE.md to stable architecture only
-  - Moving ARCHITECTURE_ANALYSIS.md to docs/ folder
+- [ ] **Marketing Landing Page** (Priority 1)
+  - Architecture planned in docs/marketing-page-architecture.md ✅
+  - Hero section with value proposition
+  - Features overview (6 key features)
+  - How it works (3-step process)
+  - Pricing teaser
+  - FAQ section
+  - Final CTA
+  - Status: Ready to build
+
+- [ ] **Signup Flow** (Priority 2)
+  - Supabase Auth integration
+  - SignupPage.jsx component
+  - Email verification flow
+  - Redirect to /app after signup
+  - Status: Blocked by marketing page
+
+- [ ] **Documentation Update** (In Progress)
+  - Updated CLAUDE.md with B2B signup-first decision ✅
+  - Created marketing-page-architecture.md ✅
+  - Updating STATUS.md ✅
+  - Remove sessionStorage/anonymous user references from codebase
   - Status: In progress
 
-- [ ] Supabase integration preparation
-  - Local Supabase running in Docker ✅
-  - Migrations 001-003 applied to local DB ✅
-  - Need migration 004: Add user_id columns and RLS policies
-  - Frontend Supabase client setup
-  - useAuth hook creation
-  - Login/signup pages
-  - Blocker: Decide on Supabase cloud project setup
-
-- [ ] React Query integration
-  - Install @tanstack/react-query
-  - Replace sessionStorage service with Supabase queries
-  - Add server state caching
-  - Status: Not started
-
 ## Recently Completed ✅
+
+- **B2B Signup-First Model Decision** (Nov 4)
+  - Pivoted from hybrid storage to signup-required approach
+  - Updated CLAUDE.md with new architectural decision
+  - Created marketing-page-architecture.md (9 sections planned)
+  - Reasoning: Better for B2B market, simpler architecture, qualified leads
+  - Inspired by Frill's conversion-focused design
 
 - **Architecture Analysis & MVP Roadmap** (Oct 24)
   - Reviewed PRD against current codebase
   - Decision: Keep Python backend (better for PDF/AI than Node.js)
-  - Decision: Use hybrid storage (Supabase + sessionStorage for anonymous)
+  - ~~Decision: Use hybrid storage (Supabase + sessionStorage for anonymous)~~ REVERSED Nov 4
   - Created 4-6 week MVP roadmap
   - Documented marketing strategy and go-to-market plan
 
@@ -72,17 +82,23 @@ Last Updated: 2025-10-24
 
 ## Next Session Goals
 
-1. Complete documentation restructuring (CLAUDE.md + STATUS.md)
-2. Create docs/ folder and organize files
-3. Create new branch: `feature/supabase-integration`
-4. Create migration 004: Add user_id and RLS policies
-5. Set up frontend Supabase client (lib/supabase.js)
-6. Create useAuth hook for authentication state
-7. Build login/signup pages
+1. Build marketing landing page (MarketingPage.jsx)
+   - Hero section with primary CTA
+   - Features grid (6 features)
+   - How it works (3 steps)
+   - Pricing teaser + FAQ
+2. Create signup page (SignupPage.jsx)
+3. Set up Supabase Auth integration
+4. Configure routing: / → Marketing, /signup → Signup, /app → Dashboard (auth required)
+5. Test end-to-end signup flow
 
 ## Recent Decisions 📝
 
-- **Oct 24**: **STRATEGIC PIVOT** - Building for sellable product with iOS app. Need persistent storage, user accounts, and scalable architecture. Reverting Oct 23 decision to remove Supabase.
+- **Nov 4**: **B2B SIGNUP-FIRST MODEL** - Require account creation before trial (like Frill). Better for B2B market, simpler architecture (no sessionStorage), qualified leads, easier conversion tracking. Reverses Oct 24 "hybrid storage" decision.
+
+- **Nov 4**: Prioritize marketing landing page over Supabase integration - Need strong conversion funnel to drive signups. Marketing page → Signup → Auth → Tool access.
+
+- **Oct 24**: **STRATEGIC PIVOT** - Building for sellable product with iOS app. Need persistent storage, user accounts, and scalable architecture.
 
 - **Oct 24**: Follow Claude Code 2.0 guide - CLAUDE.md for stable architecture, STATUS.md for current work. Keep docs minimal and updated.
 
@@ -90,25 +106,24 @@ Last Updated: 2025-10-24
 
 - **Oct 24**: Claude Haiku as default LLM - 5x cheaper than Sonnet ($0.003 vs $0.015), sufficient quality for structured evaluations.
 
-- **Oct 24**: Hybrid storage approach - Supabase for authenticated users (persistent), sessionStorage for anonymous users (try before signup).
+- **Oct 24**: ~~Hybrid storage approach~~ REVERSED Nov 4 - Now requiring signup for all users.
 
 - **Oct 24**: Start with local Supabase, deploy to cloud after MVP validation.
-
-- **Oct 21**: Using Claude 3.5 Haiku for cost optimization over Sonnet.
 
 ## Blockers
 
 ### Critical Decisions Needed
 
-1. **Supabase Cloud Setup**
-   - Create new Supabase project? Or link existing?
-   - If new: Project name, region selection
-   - If existing: Project ref/URL for linking
+1. **Marketing Copy & Assets** (before building landing page)
+   - Hero headline finalized
+   - Demo video recorded (60 seconds) OR hero screenshot
+   - Company logos for social proof (optional)
+   - FAQ answers written
 
-2. **Anonymous User Strategy**
-   - Should anonymous users be able to use the tool?
-   - Recommended: Yes (growth hack - try before signup)
-   - Implementation: sessionStorage fallback if not authenticated
+2. **Supabase Cloud Setup** (after marketing page)
+   - Create new Supabase project
+   - Project name: "resume-scanner-pro-prod"
+   - Region: US (closest to Vercel deployment)
 
 ## Architecture Direction
 
@@ -134,39 +149,52 @@ Last Updated: 2025-10-24
 
 ### Data Flow (Target Architecture)
 
-**Authenticated Users**:
-1. Login → Supabase Auth
-2. CRUD jobs → Supabase DB
-3. Upload resumes → Supabase Storage + Python parse API
-4. Run evaluation → Python AI API + save to Supabase
-5. View results → Query Supabase with React Query
-6. Export PDF → Client-side jspdf
+**All Users (Signup Required)**:
+1. Marketing page → Signup (Supabase Auth)
+2. Email verification → Redirect to /app
+3. CRUD jobs → Supabase DB
+4. Upload resumes → Supabase Storage + Python parse API
+5. Run evaluation → Python AI API + save to Supabase
+6. View results → Query Supabase with React Query
+7. Export PDF → Client-side jspdf
 
-**Anonymous Users**:
-1. Use sessionStorage (no signup)
-2. Same evaluation flow
-3. Prompt to save results (signup conversion)
+## MVP Timeline (4-6 Weeks - Updated Nov 4)
 
-## MVP Timeline (4-6 Weeks)
+**Week 1**: Marketing & Auth Foundation
+- Build marketing landing page (9 sections)
+- Create signup page
+- Supabase Auth integration
+- Routing + auth guards
 
-**Week 1-2**: Supabase Foundation
-- Auth integration
-- RLS policies
-- Frontend client setup
-
-**Week 3-4**: Connect Existing Flow
+**Week 2**: Connect Existing Tool Flow
 - Job CRUD with Supabase
-- Resume storage
+- Resume storage (Supabase Storage)
 - Evaluation persistence
+- React Query integration
 
-**Week 5**: Interview Guides
-- Guide generation API
-- PDF export
+**Week 3**: User Dashboard & History
+- Job list view
+- Evaluation history
+- Re-run evaluations
+- Export to PDF
 
-**Week 6**: Polish & Launch
+**Week 4**: Interview Guides & Stage 2
+- Interview guide generation API
+- Interview rating form
+- Reference check form
+- Final hiring decision evaluation
+
+**Week 5**: Polish & Testing
 - Error handling
+- Loading states
+- Mobile responsiveness
+- Manual QA
+
+**Week 6**: Launch Prep
+- Deploy Supabase cloud
+- Vercel production deploy
 - Documentation
-- ProductHunt launch
+- ProductHunt launch assets
 
 **Week 7-10**: iOS App (After Web MVP)
 - SwiftUI app
