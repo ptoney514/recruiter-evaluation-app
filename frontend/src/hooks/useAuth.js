@@ -26,6 +26,13 @@ export const useAuth = create((set, get) => ({
     try {
       set({ loading: true })
 
+      // Check if Supabase is configured
+      if (!supabase) {
+        console.warn('⚠️  Supabase not configured. Auth features disabled.')
+        set({ loading: false, user: null, session: null })
+        return
+      }
+
       // Get current session
       const { data: { session }, error } = await supabase.auth.getSession()
 

@@ -10,21 +10,23 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 // Validate environment variables
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables. Please check frontend/.env.local')
-  console.error('Required: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY')
+  console.warn('⚠️  Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in frontend/.env.local')
+  console.warn('Marketing page will work without Supabase. Auth features will be disabled.')
 }
 
-// Create and export Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
-  },
-  db: {
-    schema: 'public'
-  }
-})
+// Create and export Supabase client (with fallback for missing config)
+export const supabase = supabaseUrl && supabaseAnonKey
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true
+      },
+      db: {
+        schema: 'public'
+      }
+    })
+  : null // Return null if not configured
 
 /**
  * Helper to check if Supabase is configured
