@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Detail - Resume Scanner Pro (Wireframe)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        /* Header */
+        .header {
+            background: white;
+            border-bottom: 2px solid #e0e0e0;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #2563eb;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: 2px solid #333;
+            background: white;
+            cursor: pointer;
+            font-weight: 500;
+            text-decoration: none;
+            color: #333;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            background: #f0f0f0;
+        }
+
+        /* Layout */
+        .layout {
+            display: flex;
+            min-height: calc(100vh - 70px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background: white;
+            border-right: 2px solid #e0e0e0;
+            padding: 2rem;
+            position: sticky;
+            top: 70px;
+            height: calc(100vh - 70px);
+            overflow-y: auto;
+        }
+
+        .back-button {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: white;
+            border: 2px solid #333;
+            cursor: pointer;
+            font-weight: 500;
+            margin-bottom: 2rem;
+            width: 100%;
+            text-decoration: none;
+            color: #333;
+        }
+
+        .back-button:hover {
+            background: #f0f0f0;
+        }
+
+        .project-title-sidebar {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .metadata-section {
+            margin-bottom: 2rem;
+        }
+
+        .metadata-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            font-size: 0.875rem;
+        }
+
+        .metadata-label {
+            color: #666;
+        }
+
+        .metadata-value {
+            font-weight: 600;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .stat-card {
+            background: #f5f5f5;
+            padding: 1rem;
+            border: 2px solid #e0e0e0;
+        }
+
+        .stat-value-large {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2563eb;
+        }
+
+        .stat-label-small {
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 0.25rem;
+            text-transform: uppercase;
+        }
+
+        .status-section {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: #d1fae5;
+            border: 2px solid #059669;
+        }
+
+        .status-section h3 {
+            font-size: 0.875rem;
+            color: #059669;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background: white;
+            border: 1px solid #059669;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: #059669;
+            width: 65%;
+            transition: width 0.3s;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .content-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .btn-primary {
+            padding: 0.75rem 1.5rem;
+            background: #2563eb;
+            color: white;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 2rem;
+        }
+
+        .tab {
+            padding: 1rem 2rem;
+            border: none;
+            background: white;
+            cursor: pointer;
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            background: #f5f5f5;
+        }
+
+        .tab.active {
+            border-bottom-color: #2563eb;
+            color: #2563eb;
+            font-weight: 700;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Overview Tab */
+        .section {
+            background: white;
+            border: 2px solid #e0e0e0;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .section h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-description {
+            line-height: 1.6;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+
+        .requirements-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .requirements-list li {
+            padding: 0.75rem;
+            background: #f5f5f5;
+            border: 1px solid #e0e0e0;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .requirements-list li::before {
+            content: '✓';
+            color: #059669;
+            font-weight: 700;
+        }
+
+        /* Candidates Tab */
+        .candidates-table {
+            width: 100%;
+            background: white;
+            border: 2px solid #e0e0e0;
+        }
+
+        .candidates-table th,
+        .candidates-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .candidates-table th {
+            background: #f5f5f5;
+            font-weight: 700;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+        }
+
+        .candidates-table tr:hover {
+            background: #f9f9f9;
+        }
+
+        .eval-status {
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 2px solid;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+
+        .status-complete {
+            color: #059669;
+            background: #d1fae5;
+            border-color: #059669;
+        }
+
+        .status-pending {
+            color: #d97706;
+            background: #fef3c7;
+            border-color: #d97706;
+        }
+
+        .status-evaluating {
+            color: #2563eb;
+            background: #dbeafe;
+            border-color: #2563eb;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-small {
+            padding: 0.25rem 0.75rem;
+            font-size: 0.875rem;
+            border: 2px solid #333;
+            background: white;
+            cursor: pointer;
+        }
+
+        .btn-small:hover {
+            background: #f0f0f0;
+        }
+
+        /* Results Tab */
+        .results-header {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .filter-button {
+            padding: 0.5rem 1rem;
+            border: 2px solid #e0e0e0;
+            background: white;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .filter-button.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .results-table {
+            width: 100%;
+            background: white;
+            border: 2px solid #e0e0e0;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .results-table th {
+            background: #f5f5f5;
+            font-weight: 700;
+            font-size: 0.875rem;
+        }
+
+        .score-badge {
+            font-size: 1.25rem;
+            font-weight: 700;
+            padding: 0.25rem 0.75rem;
+            border: 2px solid;
+            display: inline-block;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .score-high {
+            color: #059669;
+            background: #d1fae5;
+            border-color: #059669;
+        }
+
+        .score-medium {
+            color: #d97706;
+            background: #fef3c7;
+            border-color: #d97706;
+        }
+
+        .score-low {
+            color: #dc2626;
+            background: #fee2e2;
+            border-color: #dc2626;
+        }
+
+        .recommendation-badge {
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 2px solid;
+            text-transform: uppercase;
+        }
+
+        .rec-interview {
+            color: #059669;
+            background: #d1fae5;
+            border-color: #059669;
+        }
+
+        .rec-phone {
+            color: #d97706;
+            background: #fef3c7;
+            border-color: #d97706;
+        }
+
+        .rec-decline {
+            color: #dc2626;
+            background: #fee2e2;
+            border-color: #dc2626;
+        }
+
+        /* Wireframe Note */
+        .wireframe-note {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background: #fef3c7;
+            border: 2px solid #d97706;
+            padding: 1rem;
+            max-width: 300px;
+            font-size: 0.875rem;
+            z-index: 200;
+        }
+
+        .wireframe-note strong {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #d97706;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">📋 Resume Scanner Pro</div>
+        <nav class="user-menu">
+            <a href="#" class="btn">Settings</a>
+            <div class="user-avatar" title="Sarah Johnson">SJ</div>
+        </nav>
+    </header>
+
+    <!-- Layout -->
+    <div class="layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <a href="dashboard.html" class="back-button">
+                ← Back to Dashboard
+            </a>
+
+            <div class="project-title-sidebar">
+                Senior Software Engineer
+            </div>
+
+            <div class="metadata-section">
+                <div class="metadata-item">
+                    <span class="metadata-label">Created</span>
+                    <span class="metadata-value">Nov 1, 2025</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">Last Updated</span>
+                    <span class="metadata-value">2 hours ago</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">Status</span>
+                    <span class="metadata-value" style="color: #059669;">● Active</span>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value-large">23</div>
+                    <div class="stat-label-small">Total Candidates</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value-large">15</div>
+                    <div class="stat-label-small">Evaluated</div>
+                </div>
+            </div>
+
+            <div class="status-section">
+                <h3>EVALUATION PROGRESS</h3>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill"></div>
+                </div>
+                <p style="font-size: 0.875rem; margin-top: 0.5rem; color: #059669;">
+                    15 of 23 candidates evaluated (65%)
+                </p>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-header">
+                <h1>Senior Software Engineer</h1>
+                <button class="btn-primary" onclick="alert('Upload resumes modal')">
+                    + Upload Resumes
+                </button>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('overview')">Overview</button>
+                <button class="tab" onclick="showTab('candidates')">Candidates (23)</button>
+                <button class="tab" onclick="showTab('results')">Results (15)</button>
+                <button class="tab" onclick="showTab('settings')">Settings</button>
+            </div>
+
+            <!-- Overview Tab -->
+            <div id="overview" class="tab-content active">
+                <div class="section">
+                    <h2>
+                        Job Description
+                        <button class="btn" onclick="alert('Edit description')">Edit</button>
+                    </h2>
+                    <p class="section-description">
+                        We're looking for an experienced Senior Software Engineer to join our growing team.
+                        You'll work on building scalable web applications using modern technologies and
+                        collaborate with cross-functional teams to deliver high-quality products.
+                    </p>
+                </div>
+
+                <div class="section">
+                    <h2>
+                        Must-Have Requirements
+                        <button class="btn" onclick="alert('Edit requirements')">Edit</button>
+                    </h2>
+                    <ul class="requirements-list">
+                        <li>5+ years of software development experience</li>
+                        <li>Strong proficiency in React and Node.js</li>
+                        <li>Experience with PostgreSQL or similar databases</li>
+                        <li>Bachelor's degree in Computer Science or related field</li>
+                        <li>Strong problem-solving and communication skills</li>
+                    </ul>
+                </div>
+
+                <div class="section">
+                    <h2>
+                        Preferred Requirements
+                        <button class="btn" onclick="alert('Edit requirements')">Edit</button>
+                    </h2>
+                    <ul class="requirements-list">
+                        <li>Experience with TypeScript</li>
+                        <li>Cloud deployment experience (AWS, GCP, or Azure)</li>
+                        <li>Prior startup experience</li>
+                        <li>Open source contributions</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Candidates Tab -->
+            <div id="candidates" class="tab-content">
+                <table class="candidates-table">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" /></th>
+                            <th>Name</th>
+                            <th>Uploaded</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><input type="checkbox" /></td>
+                            <td><strong>John Smith</strong></td>
+                            <td>Nov 9, 2025</td>
+                            <td><span class="eval-status status-complete">Complete</span></td>
+                            <td class="action-buttons">
+                                <button class="btn-small">View Resume</button>
+                                <button class="btn-small">View Evaluation</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><input type="checkbox" /></td>
+                            <td><strong>Sarah Chen</strong></td>
+                            <td>Nov 9, 2025</td>
+                            <td><span class="eval-status status-complete">Complete</span></td>
+                            <td class="action-buttons">
+                                <button class="btn-small">View Resume</button>
+                                <button class="btn-small">View Evaluation</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><input type="checkbox" /></td>
+                            <td><strong>Michael Johnson</strong></td>
+                            <td>Nov 9, 2025</td>
+                            <td><span class="eval-status status-pending">Not Evaluated</span></td>
+                            <td class="action-buttons">
+                                <button class="btn-small">View Resume</button>
+                                <button class="btn-small" style="background: #2563eb; color: white;">Evaluate</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><input type="checkbox" /></td>
+                            <td><strong>Emily Rodriguez</strong></td>
+                            <td>Nov 8, 2025</td>
+                            <td><span class="eval-status status-complete">Complete</span></td>
+                            <td class="action-buttons">
+                                <button class="btn-small">View Resume</button>
+                                <button class="btn-small">View Evaluation</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><input type="checkbox" /></td>
+                            <td><strong>David Kim</strong></td>
+                            <td>Nov 8, 2025</td>
+                            <td><span class="eval-status status-pending">Not Evaluated</span></td>
+                            <td class="action-buttons">
+                                <button class="btn-small">View Resume</button>
+                                <button class="btn-small" style="background: #2563eb; color: white;">Evaluate</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                    <button class="btn">Bulk Evaluate Selected</button>
+                    <button class="btn">Export Selected</button>
+                    <button class="btn" style="border-color: #dc2626; color: #dc2626;">Delete Selected</button>
+                </div>
+            </div>
+
+            <!-- Results Tab -->
+            <div id="results" class="tab-content">
+                <div class="results-header">
+                    <span style="font-weight: 600;">Filter:</span>
+                    <button class="filter-button active">All (15)</button>
+                    <button class="filter-button">Interview (5)</button>
+                    <button class="filter-button">Phone Screen (7)</button>
+                    <button class="filter-button">Decline (3)</button>
+                </div>
+
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Candidate</th>
+                            <th>Score</th>
+                            <th>Recommendation</th>
+                            <th>Key Strengths</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>1</strong></td>
+                            <td><strong>Sarah Chen</strong></td>
+                            <td><span class="score-badge score-high">92</span></td>
+                            <td><span class="recommendation-badge rec-interview">Interview</span></td>
+                            <td>8+ years exp, React expert, startup background</td>
+                            <td><button class="btn-small">View Full</button></td>
+                        </tr>
+                        <tr>
+                            <td><strong>2</strong></td>
+                            <td><strong>John Smith</strong></td>
+                            <td><span class="score-badge score-high">88</span></td>
+                            <td><span class="recommendation-badge rec-interview">Interview</span></td>
+                            <td>Strong React/Node, AWS experience, CS degree</td>
+                            <td><button class="btn-small">View Full</button></td>
+                        </tr>
+                        <tr>
+                            <td><strong>3</strong></td>
+                            <td><strong>Emily Rodriguez</strong></td>
+                            <td><span class="score-badge score-high">85</span></td>
+                            <td><span class="recommendation-badge rec-interview">Interview</span></td>
+                            <td>6 years exp, TypeScript expert, good communication</td>
+                            <td><button class="btn-small">View Full</button></td>
+                        </tr>
+                        <tr>
+                            <td><strong>4</strong></td>
+                            <td><strong>David Kim</strong></td>
+                            <td><span class="score-badge score-medium">78</span></td>
+                            <td><span class="recommendation-badge rec-phone">Phone Screen</span></td>
+                            <td>4 years exp, strong React but limited backend</td>
+                            <td><button class="btn-small">View Full</button></td>
+                        </tr>
+                        <tr>
+                            <td><strong>5</strong></td>
+                            <td><strong>Lisa Wang</strong></td>
+                            <td><span class="score-badge score-medium">75</span></td>
+                            <td><span class="recommendation-badge rec-phone">Phone Screen</span></td>
+                            <td>5 years exp, good technical but career gaps</td>
+                            <td><button class="btn-small">View Full</button></td>
+                        </tr>
+                        <tr>
+                            <td><strong>6</strong></td>
+                            <td><strong>Mark Anderson</strong></td>
+                            <td><span class="score-badge score-low">62</span></td>
+                            <td><span class="recommendation-badge rec-decline">Decline</span></td>
+                            <td>Limited React exp, no Node.js background</td>
+                            <td><button class="btn-small">View Full</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 2rem;">
+                    <button class="btn-primary">Export Results to PDF</button>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settings" class="tab-content">
+                <div class="section">
+                    <h2>Project Settings</h2>
+                    <div style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
+                        <button class="btn">Edit Job Details</button>
+                        <button class="btn">Duplicate Project</button>
+                        <button class="btn" style="border-color: #d97706; color: #d97706;">Archive Project</button>
+                        <button class="btn" style="border-color: #dc2626; color: #dc2626;">Delete Project</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Wireframe Note -->
+    <div class="wireframe-note">
+        <strong>🎨 WIREFRAME - Updated</strong>
+        <strong>Simplified Focus:</strong><br>
+        • Evaluation tool, not ATS<br>
+        • 2 key stats: Total + Evaluated<br>
+        • Clear navigation (tabs, breadcrumb)<br>
+        • All project info in one place<br><br>
+        <strong>Click tabs to explore!</strong>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Remove active from all tab buttons
+            document.querySelectorAll('.tab').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+
+            // Add active to clicked tab button
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

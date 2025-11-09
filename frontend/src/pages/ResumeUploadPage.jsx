@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { storageManager } from '../services/storage/storageManager'
-import { sessionStore } from '../services/storage/sessionStore'
 import { extractTextFromFile } from '../utils/pdfParser'
 import { MAX_FILE_SIZE_MB, MAX_RESUMES_BATCH, SUPPORTED_FILE_TYPES } from '../constants/config'
 
@@ -82,13 +81,6 @@ export function ResumeUploadPage() {
           // Validate we got text
           if (!text || text.trim().length === 0) {
             errors.push(`${file.name}: No text extracted (may be scanned/image PDF)`)
-            return null
-          }
-
-          // Check storage capacity before adding
-          const textSizeKB = text.length / 1024
-          if (!sessionStore.canAddMoreData(textSizeKB)) {
-            errors.push(`${file.name}: Storage limit reached. Try evaluating current batch first.`)
             return null
           }
 
