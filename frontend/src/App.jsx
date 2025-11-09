@@ -5,6 +5,8 @@ import { queryClient } from './lib/queryClient'
 import { AuthProvider } from './contexts/AuthContext'
 import { MarketingPage } from './pages/MarketingPage'
 import { HomePage } from './pages/HomePage'
+import { DashboardPage } from './pages/DashboardPage'
+import { ProjectDetailPage } from './pages/ProjectDetailPage'
 import { JobInputPage } from './pages/JobInputPage'
 import { ResumeUploadPage } from './pages/ResumeUploadPage'
 import { ReviewPage } from './pages/ReviewPage'
@@ -46,7 +48,9 @@ function AppContent({ openAuthModal }) {
         <Route path="/signup" element={<SignupPage />} />
 
         {/* Protected Routes - Require Authentication */}
-        <Route path="/app" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+        <Route path="/app" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+        <Route path="/app/project/:projectId" element={<ProtectedRoute><ProjectDetailPage /></ProtectedRoute>} />
+        <Route path="/app/legacy" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
         <Route path="/job-input" element={<ProtectedRoute><JobInputPage /></ProtectedRoute>} />
         <Route path="/upload-resumes" element={<ProtectedRoute><ResumeUploadPage /></ProtectedRoute>} />
         <Route path="/review" element={<ProtectedRoute><ReviewPage /></ProtectedRoute>} />
