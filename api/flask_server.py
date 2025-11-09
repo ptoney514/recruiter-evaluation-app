@@ -18,6 +18,7 @@ load_dotenv(dotenv_path=env_path)
 # Import shared evaluation logic (DRY principle - no duplication)
 from evaluator_logic import evaluate_candidate, generate_summary
 from ai_evaluator import evaluate_candidate_with_ai
+from extract_job_info import extract_job_info
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -116,6 +117,38 @@ def evaluate_with_ai():
         }), 500
 
 
+@app.route('/api/extract_job_info', methods=['POST', 'OPTIONS'])
+@limiter.limit("50 per minute")
+def extract_info():
+    """Extract structured information from job description text"""
+    if request.method == 'OPTIONS':
+        return '', 200
+
+    try:
+        data = request.json
+        job_description = data.get('job_description', '')
+
+        if not job_description or not job_description.strip():
+            return jsonify({
+                'success': False,
+                'error': 'job_description is required'
+            }), 400
+
+        # Extract information using AI
+        result = extract_job_info(job_description)
+
+        return jsonify(result)
+
+    except Exception as e:
+        print(f"Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
@@ -133,6 +166,7 @@ if __name__ == '__main__':
     print('🔌 Endpoints:')
     print('   POST /api/evaluate_regex - Regex evaluation')
     print('   POST /api/evaluate_candidate - AI evaluation')
+    print('   POST /api/extract_job_info - Extract job info from description')
     print('   GET  /health - Health check')
     print('\nPress Ctrl+C to stop\n')
 
