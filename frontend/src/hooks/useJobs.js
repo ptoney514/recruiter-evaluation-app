@@ -97,6 +97,7 @@ export function useJob(jobId) {
           description,
           must_have_requirements,
           preferred_requirements,
+          performance_profile,
           status,
           created_at,
           updated_at
