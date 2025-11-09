@@ -1,7 +1,7 @@
 /**
  * Supabase Storage Service
- * Handles database operations for authenticated users
- * Works in parallel with sessionStore for hybrid storage approach
+ * Handles all database operations for authenticated users
+ * B2B signup-first model: All users must be authenticated
  */
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 
@@ -31,9 +31,15 @@ export async function getCurrentUserId() {
  * @returns {Promise<Object>} Created job with ID
  */
 export async function saveJob(jobData) {
+  const userId = await getCurrentUserId()
+  if (!userId) {
+    throw new Error('User must be authenticated to save jobs')
+  }
+
   const { data, error } = await supabase
     .from('jobs')
     .insert({
+      user_id: userId,
       title: jobData.title,
       department: jobData.department || null,
       location: jobData.location || null,
@@ -63,9 +69,15 @@ export async function saveJob(jobData) {
  * @returns {Promise<Object>} Created candidate with ID
  */
 export async function saveCandidate(jobId, candidateData) {
+  const userId = await getCurrentUserId()
+  if (!userId) {
+    throw new Error('User must be authenticated to save candidates')
+  }
+
   const { data, error } = await supabase
     .from('candidates')
     .insert({
+      user_id: userId,
       job_id: jobId,
       full_name: candidateData.name,
       email: candidateData.email || null,
@@ -93,9 +105,15 @@ export async function saveCandidate(jobId, candidateData) {
  * @returns {Promise<Object>} Created evaluation with ID
  */
 export async function saveEvaluation(candidateId, jobId, evaluation, usage = {}) {
+  const userId = await getCurrentUserId()
+  if (!userId) {
+    throw new Error('User must be authenticated to save evaluations')
+  }
+
   const { data, error } = await supabase
     .from('evaluations')
     .insert({
+      user_id: userId,
       candidate_id: candidateId,
       job_id: jobId,
       recommendation: evaluation.recommendation,
@@ -311,9 +329,15 @@ export async function deleteJob(jobId) {
  * @returns {Promise<Object>} Updated ranking
  */
 export async function updateCandidateRanking(candidateId, manualRank, notes = null) {
+  const userId = await getCurrentUserId()
+  if (!userId) {
+    throw new Error('User must be authenticated to update rankings')
+  }
+
   const { data, error } = await supabase
     .from('candidate_rankings')
     .upsert({
+      user_id: userId,
       candidate_id: candidateId,
       manual_rank: manualRank,
       notes

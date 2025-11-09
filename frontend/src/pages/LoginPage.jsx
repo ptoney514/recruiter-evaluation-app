@@ -58,8 +58,8 @@ export function LoginPage() {
     }
 
     if (user) {
-      // Successful login - redirect to dashboard/home
-      navigate('/')
+      // Successful login - redirect to app
+      navigate('/app')
     }
   }
 

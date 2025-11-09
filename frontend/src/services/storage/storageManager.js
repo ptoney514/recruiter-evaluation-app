@@ -1,226 +1,201 @@
 /**
  * Storage Manager
- * Unified storage API that automatically routes to sessionStorage or Supabase
- * based on authentication status
+ * Unified storage API that enforces authentication and uses Supabase
+ *
+ * B2B signup-first model: ALL users must be authenticated.
+ * All operations require authentication and are stored in Supabase.
  *
  * Usage:
- *   - Anonymous users: Data stored in sessionStorage (cleared on browser close)
- *   - Authenticated users: Data stored in Supabase (persistent across devices)
+ *   - All users must be authenticated to use the app
+ *   - Data is persistently stored in Supabase across devices
+ *   - Protected by Row Level Security (RLS) policies
+ *   - Uses sessionStorage for temporary draft state during multi-step form flow
  */
-import { sessionStore } from './sessionStore'
 import { supabaseStore } from './supabaseStore'
+import { sessionStore } from './sessionStore'
 import { isSupabaseConfigured } from '../../lib/supabase'
 
 /**
- * Get storage mode (session or database)
- * @returns {Promise<'session'|'database'>}
+ * Ensure user is authenticated before proceeding
+ * @throws {Error} If user is not authenticated or Supabase not configured
  */
-async function getStorageMode() {
+async function requireAuth() {
   if (!isSupabaseConfigured()) {
-    return 'session'
+    throw new Error('Supabase is not configured. Please check your environment variables.')
   }
 
   const isAuth = await supabaseStore.isAuthenticated()
-  return isAuth ? 'database' : 'session'
+  if (!isAuth) {
+    throw new Error('Authentication required. Please sign up or log in to continue.')
+  }
 }
 
 /**
- * Save evaluation (routes to appropriate storage)
+ * Save evaluation (requires authentication)
  * @param {Object} evaluationData - Evaluation data
  * @returns {Promise<Object>} Saved evaluation
  */
 export async function saveEvaluation(evaluationData) {
-  const mode = await getStorageMode()
-
-  if (mode === 'database') {
-    // Save to Supabase
-    return await supabaseStore.saveBatchEvaluation(evaluationData)
-  } else {
-    // Save to sessionStorage
-    return sessionStore.saveEvaluation(evaluationData)
-  }
+  await requireAuth()
+  return await supabaseStore.saveBatchEvaluation(evaluationData)
 }
 
 /**
- * Get current/active evaluation
+ * Get evaluation history
+ * @param {Object} options - Query options
+ * @returns {Promise<Array>}
+ */
+export async function getEvaluationHistory(options = {}) {
+  await requireAuth()
+  return await supabaseStore.getEvaluationHistory(options)
+}
+
+/**
+ * Get all jobs
+ * @param {Object} options - Query options
+ * @returns {Promise<Array>}
+ */
+export async function getJobs(options = {}) {
+  await requireAuth()
+  return await supabaseStore.getJobs(options)
+}
+
+/**
+ * Get job with evaluations
+ * @param {string} jobId - Job ID
  * @returns {Promise<Object|null>}
  */
-export async function getCurrentEvaluation() {
-  const mode = await getStorageMode()
-
-  if (mode === 'database') {
-    // Get most recent evaluation from Supabase
-    const history = await supabaseStore.getEvaluationHistory({ limit: 1 })
-    return history.length > 0 ? history[0] : null
-  } else {
-    // Get from sessionStorage
-    return sessionStore.getCurrentEvaluation()
-  }
+export async function getJobWithEvaluations(jobId) {
+  await requireAuth()
+  return await supabaseStore.getJobWithEvaluations(jobId)
 }
 
 /**
- * Update evaluation
- * @param {Object} updates - Fields to update
- * @returns {Promise<Object>}
+ * Get job evaluations
+ * @param {string} jobId - Job ID
+ * @returns {Promise<Array>}
  */
-export async function updateEvaluation(updates) {
-  const mode = await getStorageMode()
-
-  if (mode === 'database') {
-    // For database mode, we need to implement update logic
-    // For now, get current and save updated version
-    const current = await getCurrentEvaluation()
-    return await saveEvaluation({ ...current, ...updates })
-  } else {
-    return sessionStore.updateEvaluation(updates)
-  }
+export async function getJobEvaluations(jobId) {
+  await requireAuth()
+  return await supabaseStore.getJobEvaluations(jobId)
 }
 
 /**
- * Clear current evaluation
+ * Delete job and all associated data
+ * @param {string} jobId - Job ID
  * @returns {Promise<void>}
  */
-export async function clearEvaluation() {
-  const mode = await getStorageMode()
+export async function deleteJob(jobId) {
+  await requireAuth()
+  return await supabaseStore.deleteJob(jobId)
+}
 
-  if (mode === 'database') {
-    // For database, we don't delete - just clear session reference if any
-    sessionStore.clearEvaluation()
-  } else {
-    sessionStore.clearEvaluation()
+/**
+ * Update candidate ranking
+ * @param {string} candidateId - Candidate ID
+ * @param {number} manualRank - Manual rank override
+ * @param {string} notes - Optional notes
+ * @returns {Promise<Object>}
+ */
+export async function updateCandidateRanking(candidateId, manualRank, notes = null) {
+  await requireAuth()
+  return await supabaseStore.updateCandidateRanking(candidateId, manualRank, notes)
+}
+
+/**
+ * Get storage information
+ * @returns {Promise<Object>} Storage info
+ */
+export async function getStorageInfo() {
+  const isAuth = await supabaseStore.isAuthenticated()
+  const userId = isAuth ? await supabaseStore.getCurrentUserId() : null
+
+  return {
+    mode: 'database',
+    isAuthenticated: isAuth,
+    userId,
+    isSupabaseConfigured: isSupabaseConfigured()
   }
 }
 
 /**
- * Check if there's an active evaluation
+ * Check if user is authenticated
  * @returns {Promise<boolean>}
  */
-export async function hasActiveEvaluation() {
-  const mode = await getStorageMode()
-
-  if (mode === 'database') {
-    const history = await supabaseStore.getEvaluationHistory({ limit: 1 })
-    return history.length > 0
-  } else {
-    return sessionStore.hasActiveEvaluation()
-  }
+export async function isAuthenticated() {
+  return await supabaseStore.isAuthenticated()
 }
 
 /**
- * Create new evaluation structure
+ * Get current user ID
+ * @returns {Promise<string|null>}
+ */
+export async function getCurrentUserId() {
+  return await supabaseStore.getCurrentUserId()
+}
+
+/**
+ * Draft State Management (Temporary sessionStorage for multi-step forms)
+ * These methods use sessionStorage for temporary draft state while user fills out multi-step forms.
+ * Final data is saved to Supabase when evaluation is submitted.
+ */
+
+/**
+ * Get current draft evaluation from sessionStorage
+ * @returns {Object|null}
+ */
+export function getCurrentEvaluation() {
+  return sessionStore.getCurrentEvaluation()
+}
+
+/**
+ * Update draft evaluation in sessionStorage
+ * @param {Object} updates - Fields to update
+ * @returns {Object}
+ */
+export function updateEvaluation(updates) {
+  return sessionStore.updateEvaluation(updates)
+}
+
+/**
+ * Clear draft evaluation from sessionStorage
+ */
+export function clearEvaluation() {
+  sessionStore.clearEvaluation()
+}
+
+/**
+ * Check if there's a draft evaluation in progress
+ * @returns {boolean}
+ */
+export function hasActiveEvaluation() {
+  return sessionStore.hasActiveEvaluation()
+}
+
+/**
+ * Create new draft evaluation structure
  * @returns {Object}
  */
 export function createNewEvaluation() {
   return sessionStore.createNewEvaluation()
 }
 
-/**
- * Get evaluation history (database only)
- * @param {Object} options - Query options
- * @returns {Promise<Array>}
- */
-export async function getEvaluationHistory(options = {}) {
-  const mode = await getStorageMode()
-
-  if (mode === 'database') {
-    return await supabaseStore.getEvaluationHistory(options)
-  } else {
-    // Session storage doesn't have history - return current eval as array
-    const current = sessionStore.getCurrentEvaluation()
-    return current ? [current] : []
-  }
-}
-
-/**
- * Get all jobs (database only)
- * @param {Object} options - Query options
- * @returns {Promise<Array>}
- */
-export async function getJobs(options = {}) {
-  const mode = await getStorageMode()
-
-  if (mode === 'database') {
-    return await supabaseStore.getJobs(options)
-  } else {
-    return []
-  }
-}
-
-/**
- * Get job with evaluations (database only)
- * @param {string} jobId - Job ID
- * @returns {Promise<Object|null>}
- */
-export async function getJobWithEvaluations(jobId) {
-  const mode = await getStorageMode()
-
-  if (mode === 'database') {
-    return await supabaseStore.getJobWithEvaluations(jobId)
-  } else {
-    return null
-  }
-}
-
-/**
- * Check current storage mode
- * @returns {Promise<Object>} Storage info
- */
-export async function getStorageInfo() {
-  const mode = await getStorageMode()
-  const isAuth = await supabaseStore.isAuthenticated()
-  const userId = await supabaseStore.getCurrentUserId()
-
-  return {
-    mode,
-    isAuthenticated: isAuth,
-    userId,
-    isSupabaseConfigured: isSupabaseConfigured(),
-    sessionStorageUsageMB: sessionStore.getStorageUsage()
-  }
-}
-
-/**
- * Migrate session data to database (after user logs in)
- * @returns {Promise<Object>} Migration result
- */
-export async function migrateSessionToDatabase() {
-  const isAuth = await supabaseStore.isAuthenticated()
-  if (!isAuth) {
-    throw new Error('User must be authenticated to migrate data')
-  }
-
-  const sessionData = sessionStore.getCurrentEvaluation()
-  if (!sessionData) {
-    return { success: true, message: 'No session data to migrate' }
-  }
-
-  try {
-    const result = await supabaseStore.saveBatchEvaluation(sessionData)
-
-    // Clear session storage after successful migration
-    sessionStore.clearEvaluation()
-
-    return {
-      success: true,
-      message: 'Data migrated successfully',
-      data: result
-    }
-  } catch (error) {
-    console.error('Migration failed:', error)
-    throw new Error(`Failed to migrate data: ${error.message}`)
-  }
-}
-
 export const storageManager = {
+  // Persistent storage (Supabase)
   saveEvaluation,
+  getEvaluationHistory,
+  getJobs,
+  getJobWithEvaluations,
+  getJobEvaluations,
+  deleteJob,
+  updateCandidateRanking,
+  getStorageInfo,
+  isAuthenticated,
+  getCurrentUserId,
+  // Draft state (sessionStorage)
   getCurrentEvaluation,
   updateEvaluation,
   clearEvaluation,
   hasActiveEvaluation,
-  createNewEvaluation,
-  getEvaluationHistory,
-  getJobs,
-  getJobWithEvaluations,
-  getStorageInfo,
-  migrateSessionToDatabase
+  createNewEvaluation
 }

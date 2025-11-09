@@ -75,9 +75,8 @@ export function SignupPage() {
     }
 
     if (user) {
-      // Successful signup - redirect to dashboard/home
-      // Note: The sessionStorage migration will be handled in the next task
-      navigate('/')
+      // Successful signup - redirect to app
+      navigate('/app')
     }
   }
 

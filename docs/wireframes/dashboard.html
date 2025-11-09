@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Resume Scanner Pro (Wireframe)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        /* Header */
+        .header {
+            background: white;
+            border-bottom: 2px solid #e0e0e0;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #2563eb;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: 2px solid #333;
+            background: white;
+            cursor: pointer;
+            font-weight: 500;
+            text-decoration: none;
+            color: #333;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            background: #f0f0f0;
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .btn-primary {
+            padding: 0.75rem 1.5rem;
+            background: #2563eb;
+            color: white;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        /* Search Bar */
+        .search-bar {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            font-size: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Projects Grid */
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .project-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .project-card:hover {
+            border-color: #2563eb;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .project-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+
+        .project-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 2px solid;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            color: #059669;
+            background: #d1fae5;
+            border-color: #059669;
+        }
+
+        .status-draft {
+            color: #d97706;
+            background: #fef3c7;
+            border-color: #d97706;
+        }
+
+        .project-stats {
+            display: flex;
+            gap: 3rem;
+            margin: 1rem 0;
+            padding: 1rem 0;
+            border-top: 1px solid #e0e0e0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2563eb;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+
+        .project-meta {
+            font-size: 0.875rem;
+            color: #666;
+            margin-top: 1rem;
+        }
+
+        .project-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-secondary {
+            padding: 0.5rem 0.875rem;
+            background: white;
+            border: 2px solid #333;
+            font-weight: 500;
+            cursor: pointer;
+            font-size: 0.875rem;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .btn-secondary:hover {
+            background: #f0f0f0;
+        }
+
+        .btn-summary {
+            background: #e1f5ff;
+            border-color: #2563eb;
+            color: #2563eb;
+        }
+
+        .btn-summary:hover {
+            background: #dbeafe;
+        }
+
+        /* Progress Circle */
+        .progress-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: conic-gradient(#2563eb 0% 65%, #e0e0e0 65% 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .progress-circle::before {
+            content: '';
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: white;
+            position: absolute;
+        }
+
+        .progress-text {
+            position: relative;
+            z-index: 1;
+            font-weight: 700;
+            font-size: 0.875rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: white;
+            border: 2px dashed #e0e0e0;
+        }
+
+        .empty-state h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #666;
+        }
+
+        .empty-state p {
+            color: #999;
+            margin-bottom: 2rem;
+        }
+
+        /* Notes */
+        .wireframe-note {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background: #fef3c7;
+            border: 2px solid #d97706;
+            padding: 1rem;
+            max-width: 300px;
+            font-size: 0.875rem;
+        }
+
+        .wireframe-note strong {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #d97706;
+        }
+
+        /* Make entire card clickable */
+        .project-card {
+            position: relative;
+        }
+
+        .project-card:hover .project-title {
+            color: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">📋 Resume Scanner Pro</div>
+        <nav class="user-menu">
+            <a href="#" class="btn">Settings</a>
+            <div class="user-avatar" title="Sarah Johnson">SJ</div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>My Recruiting Projects</h1>
+            <button class="btn-primary" onclick="alert('Create New Project modal would open here')">
+                + Create New Project
+            </button>
+        </div>
+
+        <!-- Search Bar -->
+        <input type="text" class="search-bar" placeholder="🔍 Search projects..." />
+
+        <!-- Projects Grid -->
+        <div class="projects-grid">
+            <!-- Project Card 1 - Active -->
+            <a href="project-detail.html" class="project-card">
+                <div class="project-header">
+                    <div>
+                        <div class="project-title">Senior Software Engineer</div>
+                        <span class="status-badge status-active">Active</span>
+                    </div>
+                    <div class="progress-circle">
+                        <span class="progress-text">65%</span>
+                    </div>
+                </div>
+
+                <div class="project-stats">
+                    <div class="stat">
+                        <span class="stat-value">23</span>
+                        <span class="stat-label">Candidates</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value">15</span>
+                        <span class="stat-label">Evaluated</span>
+                    </div>
+                </div>
+
+                <div class="project-meta">
+                    📅 Last updated: 2 hours ago
+                </div>
+
+                <div class="project-actions" onclick="event.preventDefault()">
+                    <button class="btn-secondary" onclick="alert('Job description modal would open')">View Job Description</button>
+                    <button class="btn-secondary btn-summary" onclick="alert('Evaluation summary report')">View Summary</button>
+                    <button class="btn-secondary" onclick="alert('Upload resumes modal')">+ Upload Resumes</button>
+                </div>
+            </a>
+
+            <!-- Project Card 2 - Active -->
+            <a href="project-detail.html" class="project-card">
+                <div class="project-header">
+                    <div>
+                        <div class="project-title">Product Manager - Growth</div>
+                        <span class="status-badge status-active">Active</span>
+                    </div>
+                    <div class="progress-circle" style="background: conic-gradient(#2563eb 0% 100%, #e0e0e0 100% 100%);">
+                        <span class="progress-text">100%</span>
+                    </div>
+                </div>
+
+                <div class="project-stats">
+                    <div class="stat">
+                        <span class="stat-value">12</span>
+                        <span class="stat-label">Candidates</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value">12</span>
+                        <span class="stat-label">Evaluated</span>
+                    </div>
+                </div>
+
+                <div class="project-meta">
+                    📅 Last updated: 1 day ago
+                </div>
+
+                <div class="project-actions" onclick="event.preventDefault()">
+                    <button class="btn-secondary" onclick="alert('Job description modal would open')">View Job Description</button>
+                    <button class="btn-secondary btn-summary" onclick="alert('Evaluation summary report')">View Summary</button>
+                    <button class="btn-secondary" onclick="alert('Upload resumes modal')">+ Upload Resumes</button>
+                </div>
+            </a>
+
+            <!-- Project Card 3 - Draft -->
+            <a href="project-detail.html" class="project-card">
+                <div class="project-header">
+                    <div>
+                        <div class="project-title">UX Designer - Mobile</div>
+                        <span class="status-badge status-draft">Draft</span>
+                    </div>
+                    <div class="progress-circle" style="background: conic-gradient(#2563eb 0% 0%, #e0e0e0 0% 100%);">
+                        <span class="progress-text">0%</span>
+                    </div>
+                </div>
+
+                <div class="project-stats">
+                    <div class="stat">
+                        <span class="stat-value">8</span>
+                        <span class="stat-label">Candidates</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value">0</span>
+                        <span class="stat-label">Evaluated</span>
+                    </div>
+                </div>
+
+                <div class="project-meta">
+                    📅 Created: 3 days ago
+                </div>
+
+                <div class="project-actions" onclick="event.preventDefault()">
+                    <button class="btn-secondary" onclick="alert('Job description modal would open')">View Job Description</button>
+                    <button class="btn-secondary btn-summary" onclick="alert('Evaluation summary report')" disabled style="opacity: 0.5; cursor: not-allowed;">View Summary</button>
+                    <button class="btn-secondary" onclick="alert('Upload resumes modal')">+ Upload Resumes</button>
+                </div>
+            </a>
+
+            <!-- Project Card 4 - Active -->
+            <a href="project-detail.html" class="project-card">
+                <div class="project-header">
+                    <div>
+                        <div class="project-title">Data Engineer</div>
+                        <span class="status-badge status-active">Active</span>
+                    </div>
+                    <div class="progress-circle" style="background: conic-gradient(#2563eb 0% 33%, #e0e0e0 33% 100%);">
+                        <span class="progress-text">33%</span>
+                    </div>
+                </div>
+
+                <div class="project-stats">
+                    <div class="stat">
+                        <span class="stat-value">6</span>
+                        <span class="stat-label">Candidates</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value">2</span>
+                        <span class="stat-label">Evaluated</span>
+                    </div>
+                </div>
+
+                <div class="project-meta">
+                    📅 Last updated: 5 hours ago
+                </div>
+
+                <div class="project-actions" onclick="event.preventDefault()">
+                    <button class="btn-secondary" onclick="alert('Job description modal would open')">View Job Description</button>
+                    <button class="btn-secondary btn-summary" onclick="alert('Evaluation summary report')">View Summary</button>
+                    <button class="btn-secondary" onclick="alert('Upload resumes modal')">+ Upload Resumes</button>
+                </div>
+            </a>
+        </div>
+
+        <!-- Empty State (uncomment to see) -->
+        <!-- <div class="empty-state">
+            <h2>No Projects Yet</h2>
+            <p>Create your first recruiting project to get started</p>
+            <button class="btn-primary">+ Create Your First Project</button>
+        </div> -->
+    </main>
+
+    <!-- Wireframe Notes -->
+    <div class="wireframe-note">
+        <strong>🎨 WIREFRAME - Updated</strong>
+        <strong>Simplified Focus:</strong><br>
+        • Evaluation tool, NOT an ATS<br>
+        • 3 actions per card:<br>
+        &nbsp;&nbsp;1. View Job Description<br>
+        &nbsp;&nbsp;2. View Summary (eval report)<br>
+        &nbsp;&nbsp;3. Upload Resumes<br>
+        • Summary button for sharing<br>
+        • Disabled if no evaluations yet
+    </div>
+</body>
+</html>

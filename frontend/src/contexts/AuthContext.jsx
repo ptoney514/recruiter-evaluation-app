@@ -1,10 +1,10 @@
 /**
  * Auth Context
  * Provides authentication state and methods throughout the app
+ * B2B signup-first model: All users must be authenticated to use the app
  */
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { storageManager } from '../services/storage/storageManager'
 
 const AuthContext = createContext({})
 
@@ -30,21 +30,10 @@ export function AuthProvider({ children }) {
     // Listen for auth changes
     const {
       data: { subscription }
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
-
-      // Migrate session data to database after login
-      if (_event === 'SIGNED_IN' && session) {
-        try {
-          const result = await storageManager.migrateSessionToDatabase()
-          console.log('Session data migrated:', result.message)
-        } catch (error) {
-          console.error('Migration failed:', error)
-          // Don't block login on migration failure
-        }
-      }
     })
 
     return () => subscription.unsubscribe()

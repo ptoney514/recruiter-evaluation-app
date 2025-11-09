@@ -14,6 +14,7 @@ import { SignupPage } from './pages/SignupPage'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { UserMenu } from './components/auth/UserMenu'
 import { AuthModal } from './components/auth/AuthModal'
+import { ProtectedRoute } from './components/ProtectedRoute'
 import { useAuth } from './hooks/useAuth'
 
 // AppContent component to handle conditional header rendering
@@ -39,14 +40,17 @@ function AppContent({ openAuthModal }) {
 
       {/* Routes */}
       <Routes>
+        {/* Public Routes */}
         <Route path="/" element={<MarketingPage />} />
-        <Route path="/app" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
-        <Route path="/job-input" element={<JobInputPage />} />
-        <Route path="/upload-resumes" element={<ResumeUploadPage />} />
-        <Route path="/review" element={<ReviewPage />} />
-        <Route path="/results" element={<ResultsPage />} />
+
+        {/* Protected Routes - Require Authentication */}
+        <Route path="/app" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+        <Route path="/job-input" element={<ProtectedRoute><JobInputPage /></ProtectedRoute>} />
+        <Route path="/upload-resumes" element={<ProtectedRoute><ResumeUploadPage /></ProtectedRoute>} />
+        <Route path="/review" element={<ProtectedRoute><ReviewPage /></ProtectedRoute>} />
+        <Route path="/results" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
       </Routes>
     </>
   )
