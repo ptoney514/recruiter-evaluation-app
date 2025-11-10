@@ -6,6 +6,7 @@ import { Badge } from '../components/ui/Badge'
 import { useJob, useUpdateJob } from '../hooks/useJobs'
 import { PerformanceProfileWizard } from '../components/performanceProfile/PerformanceProfileWizard'
 import { EditProjectModal } from '../components/dashboard/EditProjectModal'
+import { exportPerformanceProfile } from '../utils/performanceProfileExport'
 
 /**
  * ProjectDetailPage
@@ -227,13 +228,27 @@ export function ProjectDetailPage() {
           <Card>
             <div className="flex justify-between items-start mb-4">
               <h2 className="text-xl font-bold text-gray-900">Performance Profile</h2>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowProfileWizard(true)}
-              >
-                Edit
-              </Button>
+              <div className="flex gap-2">
+                {project.performance_profile && Object.keys(project.performance_profile).length > 0 && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => exportPerformanceProfile(project.performance_profile, project.title)}
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Export
+                  </Button>
+                )}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowProfileWizard(true)}
+                >
+                  Edit
+                </Button>
+              </div>
             </div>
 
             {project.performance_profile && Object.keys(project.performance_profile).length > 0 ? (

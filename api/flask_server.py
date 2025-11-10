@@ -19,6 +19,7 @@ load_dotenv(dotenv_path=env_path)
 from evaluator_logic import evaluate_candidate, generate_summary
 from ai_evaluator import evaluate_candidate_with_ai
 from extract_job_info import extract_job_info
+from parse_performance_profile import parse_performance_profile
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -149,6 +150,38 @@ def extract_info():
         }), 500
 
 
+@app.route('/api/parse_performance_profile', methods=['POST', 'OPTIONS'])
+@limiter.limit("50 per minute")
+def parse_profile():
+    """Parse uploaded Performance Profile text into structured format"""
+    if request.method == 'OPTIONS':
+        return '', 200
+
+    try:
+        data = request.json
+        profile_text = data.get('profile_text', '')
+
+        if not profile_text or not profile_text.strip():
+            return jsonify({
+                'success': False,
+                'error': 'profile_text is required'
+            }), 400
+
+        # Parse with AI
+        result = parse_performance_profile(profile_text)
+
+        return jsonify(result)
+
+    except Exception as e:
+        print(f"Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
@@ -167,6 +200,7 @@ if __name__ == '__main__':
     print('   POST /api/evaluate_regex - Regex evaluation')
     print('   POST /api/evaluate_candidate - AI evaluation')
     print('   POST /api/extract_job_info - Extract job info from description')
+    print('   POST /api/parse_performance_profile - Parse uploaded Performance Profile')
     print('   GET  /health - Health check')
     print('\nPress Ctrl+C to stop\n')
 
