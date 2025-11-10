@@ -14,7 +14,12 @@ import { Input } from '../ui/Input'
  * @param {Object} props.initialData - Initial performance profile data (for editing)
  */
 export function PerformanceProfileWizard({ isOpen, onClose, onComplete, initialData = {} }) {
-  const [currentStep, setCurrentStep] = useState(1)
+  const hasInitialData = Object.keys(initialData).length > 0
+  const [currentStep, setCurrentStep] = useState(hasInitialData ? 1 : 0) // Start at 0 if new, 1 if editing
+  const [uploadText, setUploadText] = useState('')
+  const [isParsing, setIsParsing] = useState(false)
+  const [parseError, setParseError] = useState('')
+
   const [profileData, setProfileData] = useState({
     year_1_outcomes: initialData.year_1_outcomes || ['', '', ''],
     biggest_challenge: initialData.biggest_challenge || '',
@@ -31,6 +36,59 @@ export function PerformanceProfileWizard({ isOpen, onClose, onComplete, initialD
 
   if (!isOpen) return null
 
+  const handleParseProfile = async () => {
+    if (!uploadText.trim()) {
+      setParseError('Please enter Performance Profile text')
+      return
+    }
+
+    // Size limit check
+    if (uploadText.length > 20000) {
+      setParseError('Profile text too long (max 20,000 characters)')
+      return
+    }
+
+    setIsParsing(true)
+    setParseError('')
+
+    try {
+      // Use environment variable or default to localhost
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8002'
+      const response = await fetch(`${API_URL}/api/parse_performance_profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile_text: uploadText })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to parse profile')
+      }
+
+      // Load parsed data
+      setProfileData({
+        year_1_outcomes: result.data.year_1_outcomes || [],
+        biggest_challenge: result.data.biggest_challenge || '',
+        comparable_experience: result.data.comparable_experience || [],
+        dealbreakers: result.data.dealbreakers || [],
+        motivation_drivers: result.data.motivation_drivers || [],
+        must_have_requirements: result.data.must_have_requirements || [],
+        nice_to_have_requirements: result.data.nice_to_have_requirements || [],
+        trajectory_patterns: result.data.trajectory_patterns || [],
+        context_notes: result.data.context_notes || ''
+      })
+
+      // Go to step 1 to review
+      setCurrentStep(1)
+    } catch (error) {
+      console.error('Parse error:', error)
+      setParseError(error.message || 'Failed to parse profile. Please try again.')
+    } finally {
+      setIsParsing(false)
+    }
+  }
+
   const handleNext = () => {
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1)
@@ -41,7 +99,7 @@ export function PerformanceProfileWizard({ isOpen, onClose, onComplete, initialD
   }
 
   const handleBack = () => {
-    if (currentStep > 1) {
+    if (currentStep > 0) {
       setCurrentStep(currentStep - 1)
     }
   }
@@ -107,11 +165,18 @@ export function PerformanceProfileWizard({ isOpen, onClose, onComplete, initialD
           <div className="flex justify-between items-start mb-4">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">
-                Create Performance Profile
+                {currentStep === 0 ? 'Create Performance Profile' : 'Performance Profile Questions'}
               </h2>
-              <p className="text-gray-600 mt-1">
-                Step {currentStep} of {totalSteps}
-              </p>
+              {currentStep > 0 && (
+                <p className="text-gray-600 mt-1">
+                  Step {currentStep} of {totalSteps}
+                </p>
+              )}
+              {currentStep === 0 && (
+                <p className="text-gray-600 mt-1">
+                  Choose how to create
+                </p>
+              )}
             </div>
             <button
               onClick={onClose}
@@ -123,17 +188,20 @@ export function PerformanceProfileWizard({ isOpen, onClose, onComplete, initialD
             </button>
           </div>
 
-          {/* Progress Bar */}
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${progressPercentage}%` }}
-            />
-          </div>
+          {/* Progress Bar - Hide at Step 0 */}
+          {currentStep > 0 && (
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Step Content */}
         <div className="mb-8">
+          {currentStep === 0 && <Step0_UploadOrManual uploadText={uploadText} setUploadText={setUploadText} isParsing={isParsing} parseError={parseError} handleParseProfile={handleParseProfile} goToManual={() => setCurrentStep(1)} />}
           {currentStep === 1 && <Step1_Year1Outcomes data={profileData} updateArrayField={updateArrayField} addArrayItem={addArrayItem} removeArrayItem={removeArrayItem} />}
           {currentStep === 2 && <Step2_BiggestChallenge data={profileData} setProfileData={setProfileData} />}
           {currentStep === 3 && <Step3_ComparableExperience data={profileData} updateArrayField={updateArrayField} addArrayItem={addArrayItem} removeArrayItem={removeArrayItem} />}
@@ -145,21 +213,23 @@ export function PerformanceProfileWizard({ isOpen, onClose, onComplete, initialD
         </div>
 
         {/* Navigation */}
-        <div className="flex gap-3 pt-6 border-t border-gray-200">
-          <Button
-            variant="secondary"
-            onClick={currentStep === 1 ? onClose : handleBack}
-            className="flex-1"
-          >
-            {currentStep === 1 ? 'Cancel' : 'Back'}
-          </Button>
-          <Button
-            onClick={handleNext}
-            className="flex-1"
-          >
-            {currentStep === totalSteps ? 'Complete Profile' : `Next (${currentStep + 1}/${totalSteps})`}
-          </Button>
-        </div>
+        {currentStep !== 0 && (
+          <div className="flex gap-3 pt-6 border-t border-gray-200">
+            <Button
+              variant="secondary"
+              onClick={currentStep === 1 ? onClose : handleBack}
+              className="flex-1"
+            >
+              {currentStep === 1 ? 'Cancel' : 'Back'}
+            </Button>
+            <Button
+              onClick={handleNext}
+              className="flex-1"
+            >
+              {currentStep === totalSteps ? 'Complete Profile' : `Next (${currentStep + 1}/${totalSteps})`}
+            </Button>
+          </div>
+        )}
 
         {/* Skip Option */}
         <div className="text-center mt-4">
@@ -171,6 +241,105 @@ export function PerformanceProfileWizard({ isOpen, onClose, onComplete, initialD
           </button>
         </div>
       </Card>
+    </div>
+  )
+}
+
+// Step 0: Upload or Manual Entry
+function Step0_UploadOrManual({ uploadText, setUploadText, isParsing, parseError, handleParseProfile, goToManual }) {
+  return (
+    <div>
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+        How would you like to create the Performance Profile?
+      </h3>
+      <p className="text-gray-600 mb-6">
+        Choose the fastest method for you
+      </p>
+
+      <div className="space-y-4">
+        {/* Option 1: Upload/Paste */}
+        <div className="border-2 border-primary-300 rounded-lg p-6 bg-primary-50">
+          <h4 className="font-semibold text-gray-900 mb-2">
+            Upload or Paste Existing Profile (Faster)
+          </h4>
+          <p className="text-sm text-gray-600 mb-4">
+            If you have a Performance Profile from a previous project, hiring manager, or template
+          </p>
+
+          <textarea
+            value={uploadText}
+            onChange={(e) => {
+              const text = e.target.value
+              if (text.length > 20000) {
+                setParseError('Profile text too long (max 20,000 characters)')
+                return
+              }
+              setParseError('')
+              setUploadText(text)
+            }}
+            maxLength={20000}
+            rows={8}
+            placeholder="Paste Performance Profile here...
+
+Example:
+Year 1 Outcomes:
+- Build microservices architecture
+- Scale team from 3 to 8 engineers
+
+Biggest Challenge:
+Migrating legacy monolith without downtime
+            "
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors mb-3"
+          />
+
+          {parseError && (
+            <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{parseError}</p>
+            </div>
+          )}
+
+          <Button
+            onClick={handleParseProfile}
+            disabled={isParsing || !uploadText.trim()}
+            className="w-full"
+          >
+            {isParsing ? 'Parsing with AI...' : 'Parse & Load Profile'}
+          </Button>
+
+          <p className="text-xs text-gray-500 mt-2">
+            AI will extract the 8 questions. You can review and edit before saving.
+          </p>
+        </div>
+
+        {/* Option 2: Manual */}
+        <div className="border-2 border-gray-200 rounded-lg p-6">
+          <h4 className="font-semibold text-gray-900 mb-2">
+            Answer 8 Questions Manually
+          </h4>
+          <p className="text-sm text-gray-600 mb-4">
+            Guide through Lou Adler's Performance-Based Hiring questions step-by-step
+          </p>
+
+          <Button
+            variant="secondary"
+            onClick={goToManual}
+            className="w-full"
+          >
+            Start with Question 1
+          </Button>
+
+          <p className="text-xs text-gray-500 mt-2">
+            Takes 5-8 minutes • Best for first-time use
+          </p>
+        </div>
+      </div>
+
+      {/* Cancel button for Step 0 */}
+      <div className="flex justify-end mt-6">
+        <Button variant="secondary" onClick={() => window.history.back()}>
+          Cancel
+        </Button>
+      </div>
     </div>
   )
 }
