@@ -42,11 +42,19 @@ export function PerformanceProfileWizard({ isOpen, onClose, onComplete, initialD
       return
     }
 
+    // Size limit check
+    if (uploadText.length > 20000) {
+      setParseError('Profile text too long (max 20,000 characters)')
+      return
+    }
+
     setIsParsing(true)
     setParseError('')
 
     try {
-      const response = await fetch('http://localhost:8002/api/parse_performance_profile', {
+      // Use environment variable or default to localhost
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8002'
+      const response = await fetch(`${API_URL}/api/parse_performance_profile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ profile_text: uploadText })
@@ -157,11 +165,18 @@ export function PerformanceProfileWizard({ isOpen, onClose, onComplete, initialD
           <div className="flex justify-between items-start mb-4">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">
-                Create Performance Profile
+                {currentStep === 0 ? 'Create Performance Profile' : 'Performance Profile Questions'}
               </h2>
-              <p className="text-gray-600 mt-1">
-                Step {currentStep} of {totalSteps}
-              </p>
+              {currentStep > 0 && (
+                <p className="text-gray-600 mt-1">
+                  Step {currentStep} of {totalSteps}
+                </p>
+              )}
+              {currentStep === 0 && (
+                <p className="text-gray-600 mt-1">
+                  Choose how to create
+                </p>
+              )}
             </div>
             <button
               onClick={onClose}
@@ -173,13 +188,15 @@ export function PerformanceProfileWizard({ isOpen, onClose, onComplete, initialD
             </button>
           </div>
 
-          {/* Progress Bar */}
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${progressPercentage}%` }}
-            />
-          </div>
+          {/* Progress Bar - Hide at Step 0 */}
+          {currentStep > 0 && (
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Step Content */}
@@ -251,7 +268,16 @@ function Step0_UploadOrManual({ uploadText, setUploadText, isParsing, parseError
 
           <textarea
             value={uploadText}
-            onChange={(e) => setUploadText(e.target.value)}
+            onChange={(e) => {
+              const text = e.target.value
+              if (text.length > 20000) {
+                setParseError('Profile text too long (max 20,000 characters)')
+                return
+              }
+              setParseError('')
+              setUploadText(text)
+            }}
+            maxLength={20000}
             rows={8}
             placeholder="Paste Performance Profile here...
 
@@ -306,6 +332,13 @@ Migrating legacy monolith without downtime
             Takes 5-8 minutes • Best for first-time use
           </p>
         </div>
+      </div>
+
+      {/* Cancel button for Step 0 */}
+      <div className="flex justify-end mt-6">
+        <Button variant="secondary" onClick={() => window.history.back()}>
+          Cancel
+        </Button>
       </div>
     </div>
   )
