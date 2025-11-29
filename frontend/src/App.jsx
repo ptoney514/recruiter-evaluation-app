@@ -80,6 +80,11 @@ function AppContent({ openAuthModal }) {
             <AppLayout><WorkbenchPage /></AppLayout>
           </ProtectedRoute>
         } />
+        <Route path="/app/role/:roleId/results" element={
+          <ProtectedRoute>
+            <AppLayout><ResultsPage /></AppLayout>
+          </ProtectedRoute>
+        } />
 
         {/* Legacy Protected Routes - Keep old header for now */}
         <Route path="/job-input" element={<ProtectedRoute><JobInputPage /></ProtectedRoute>} />

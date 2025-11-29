@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { storageManager } from '../services/storage/storageManager'
 import { sessionStore } from '../services/storage/sessionStore'
 import { exportService } from '../services/exportService'
+import { useCandidates } from '../hooks/useCandidates'
+import { useJob } from '../hooks/useJobs'
 
 // Methodology section constants
 const METHODOLOGY_SECTIONS = {
@@ -24,46 +26,171 @@ const FAQ_SECTIONS = {
   INTERNAL_CANDIDATES: 4
 }
 
+/**
+ * Map recommendation from database format to display format
+ */
+function mapRecommendation(dbRecommendation) {
+  const mapping = {
+    'INTERVIEW': 'ADVANCE TO INTERVIEW',
+    'PHONE_SCREEN': 'PHONE SCREEN FIRST',
+    'DECLINE': 'DECLINE',
+    'ERROR': 'ERROR'
+  }
+  return mapping[dbRecommendation] || dbRecommendation
+}
+
 export function ResultsPage() {
   const navigate = useNavigate()
+  const { roleId } = useParams()
+
+  // Database mode: fetch from Supabase when roleId is provided
+  const { data: job, isLoading: jobLoading, error: jobError } = useJob(roleId)
+  const { data: dbCandidates = [], isLoading: candidatesLoading, error: candidatesError } = useCandidates(roleId)
+
+  // Legacy mode state
   const [evaluation, setEvaluation] = useState(null)
   const [results, setResults] = useState(null)
   const [expandedRows, setExpandedRows] = useState(new Set())
   const [expandedFaqs, setExpandedFaqs] = useState(new Set())
   const [expandedMethodology, setExpandedMethodology] = useState(new Set())
 
+  // Determine which mode we're in
+  const isDatabaseMode = !!roleId
+  const isLoading = isDatabaseMode ? (jobLoading || candidatesLoading) : !evaluation
+  const hasError = isDatabaseMode ? (jobError || candidatesError) : false
+
+  // Transform database candidates to results format
   useEffect(() => {
-    async function loadEvaluation() {
-      const current = await storageManager.getCurrentEvaluation()
-      if (!current || !current.job?.title || !current.resumes?.length) {
-        navigate('/')
-        return
-      }
-      setEvaluation(current)
+    if (isDatabaseMode && job && dbCandidates.length > 0) {
+      // Build evaluation object from database data
+      setEvaluation({
+        job: {
+          title: job.title,
+          description: job.description,
+          must_have_requirements: job.must_have_requirements || [],
+          preferred_requirements: job.preferred_requirements || []
+        },
+        resumes: dbCandidates.map(c => ({ name: c.name, text: c.resumeText }))
+      })
 
-      // Get actual results based on evaluation mode
-      const mode = current.evaluationMode || 'openai'
-      // Both 'openai' and 'claude' use AI results (not regex)
-      const isAiMode = mode === 'openai' || mode === 'claude' || mode === 'ai'
-      const evaluationResults = isAiMode ? current.aiResults : current.regexResults
+      // Get evaluated candidates only
+      const evaluatedCandidates = dbCandidates.filter(c => c.evaluationStatus === 'evaluated')
 
-      if (evaluationResults) {
-        setResults({
-          mode,
-          isAiMode, // Add flag for easier checking
-          ...evaluationResults
-        })
-      } else {
-        // No results yet, shouldn't happen
-        navigate('/review')
-      }
+      // Build results object from database candidates
+      const candidateResults = evaluatedCandidates
+        .map(c => ({
+          name: c.name || c.fullName,
+          score: c.score || 0,
+          recommendation: mapRecommendation(c.recommendation),
+          keyStrengths: c.evaluation?.keyStrengths || [],
+          keyConcerns: c.evaluation?.concerns || [],
+          interviewQuestions: [],
+          reasoning: c.evaluation?.reasoning || '',
+          qualificationsScore: null,
+          experienceScore: null,
+          riskFlagsScore: null,
+          error: c.evaluationStatus === 'failed' ? 'Evaluation failed' : null
+        }))
+        .sort((a, b) => b.score - a.score)
+
+      const advanceCount = candidateResults.filter(c => c.recommendation === 'ADVANCE TO INTERVIEW').length
+      const phoneCount = candidateResults.filter(c => c.recommendation === 'PHONE SCREEN FIRST').length
+      const declineCount = candidateResults.filter(c => c.recommendation === 'DECLINE').length
+
+      setResults({
+        mode: 'claude',
+        isAiMode: true,
+        results: candidateResults,
+        candidates: candidateResults,
+        summary: {
+          totalCandidates: candidateResults.length,
+          advanceToInterview: advanceCount,
+          phoneScreen: phoneCount,
+          declined: declineCount,
+          errors: candidateResults.filter(c => c.error).length
+        },
+        usage: null // Cost data not tracked in database mode yet
+      })
     }
-    loadEvaluation()
-  }, [navigate])
+  }, [isDatabaseMode, job, dbCandidates])
+
+  // Legacy mode: load from session storage
+  useEffect(() => {
+    if (!isDatabaseMode) {
+      async function loadEvaluation() {
+        const current = await storageManager.getCurrentEvaluation()
+        if (!current || !current.job?.title || !current.resumes?.length) {
+          navigate('/')
+          return
+        }
+        setEvaluation(current)
+
+        // Get actual results based on evaluation mode
+        const mode = current.evaluationMode || 'openai'
+        // Both 'openai' and 'claude' use AI results (not regex)
+        const isAiMode = mode === 'openai' || mode === 'claude' || mode === 'ai'
+        const evaluationResults = isAiMode ? current.aiResults : current.regexResults
+
+        if (evaluationResults) {
+          setResults({
+            mode,
+            isAiMode, // Add flag for easier checking
+            ...evaluationResults
+          })
+        } else {
+          // No results yet, shouldn't happen
+          navigate('/review')
+        }
+      }
+      loadEvaluation()
+    }
+  }, [navigate, isDatabaseMode])
 
   const handleStartNew = async () => {
-    await storageManager.clearEvaluation()
-    navigate('/')
+    if (isDatabaseMode) {
+      navigate('/app')
+    } else {
+      await storageManager.clearEvaluation()
+      navigate('/')
+    }
+  }
+
+  // Show error state for database mode
+  if (hasError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">
+            <svg className="w-12 h-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Error Loading Results</h2>
+          <p className="text-gray-600 mb-4">{jobError?.message || candidatesError?.message}</p>
+          <Button onClick={() => navigate('/app')}>Return to Dashboard</Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Show empty state for database mode with no evaluated candidates
+  if (isDatabaseMode && !isLoading && evaluation && results?.results?.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-6xl mx-auto px-4 text-center">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            {job?.title || 'Job'} - No Evaluations Yet
+          </h1>
+          <p className="text-gray-600 mb-6">
+            No candidates have been evaluated for this role yet.
+            Go to the Workbench to evaluate candidates.
+          </p>
+          <Button onClick={() => navigate(`/app/role/${roleId}/workbench`)}>
+            Go to Workbench
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   const handleStage2 = () => {

@@ -1,102 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ChevronRight,
   Search,
   UploadCloud,
   Sparkles,
-  MoreHorizontal
+  MoreHorizontal,
+  AlertCircle,
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import { CandidateDetailPanel } from '../components/workbench/CandidateDetailPanel';
-
-// Mock candidates data
-const MOCK_CANDIDATES = [
-  {
-    id: 1,
-    name: 'Sarah Jenkins',
-    role: 'Senior Marketing Manager',
-    date: 'Oct 24, 2023',
-    tier1Score: 92,
-    tier2Score: null,
-    recommendation: null,
-    status: 'New',
-    risk: 'Low',
-    quals: 90,
-    exp: 95,
-    flags: 5,
-    summary: 'Sarah has exceptional alignment with the JD, specifically in digital marketing campaigns.',
-    skills: ['SEO', 'Content Strategy', 'Team Leadership'],
-    email: 'sarah.j@example.com'
-  },
-  {
-    id: 2,
-    name: 'Mike Ross',
-    role: 'Senior Marketing Manager',
-    date: 'Oct 24, 2023',
-    tier1Score: 88,
-    tier2Score: null,
-    recommendation: null,
-    status: 'New',
-    risk: 'Medium',
-    quals: 85,
-    exp: 92,
-    flags: 15,
-    summary: 'Strong creative background. Lacks specific experience with enterprise-level budgets.',
-    skills: ['Brand Design', 'Copywriting', 'Adobe Suite'],
-    email: 'mike.r@example.com'
-  },
-  {
-    id: 3,
-    name: 'John Doe',
-    role: 'Senior Marketing Manager',
-    date: 'Oct 23, 2023',
-    tier1Score: 45,
-    tier2Score: null,
-    recommendation: null,
-    status: 'Auto-Reject',
-    risk: 'High',
-    quals: 40,
-    exp: 30,
-    flags: 60,
-    summary: 'Does not meet minimum education requirements.',
-    skills: ['Sales', 'CRM'],
-    email: 'j.doe@example.com'
-  },
-  {
-    id: 4,
-    name: 'Emily Chen',
-    role: 'Senior Marketing Manager',
-    date: 'Oct 23, 2023',
-    tier1Score: 78,
-    tier2Score: null,
-    recommendation: null,
-    status: 'New',
-    risk: 'Low',
-    quals: 80,
-    exp: 75,
-    flags: 5,
-    summary: 'Solid generalist background. Good cultural fit potential.',
-    skills: ['Analytics', 'Project Management'],
-    email: 'e.chen@example.com'
-  },
-  {
-    id: 5,
-    name: 'David Miller',
-    role: 'Senior Marketing Manager',
-    date: 'Oct 22, 2023',
-    tier1Score: 65,
-    tier2Score: null,
-    recommendation: null,
-    status: 'New',
-    risk: 'High',
-    quals: 60,
-    exp: 60,
-    flags: 40,
-    summary: 'Resume formatting makes extraction difficult. Gaps in employment history.',
-    skills: ['Social Media'],
-    email: 'd.miller@example.com'
-  }
-];
+import { ResumeUploadModal } from '../components/workbench/ResumeUploadModal';
+import { useCandidates } from '../hooks/useCandidates';
+import { useJob } from '../hooks/useJobs';
+import { useBatchEvaluate } from '../hooks/useEvaluations';
 
 /**
  * Badge component
@@ -140,58 +58,128 @@ function Button({ children, variant = 'primary', className = '', onClick, disabl
 }
 
 /**
+ * Map evaluation status from database to display format
+ */
+function mapStatusToDisplay(evaluationStatus) {
+  switch (evaluationStatus) {
+    case 'pending': return 'New';
+    case 'evaluated': return 'Analyzed';
+    case 'evaluating': return 'Processing';
+    case 'failed': return 'Error';
+    default: return evaluationStatus || 'New';
+  }
+}
+
+/**
+ * Map recommendation from database to display format
+ */
+function mapRecommendationToDisplay(recommendation) {
+  switch (recommendation) {
+    case 'INTERVIEW': return 'Interview';
+    case 'PHONE_SCREEN': return 'Phone Screen';
+    case 'DECLINE': return 'Decline';
+    case 'ERROR': return 'Error';
+    default: return recommendation;
+  }
+}
+
+/**
+ * Format date for display
+ */
+function formatDate(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/**
  * WorkbenchPage - Main candidate management table
  */
 export function WorkbenchPage() {
   const navigate = useNavigate();
   const { roleId } = useParams();
-  const [candidates, setCandidates] = useState(MOCK_CANDIDATES);
+
+  // Fetch job details
+  const { data: job, isLoading: jobLoading, error: jobError } = useJob(roleId);
+
+  // Fetch candidates for this job
+  const { data: candidates = [], isLoading: candidatesLoading, error: candidatesError, refetch: refetchCandidates } = useCandidates(roleId);
+
+  // Batch evaluation mutation
+  const batchEvaluate = useBatchEvaluate();
+
+  // Local state
   const [selectedCandidates, setSelectedCandidates] = useState([]);
-  const [analyzing, setAnalyzing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [detailCandidate, setDetailCandidate] = useState(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [evaluationProgress, setEvaluationProgress] = useState({ current: 0, total: 0 });
 
-  // Mock role name
-  const activeRoleName = 'Senior Marketing Manager';
+  // Derived state
+  const isLoading = jobLoading || candidatesLoading;
+  const error = jobError || candidatesError;
+  const activeRoleName = job?.title || 'Loading...';
+  const analyzing = batchEvaluate.isPending;
 
-  const toggleCandidateSelection = (id) => {
-    if (selectedCandidates.includes(id)) {
-      setSelectedCandidates(selectedCandidates.filter(c => c !== id));
-    } else {
-      setSelectedCandidates([...selectedCandidates, id]);
-    }
-  };
+  const toggleCandidateSelection = useCallback((id) => {
+    setSelectedCandidates(prev =>
+      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
+    );
+  }, []);
 
-  const toggleSelectAll = () => {
+  const toggleSelectAll = useCallback(() => {
     if (selectedCandidates.length === candidates.length) {
       setSelectedCandidates([]);
     } else {
       setSelectedCandidates(candidates.map(c => c.id));
     }
-  };
+  }, [selectedCandidates.length, candidates]);
 
-  const runAIAnalysis = () => {
-    setAnalyzing(true);
-    setTimeout(() => {
-      const updatedCandidates = candidates.map(c => {
-        if (selectedCandidates.includes(c.id)) {
-          let tier2 = 0;
-          let rec = 'Decline';
+  const runAIAnalysis = useCallback(async () => {
+    if (selectedCandidates.length === 0 || !job) return;
 
-          if (c.tier1Score > 90) { tier2 = 94; rec = 'Interview'; }
-          else if (c.tier1Score > 80) { tier2 = 86; rec = 'Phone Screen'; }
-          else if (c.tier1Score > 60) { tier2 = 72; rec = 'Phone Screen'; }
-          else { tier2 = 55; rec = 'Decline'; }
+    // Get candidates to evaluate
+    const candidatesToEvaluate = candidates.filter(c => selectedCandidates.includes(c.id));
 
-          return { ...c, tier2Score: tier2, recommendation: rec, status: 'Analyzed' };
+    setEvaluationProgress({ current: 0, total: candidatesToEvaluate.length });
+
+    try {
+      await batchEvaluate.mutateAsync({
+        jobId: roleId,
+        job: {
+          title: job.title,
+          description: job.description,
+          must_have_requirements: job.must_have_requirements || [],
+          preferred_requirements: job.preferred_requirements || []
+        },
+        candidates: candidatesToEvaluate.map(c => ({
+          id: c.id,
+          name: c.name || c.fullName,
+          text: c.resumeText,
+          email: c.email
+        })),
+        onProgress: (progress) => {
+          setEvaluationProgress({
+            current: progress.current,
+            total: progress.total
+          });
         }
-        return c;
       });
-      setCandidates(updatedCandidates);
+
+      // Clear selection after successful evaluation
       setSelectedCandidates([]);
-      setAnalyzing(false);
-    }, 1500);
-  };
+      setEvaluationProgress({ current: 0, total: 0 });
+    } catch (error) {
+      console.error('Batch evaluation failed:', error);
+      setEvaluationProgress({ current: 0, total: 0 });
+    }
+  }, [selectedCandidates, candidates, job, roleId, batchEvaluate]);
+
+  const handleUploadSuccess = useCallback((count) => {
+    console.log(`Successfully uploaded ${count} candidates`);
+    setShowUploadModal(false);
+    // Candidates list will auto-refresh via React Query invalidation
+  }, []);
 
   const getScoreColor = (score) => {
     if (!score) return 'text-slate-400';
@@ -201,8 +189,33 @@ export function WorkbenchPage() {
   };
 
   const filteredCandidates = candidates.filter(c =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+    (c.name || c.fullName || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center animate-fade-in">
+        <Loader2 size={48} className="text-teal-500 animate-spin mb-4" />
+        <p className="text-slate-600">Loading candidates...</p>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center animate-fade-in">
+        <AlertCircle size={48} className="text-rose-500 mb-4" />
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Error Loading Data</h2>
+        <p className="text-slate-600 mb-4">{error.message}</p>
+        <Button onClick={() => refetchCandidates()} variant="outline">
+          <RefreshCw size={18} />
+          Try Again
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col animate-fade-in">
@@ -228,7 +241,7 @@ export function WorkbenchPage() {
               Resume Screening
             </div>
           </div>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setShowUploadModal(true)}>
             <UploadCloud size={18} />
             Upload Resumes
           </Button>
@@ -266,7 +279,12 @@ export function WorkbenchPage() {
             variant="ai"
           >
             {analyzing ? (
-              <span className="flex items-center gap-2">Analyzing...</span>
+              <span className="flex items-center gap-2">
+                <Loader2 size={16} className="animate-spin" />
+                {evaluationProgress.total > 0
+                  ? `Evaluating ${evaluationProgress.current}/${evaluationProgress.total}...`
+                  : 'Starting...'}
+              </span>
             ) : (
               <>
                 <Sparkles size={16} />
@@ -300,124 +318,144 @@ export function WorkbenchPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredCandidates.map((candidate) => (
-              <tr
-                key={candidate.id}
-                className={`hover:bg-slate-50 transition-colors group ${
-                  selectedCandidates.includes(candidate.id) ? 'bg-indigo-50 hover:bg-indigo-50' : ''
-                }`}
-              >
-                <td className="py-4 pl-4">
-                  <input
-                    type="checkbox"
-                    className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
-                    checked={selectedCandidates.includes(candidate.id)}
-                    onChange={() => toggleCandidateSelection(candidate.id)}
-                  />
-                </td>
-                <td className="py-4">
-                  <div className="font-medium text-slate-900">{candidate.name}</div>
-                  <div className="text-xs text-slate-500">{candidate.role}</div>
-                </td>
-                <td className="py-4 text-sm text-slate-600">{candidate.date}</td>
-
-                <td className="py-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-16 bg-slate-100 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${
-                          candidate.tier1Score > 80
-                            ? 'bg-emerald-500'
-                            : candidate.tier1Score < 50
-                            ? 'bg-rose-400'
-                            : 'bg-amber-400'
-                        }`}
-                        style={{ width: `${candidate.tier1Score}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-sm font-semibold text-slate-700">
-                      {candidate.tier1Score}%
-                    </span>
+            {filteredCandidates.length === 0 ? (
+              <tr>
+                <td colSpan="8" className="py-12 text-center">
+                  <div className="flex flex-col items-center">
+                    <UploadCloud size={48} className="text-slate-300 mb-4" />
+                    <p className="text-slate-500 mb-2">No candidates yet</p>
+                    <Button variant="outline" onClick={() => setShowUploadModal(true)}>
+                      <UploadCloud size={18} />
+                      Upload Resumes
+                    </Button>
                   </div>
                 </td>
-
-                <td className="py-4">
-                  {candidate.tier2Score !== null ? (
-                    <div className="flex flex-col">
-                      <span className={`text-lg ${getScoreColor(candidate.tier2Score)}`}>
-                        {candidate.tier2Score}/100
-                      </span>
-                      <div className="flex gap-1 mt-1">
-                        <div
-                          title="Qualifications"
-                          className={`w-2 h-2 rounded-full ${
-                            candidate.quals > 80 ? 'bg-emerald-400' : 'bg-amber-400'
-                          }`}
-                        ></div>
-                        <div
-                          title="Experience"
-                          className={`w-2 h-2 rounded-full ${
-                            candidate.exp > 80 ? 'bg-emerald-400' : 'bg-amber-400'
-                          }`}
-                        ></div>
-                        <div
-                          title="Risk"
-                          className={`w-2 h-2 rounded-full ${
-                            candidate.risk === 'Low' ? 'bg-emerald-400' : 'bg-rose-400'
-                          }`}
-                        ></div>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        if (!selectedCandidates.includes(candidate.id)) {
-                          toggleCandidateSelection(candidate.id);
-                        }
-                      }}
-                      className="text-xs font-medium text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition flex items-center w-fit gap-1"
-                    >
-                      <Sparkles size={12} /> Unlock
-                    </button>
-                  )}
-                </td>
-
-                <td className="py-4">
-                  {candidate.recommendation ? (
-                    <Badge
-                      color={
-                        candidate.recommendation === 'Interview'
-                          ? 'green'
-                          : candidate.recommendation === 'Decline'
-                          ? 'red'
-                          : 'yellow'
-                      }
-                    >
-                      {candidate.recommendation}
-                    </Badge>
-                  ) : (
-                    <span className="text-slate-400 text-sm">--</span>
-                  )}
-                </td>
-
-                <td className="py-4 text-sm text-slate-600">{candidate.status}</td>
-
-                <td className="py-4 text-right pr-4">
-                  {candidate.tier2Score !== null ? (
-                    <button
-                      className="text-teal-600 hover:text-teal-800 font-medium text-sm"
-                      onClick={() => setDetailCandidate(candidate)}
-                    >
-                      View Details
-                    </button>
-                  ) : (
-                    <span className="text-slate-300">
-                      <MoreHorizontal size={20} className="inline" />
-                    </span>
-                  )}
-                </td>
               </tr>
-            ))}
+            ) : (
+              filteredCandidates.map((candidate) => {
+                const displayName = candidate.name || candidate.fullName || 'Unknown';
+                const hasEvaluation = candidate.evaluationStatus === 'evaluated' && candidate.score !== null;
+                const displayRecommendation = mapRecommendationToDisplay(candidate.recommendation);
+                const displayStatus = mapStatusToDisplay(candidate.evaluationStatus);
+                const evaluation = candidate.evaluation;
+
+                return (
+                  <tr
+                    key={candidate.id}
+                    className={`hover:bg-slate-50 transition-colors group ${
+                      selectedCandidates.includes(candidate.id) ? 'bg-indigo-50 hover:bg-indigo-50' : ''
+                    }`}
+                  >
+                    <td className="py-4 pl-4">
+                      <input
+                        type="checkbox"
+                        className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+                        checked={selectedCandidates.includes(candidate.id)}
+                        onChange={() => toggleCandidateSelection(candidate.id)}
+                      />
+                    </td>
+                    <td className="py-4">
+                      <div className="font-medium text-slate-900">{displayName}</div>
+                      <div className="text-xs text-slate-500">{activeRoleName}</div>
+                    </td>
+                    <td className="py-4 text-sm text-slate-600">{formatDate(candidate.createdAt)}</td>
+
+                    <td className="py-4">
+                      {/* Tier 1 placeholder - shows resume uploaded indicator */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs px-2 py-1 bg-slate-100 text-slate-600 rounded">
+                          Resume
+                        </span>
+                      </div>
+                    </td>
+
+                    <td className="py-4">
+                      {hasEvaluation ? (
+                        <div className="flex flex-col">
+                          <span className={`text-lg ${getScoreColor(candidate.score)}`}>
+                            {candidate.score}/100
+                          </span>
+                          {evaluation && (
+                            <div className="flex gap-1 mt-1">
+                              <div
+                                title={`Confidence: ${evaluation.confidence || 'N/A'}`}
+                                className={`w-2 h-2 rounded-full ${
+                                  (evaluation.confidence || 0) >= 80 ? 'bg-emerald-400' : 'bg-amber-400'
+                                }`}
+                              ></div>
+                              <div
+                                title={`Strengths: ${(evaluation.keyStrengths || []).length}`}
+                                className={`w-2 h-2 rounded-full ${
+                                  (evaluation.keyStrengths || []).length > 2 ? 'bg-emerald-400' : 'bg-amber-400'
+                                }`}
+                              ></div>
+                              <div
+                                title={`Concerns: ${(evaluation.concerns || []).length}`}
+                                className={`w-2 h-2 rounded-full ${
+                                  (evaluation.concerns || []).length === 0 ? 'bg-emerald-400' : 'bg-rose-400'
+                                }`}
+                              ></div>
+                            </div>
+                          )}
+                        </div>
+                      ) : candidate.evaluationStatus === 'evaluating' ? (
+                        <span className="text-xs font-medium text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full flex items-center w-fit gap-1">
+                          <Loader2 size={12} className="animate-spin" /> Processing
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (!selectedCandidates.includes(candidate.id)) {
+                              toggleCandidateSelection(candidate.id);
+                            }
+                          }}
+                          className="text-xs font-medium text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition flex items-center w-fit gap-1"
+                        >
+                          <Sparkles size={12} /> Unlock
+                        </button>
+                      )}
+                    </td>
+
+                    <td className="py-4">
+                      {displayRecommendation ? (
+                        <Badge
+                          color={
+                            displayRecommendation === 'Interview'
+                              ? 'green'
+                              : displayRecommendation === 'Decline'
+                              ? 'red'
+                              : displayRecommendation === 'Error'
+                              ? 'red'
+                              : 'yellow'
+                          }
+                        >
+                          {displayRecommendation}
+                        </Badge>
+                      ) : (
+                        <span className="text-slate-400 text-sm">--</span>
+                      )}
+                    </td>
+
+                    <td className="py-4 text-sm text-slate-600">{displayStatus}</td>
+
+                    <td className="py-4 text-right pr-4">
+                      {hasEvaluation ? (
+                        <button
+                          className="text-teal-600 hover:text-teal-800 font-medium text-sm"
+                          onClick={() => setDetailCandidate(candidate)}
+                        >
+                          View Details
+                        </button>
+                      ) : (
+                        <span className="text-slate-300">
+                          <MoreHorizontal size={20} className="inline" />
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
@@ -427,10 +465,18 @@ export function WorkbenchPage() {
         candidate={detailCandidate}
         onClose={() => setDetailCandidate(null)}
         onUpdateStatus={(id, status) => {
-          setCandidates(candidates.map(c =>
-            c.id === id ? { ...c, status } : c
-          ));
+          // Status updates are handled by the database via React Query
+          // This will be refactored when we update CandidateDetailPanel
+          console.log('Status update requested:', id, status);
         }}
+      />
+
+      {/* Resume Upload Modal */}
+      <ResumeUploadModal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        jobId={roleId}
+        onSuccess={handleUploadSuccess}
       />
     </div>
   );

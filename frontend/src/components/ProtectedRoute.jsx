@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 
+// DEV MODE: Set to true to bypass authentication for testing
+const BYPASS_AUTH = true
+
 /**
  * ProtectedRoute Component
  * Requires authentication to access wrapped routes
@@ -13,6 +16,11 @@ export function ProtectedRoute({ children }) {
   const location = useLocation()
   const { user, isLoading } = useAuth()
   const [shouldRedirect, setShouldRedirect] = useState(false)
+
+  // DEV MODE: Bypass auth check
+  if (BYPASS_AUTH) {
+    return children
+  }
 
   useEffect(() => {
     // Wait for auth to initialize before redirecting
