@@ -3,10 +3,12 @@ import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-do
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './lib/queryClient'
 import { AuthProvider } from './contexts/AuthContext'
-import { MarketingPage } from './pages/MarketingPage'
+import { LandingPageNew } from './pages/LandingPageNew'
 import { HomePage } from './pages/HomePage'
 import { DashboardPage } from './pages/DashboardPage'
 import { ProjectDetailPage } from './pages/ProjectDetailPage'
+import { CreateRolePage } from './pages/CreateRolePage'
+import { WorkbenchPage } from './pages/WorkbenchPage'
 import { JobInputPage } from './pages/JobInputPage'
 import { ResumeUploadPage } from './pages/ResumeUploadPage'
 import { ReviewPage } from './pages/ReviewPage'
@@ -17,22 +19,27 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { UserMenu } from './components/auth/UserMenu'
 import { AuthModal } from './components/auth/AuthModal'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { AppLayout } from './components/layout/AppLayout'
 import { useAuth } from './hooks/useAuth'
 
 // AppContent component to handle conditional header rendering
 function AppContent({ openAuthModal }) {
   const location = useLocation()
-  const isMarketingPage = location.pathname === '/'
+  const isAppRoute = location.pathname.startsWith('/app')
+  const isPublicPage = ['/', '/login', '/signup'].includes(location.pathname)
+
+  // Show legacy header only for non-app protected routes (legacy flow)
+  const showLegacyHeader = !isPublicPage && !isAppRoute
 
   return (
     <>
-      {/* Navigation Header - Only show on non-marketing pages */}
-      {!isMarketingPage && (
+      {/* Legacy Navigation Header - Only show for legacy protected routes */}
+      {showLegacyHeader && (
         <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <Link to="/app" className="flex items-center">
-                <span className="text-xl font-bold text-primary-600">Resume Scanner Pro</span>
+                <span className="text-xl font-bold text-primary-600">Eval</span>
               </Link>
               <UserMenu onOpenAuth={openAuthModal} />
             </div>
@@ -43,14 +50,38 @@ function AppContent({ openAuthModal }) {
       {/* Routes */}
       <Routes>
         {/* Public Routes */}
-        <Route path="/" element={<MarketingPage />} />
+        <Route path="/" element={<LandingPageNew />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
 
-        {/* Protected Routes - Require Authentication */}
-        <Route path="/app" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-        <Route path="/app/project/:projectId" element={<ProtectedRoute><ProjectDetailPage /></ProtectedRoute>} />
-        <Route path="/app/legacy" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+        {/* Protected App Routes - Use new sidebar layout */}
+        <Route path="/app" element={
+          <ProtectedRoute>
+            <AppLayout><DashboardPage /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/app/project/:projectId" element={
+          <ProtectedRoute>
+            <AppLayout><ProjectDetailPage /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/app/legacy" element={
+          <ProtectedRoute>
+            <AppLayout><HomePage /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/app/create-role" element={
+          <ProtectedRoute>
+            <AppLayout><CreateRolePage /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/app/role/:roleId/workbench" element={
+          <ProtectedRoute>
+            <AppLayout><WorkbenchPage /></AppLayout>
+          </ProtectedRoute>
+        } />
+
+        {/* Legacy Protected Routes - Keep old header for now */}
         <Route path="/job-input" element={<ProtectedRoute><JobInputPage /></ProtectedRoute>} />
         <Route path="/upload-resumes" element={<ProtectedRoute><ResumeUploadPage /></ProtectedRoute>} />
         <Route path="/review" element={<ProtectedRoute><ReviewPage /></ProtectedRoute>} />
