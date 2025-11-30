@@ -4,28 +4,13 @@ Last Updated: 2025-11-29
 
 ## Current Focus
 
-**PHASE 2: UNIT TESTS COMPLETE** ✅ → **PHASE 3: INTEGRATION & E2E TESTS** 🚧
+**PHASE 2B: INTEGRATION TESTS COMPLETE** ✅ → **PHASE 2C: E2E TESTS** 🚧
 
-Completed comprehensive unit testing infrastructure and 5 test suites covering hooks, utilities, and components. Next: Integration tests with real Supabase interactions and E2E flows.
+Completed integration tests with real Supabase database interactions (27 tests, 3 suites). Also added API security hardening (CORS, validation). Next: E2E tests with Playwright.
 
 ## In Progress 🚧
 
-- [ ] **Phase 2B: Integration Tests** (Priority 1)
-  - [ ] **jobCreation.integration.test.js** (8 tests)
-    - Create job with real Supabase
-    - Cascade to candidates/evaluations
-    - Verify database state
-  - [ ] **jobDeletion.integration.test.js** (10 tests)
-    - Delete job with cascade
-    - Verify orphaned records cleaned
-    - Verify statistics update
-  - [ ] **tierLimits.integration.test.js** (9 tests)
-    - Verify tier limits enforced
-    - Test free/pro tiers
-    - Test candidate limits per job
-  - Status: Infrastructure ready, ready to start (database utilities created)
-
-- [ ] **Phase 2C: E2E Tests** (Priority 2)
+- [ ] **Phase 2C: E2E Tests** (Priority 1)
   - [ ] **create-job-flow.spec.js** (Playwright)
     - Marketing → Signup → Create role → Upload resumes → Evaluate
   - [ ] **delete-job-flow.spec.js**
@@ -43,7 +28,33 @@ Completed comprehensive unit testing infrastructure and 5 test suites covering h
 
 ## Recently Completed ✅
 
-- **Phase 2: Unit Tests** (Nov 29) ✅
+- **Phase 2B: Integration Tests + API Security** (Nov 29) ✅
+  - **jobCreation.integration.test.jsx** (8 tests)
+    - Job creation with real Supabase database
+    - JSONB field storage (must_have, preferred requirements)
+    - Auto-generated fields (id, created_at, user_id)
+  - **jobDeletion.integration.test.jsx** (10 tests)
+    - Cascade delete of candidates, evaluations, rankings
+    - Cascade delete of interview_ratings, reference_checks
+    - Isolation between jobs (delete one, keep others)
+  - **tierLimits.integration.test.jsx** (9 tests)
+    - Free tier limits (3 jobs, 5 candidates/job)
+    - Pro tier limits (unlimited)
+    - Candidate count calculations per job
+  - **API Security Hardening**
+    - CORS origin whitelist (replaces wildcard *)
+    - Content-Type validation (must be application/json)
+    - Content-Length validation with 50MB max
+    - JSON parse error handling
+  - **Test Infrastructure**
+    - vitest.integration.config.js with fileParallelism: false
+    - setup.integration.js with BroadcastChannel mock
+    - Extended testDbUtils.js with seed functions
+    - npm run test:integration script
+  - **Total: 27 integration tests, all passing**
+  - **Committed to GitHub** with comprehensive commit message
+
+- **Phase 2A: Unit Tests** (Nov 29) ✅
   - **Testing Infrastructure** (Setup)
     - Playwright installed and configured for E2E testing
     - Test database utilities (testDbUtils.js) created for Supabase seeding
@@ -310,12 +321,15 @@ Completed comprehensive unit testing infrastructure and 5 test suites covering h
 - [x] 121 tests written, 117 passing
 - [x] Committed to GitHub
 
-**Phase 2B - Integration Tests** 🚧 STARTING
-- [ ] jobCreation.integration.test.js (8 tests) - Real Supabase interactions
-- [ ] jobDeletion.integration.test.js (10 tests) - Cascade deletion and cleanup
-- [ ] tierLimits.integration.test.js (9 tests) - Tier enforcement validation
+**Phase 2B - Integration Tests + API Security** ✅ COMPLETE (Nov 29)
+- [x] jobCreation.integration.test.jsx (8 tests) - Real Supabase interactions
+- [x] jobDeletion.integration.test.jsx (10 tests) - Cascade deletion and cleanup
+- [x] tierLimits.integration.test.jsx (9 tests) - Tier enforcement validation
+- [x] API Security: CORS whitelist, Content-Type/Length validation, 50MB limit
+- [x] 27 integration tests, all passing
+- [x] Committed to GitHub
 
-**Phase 2C - E2E Tests** 🚧 UPCOMING (After Phase 2B)
+**Phase 2C - E2E Tests** 🚧 NEXT
 - [ ] create-job-flow.spec.js (Playwright) - End-to-end job creation
 - [ ] delete-job-flow.spec.js (Playwright) - Job deletion with UI confirmation
 - [ ] tier-limits.spec.js (Playwright) - Tier limit enforcement in UI
