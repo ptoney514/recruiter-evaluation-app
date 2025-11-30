@@ -1,18 +1,79 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   UploadCloud,
   ArrowRight,
   Sparkles,
   Zap,
-  Check
+  Check,
+  ChevronDown
 } from 'lucide-react';
+
+// FAQ data
+const FAQ_DATA = [
+  {
+    question: 'Do I need a credit card to try it?',
+    answer: 'No, keyword ranking is 100% free. You can upload resumes and get instant match scores without entering payment information.'
+  },
+  {
+    question: 'How accurate is the AI evaluation?',
+    answer: 'Claude 3.5 Haiku scores candidates based on your specific job requirements using structured criteria. It evaluates qualifications, experience alignment, and identifies potential risk flags.'
+  },
+  {
+    question: 'What file formats are supported?',
+    answer: 'We support PDF and DOCX resume files. Our parser extracts text automatically, handling various resume formats and layouts.'
+  },
+  {
+    question: 'Can I export results?',
+    answer: 'Yes! Generate professional PDF reports for any evaluation and share them instantly with hiring managers or your team.'
+  },
+  {
+    question: 'Is my data secure?',
+    answer: 'Absolutely. All data is encrypted in transit and at rest. We\'re GDPR compliant and you can request data deletion at any time.'
+  },
+  {
+    question: 'How much does AI evaluation cost?',
+    answer: 'AI evaluations use credits. Free tier includes 5 credits/month. Pro plan includes 500 credits/month. Each candidate evaluation uses 1 credit.'
+  }
+];
+
+// FAQ Item component
+function FAQItem({ question, answer, isOpen, onClick }) {
+  return (
+    <div className="border-b border-white/5">
+      <button
+        onClick={onClick}
+        className="w-full py-6 flex items-center justify-between text-left group"
+      >
+        <span className="text-lg font-medium text-white group-hover:text-teal-400 transition-colors">
+          {question}
+        </span>
+        <ChevronDown
+          size={20}
+          className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+        />
+      </button>
+      <div
+        className={`overflow-hidden transition-all duration-200 ${
+          isOpen ? 'max-h-48 pb-6' : 'max-h-0'
+        }`}
+      >
+        <p className="text-slate-400 leading-relaxed">{answer}</p>
+      </div>
+    </div>
+  );
+}
 
 export function LandingPageNew() {
   const navigate = useNavigate();
+  const [openFAQ, setOpenFAQ] = useState(null);
 
   const handleEnterApp = () => {
     navigate('/signup');
+  };
+
+  const toggleFAQ = (index) => {
+    setOpenFAQ(openFAQ === index ? null : index);
   };
 
   return (
@@ -32,6 +93,7 @@ export function LandingPageNew() {
             <a href="#features" className="hover:text-white transition-colors">Features</a>
             <a href="#how-it-works" className="hover:text-white transition-colors">How it Works</a>
             <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
+            <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
           </div>
 
           <div className="flex items-center gap-4">
@@ -262,6 +324,53 @@ export function LandingPageNew() {
         </div>
       </div>
 
+      {/* FAQ Section */}
+      <div id="faq" className="py-24 px-6 bg-slate-800/20">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-5xl font-bold mb-4">Frequently Asked Questions</h2>
+            <p className="text-slate-400">Everything you need to know about Eval.</p>
+          </div>
+
+          <div className="border-t border-white/5">
+            {FAQ_DATA.map((faq, index) => (
+              <FAQItem
+                key={index}
+                question={faq.question}
+                answer={faq.answer}
+                isOpen={openFAQ === index}
+                onClick={() => toggleFAQ(index)}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Final CTA */}
+      <div className="py-24 px-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-teal-500/10 via-transparent to-indigo-500/10"></div>
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <h2 className="text-3xl md:text-5xl font-bold mb-6">
+            Ready to Save 10+ Hours Per Week?
+          </h2>
+          <p className="text-xl text-slate-400 mb-10 max-w-2xl mx-auto">
+            Join thousands of recruiters who've transformed their hiring process. Start screening smarter today.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button
+              onClick={handleEnterApp}
+              className="w-full sm:w-auto bg-teal-500 hover:bg-teal-400 text-slate-900 text-lg font-bold px-10 py-4 rounded-xl transition-all hover:scale-105 shadow-[0_0_40px_-10px_rgba(20,184,166,0.5)] flex items-center justify-center gap-2"
+            >
+              Start Free Trial
+              <ArrowRight size={18} />
+            </button>
+          </div>
+          <p className="mt-6 text-sm text-slate-500">
+            No credit card required. Cancel anytime.
+          </p>
+        </div>
+      </div>
+
       {/* Footer */}
       <footer className="border-t border-white/5 py-12 px-6 bg-slate-950">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
@@ -270,7 +379,7 @@ export function LandingPageNew() {
              <span className="font-bold">Eval - Resume Scanner</span>
            </div>
            <div className="text-slate-600 text-sm">
-             © 2024 Eval Inc. All rights reserved.
+             © 2025 Eval Inc. All rights reserved.
            </div>
            <div className="flex gap-6 text-slate-500">
              <a href="#" className="hover:text-white transition-colors">Privacy</a>
