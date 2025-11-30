@@ -7,6 +7,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { useAuth } from '../hooks/useAuth'
+import { validateLoginForm } from '../lib/validators'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -36,16 +37,10 @@ export function LoginPage() {
     e.preventDefault()
     setLocalError(null)
 
-    // Validation
-    if (!formData.email || !formData.password) {
-      setLocalError('Please fill in all fields')
-      return
-    }
-
-    // Basic email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(formData.email)) {
-      setLocalError('Please enter a valid email address')
+    // Validate form
+    const validation = validateLoginForm(formData)
+    if (!validation.isValid) {
+      setLocalError(validation.error)
       return
     }
 

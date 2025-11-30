@@ -7,6 +7,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { useAuth } from '../hooks/useAuth'
+import { validateSignupForm } from '../lib/validators'
 
 export function SignupPage() {
   const navigate = useNavigate()
@@ -38,31 +39,10 @@ export function SignupPage() {
     e.preventDefault()
     setLocalError(null)
 
-    // Validation
-    if (!formData.email || !formData.password || !formData.confirmPassword) {
-      setLocalError('Please fill in all fields')
-      return
-    }
-
-    // Basic email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(formData.email)) {
-      setLocalError('Please enter a valid email address')
-      return
-    }
-
-    if (formData.password.length < 8) {
-      setLocalError('Password must be at least 8 characters long')
-      return
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setLocalError('Passwords do not match')
-      return
-    }
-
-    if (!formData.agreeToTerms) {
-      setLocalError('Please agree to the Terms of Service and Privacy Policy')
+    // Validate form
+    const validation = validateSignupForm(formData)
+    if (!validation.isValid) {
+      setLocalError(validation.error)
       return
     }
 

@@ -13,140 +13,148 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 
-export const useAuth = create((set, get) => ({
-  user: null,
-  session: null,
-  loading: true,
-  error: null,
+export const useAuth = create((set) => {
+  let unsubscribe = null
 
-  // Initialize auth state and set up listener
-  // NOTE: Should only be called once during app initialization (App.jsx useEffect)
-  // The auth listener is not cleaned up since this is a singleton store
-  initialize: async () => {
-    try {
-      set({ loading: true })
+  return {
+    user: null,
+    session: null,
+    loading: true,
+    error: null,
 
-      // Check if Supabase is configured
-      if (!supabase) {
-        console.warn('⚠️  Supabase not configured. Auth features disabled.')
-        set({ loading: false, user: null, session: null })
-        return
+    // Initialize auth state and set up listener
+    // NOTE: Should only be called once during app initialization (App.jsx useEffect)
+    // Cleans up previous listener if re-initialized
+    initialize: async () => {
+      try {
+        set({ loading: true })
+
+        // Check if Supabase is configured
+        if (!supabase) {
+          console.warn('⚠️  Supabase not configured. Auth features disabled.')
+          set({ loading: false, user: null, session: null })
+          return
+        }
+
+        // Get current session
+        const { data: { session }, error } = await supabase.auth.getSession()
+
+        if (error) {
+          console.error('Error getting session:', error)
+          set({ error, loading: false })
+          return
+        }
+
+        set({
+          session,
+          user: session?.user ?? null,
+          loading: false
+        })
+
+        // Clean up previous listener if it exists
+        if (unsubscribe) {
+          unsubscribe()
+        }
+
+        // Listen for auth state changes (login, logout, token refresh)
+        unsubscribe = supabase.auth.onAuthStateChange((_event, session) => {
+          set({
+            session,
+            user: session?.user ?? null
+          })
+        })
+      } catch (error) {
+        console.error('Error initializing auth:', error)
+        set({ loading: false })
       }
+    },
 
-      // Get current session
-      const { data: { session }, error } = await supabase.auth.getSession()
+    // Sign up new user
+    signUp: async (email, password) => {
+      set({ loading: true, error: null })
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      })
 
       if (error) {
-        console.error('Error getting session:', error)
         set({ error, loading: false })
-        return
+        return { user: null, error }
       }
 
       set({
-        session,
-        user: session?.user ?? null,
+        user: data.user,
+        session: data.session,
         loading: false
       })
 
-      // Listen for auth state changes (login, logout, token refresh)
-      // This listener persists for the lifetime of the app
-      supabase.auth.onAuthStateChange((_event, session) => {
-        set({
-          session,
-          user: session?.user ?? null
-        })
+      return { user: data.user, error: null }
+    },
+
+    // Log in existing user
+    login: async (email, password) => {
+      set({ loading: true, error: null })
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       })
-    } catch (error) {
-      console.error('Error initializing auth:', error)
-      set({ loading: false })
-    }
-  },
 
-  // Sign up new user
-  signUp: async (email, password) => {
-    set({ loading: true, error: null })
+      if (error) {
+        set({ error, loading: false })
+        return { user: null, error }
+      }
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    })
+      set({
+        user: data.user,
+        session: data.session,
+        loading: false
+      })
 
-    if (error) {
-      set({ error, loading: false })
-      return { user: null, error }
-    }
+      return { user: data.user, error: null }
+    },
 
-    set({
-      user: data.user,
-      session: data.session,
-      loading: false
-    })
+    // Log out current user
+    logout: async () => {
+      set({ loading: true, error: null })
 
-    return { user: data.user, error: null }
-  },
+      const { error } = await supabase.auth.signOut()
 
-  // Log in existing user
-  login: async (email, password) => {
-    set({ loading: true, error: null })
+      if (error) {
+        set({ error, loading: false })
+        return { error }
+      }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+      set({
+        user: null,
+        session: null,
+        loading: false
+      })
 
-    if (error) {
-      set({ error, loading: false })
-      return { user: null, error }
-    }
+      return { error: null }
+    },
 
-    set({
-      user: data.user,
-      session: data.session,
-      loading: false
-    })
+    // Get current user (useful for checking auth status)
+    getCurrentUser: async () => {
+      const { data: { user }, error } = await supabase.auth.getUser()
 
-    return { user: data.user, error: null }
-  },
+      if (error) {
+        console.error('Error getting current user:', error)
+        set({ error })
+        return null
+      }
 
-  // Log out current user
-  logout: async () => {
-    set({ loading: true, error: null })
+      set({ user })
+      return user
+    },
 
-    const { error } = await supabase.auth.signOut()
-
-    if (error) {
-      set({ error, loading: false })
-      return { error }
-    }
-
-    set({
-      user: null,
-      session: null,
-      loading: false
-    })
-
-    return { error: null }
-  },
-
-  // Get current user (useful for checking auth status)
-  getCurrentUser: async () => {
-    const { data: { user }, error } = await supabase.auth.getUser()
-
-    if (error) {
-      console.error('Error getting current user:', error)
-      set({ error })
-      return null
-    }
-
-    set({ user })
-    return user
-  },
-
-  // Clear error state
-  clearError: () => {
-    set({ error: null })
-  },
-}))
+    // Clear error state
+    clearError: () => {
+      set({ error: null })
+    },
+  }
+})
 
 // Helper hook to get just the user
 export const useUser = () => useAuth((state) => state.user)

@@ -101,10 +101,10 @@ function App() {
   const [authMode, setAuthMode] = useState('login')
   const initialize = useAuth((state) => state.initialize)
 
-  // Initialize auth state on mount
+  // Initialize auth state on mount (runs once)
   useEffect(() => {
     initialize()
-  }, [initialize])
+  }, [])
 
   const openAuthModal = (mode = 'login') => {
     setAuthMode(mode)
