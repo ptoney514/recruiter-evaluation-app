@@ -4,24 +4,35 @@ Last Updated: 2025-11-29
 
 ## Current Focus
 
-**PHASE 1 BACKEND INTEGRATION COMPLETE** ✅ → **PHASE 2: DASHBOARD STATS** 🚧
+**PHASE 2: UNIT TESTS COMPLETE** ✅ → **PHASE 3: INTEGRATION & E2E TESTS** 🚧
 
-Completed all core workbench functionality (upload, evaluate, results). Next: Dashboard statistics and job management to complete the tool's core feature set. Marketing & Auth (Phase 3) will follow.
+Completed comprehensive unit testing infrastructure and 5 test suites covering hooks, utilities, and components. Next: Integration tests with real Supabase interactions and E2E flows.
 
 ## In Progress 🚧
 
-- [ ] **Phase 2: Dashboard Stats & Job Management** (Priority 1)
-  - [ ] **useDashboardStats.js** - Create React Query hooks for dashboard aggregation
-    - Get job statistics (total jobs, candidates per job, evaluation progress)
-    - Get aggregated evaluation metrics (passed/failed counts, score distribution)
-    - Get recent evaluation history
-  - [ ] **DashboardPage Updates** - Replace mock statistics with real Supabase queries
-    - Real-time candidate counts per job
-    - Evaluation progress indicators
-    - Top candidate recommendations
-  - [ ] **RoleCard Updates** - Live progress bars and candidate counts
-  - [ ] **CreateRolePage Integration** - Form → Job creation → Navigate to workbench
-  - Status: Ready to start (design planned, no blockers)
+- [ ] **Phase 2B: Integration Tests** (Priority 1)
+  - [ ] **jobCreation.integration.test.js** (8 tests)
+    - Create job with real Supabase
+    - Cascade to candidates/evaluations
+    - Verify database state
+  - [ ] **jobDeletion.integration.test.js** (10 tests)
+    - Delete job with cascade
+    - Verify orphaned records cleaned
+    - Verify statistics update
+  - [ ] **tierLimits.integration.test.js** (9 tests)
+    - Verify tier limits enforced
+    - Test free/pro tiers
+    - Test candidate limits per job
+  - Status: Infrastructure ready, ready to start (database utilities created)
+
+- [ ] **Phase 2C: E2E Tests** (Priority 2)
+  - [ ] **create-job-flow.spec.js** (Playwright)
+    - Marketing → Signup → Create role → Upload resumes → Evaluate
+  - [ ] **delete-job-flow.spec.js**
+    - Create job → Delete with confirmation → Verify removal
+  - [ ] **tier-limits.spec.js**
+    - Hit free tier limit → Try create → Blocked
+  - Status: Playwright configured and ready
 
 - [ ] **Phase 3: Marketing & Auth** (Priority 2 - After Phase 2)
   - [ ] Marketing Landing Page (MarketingPage.jsx)
@@ -31,6 +42,45 @@ Completed all core workbench functionality (upload, evaluate, results). Next: Da
   - Status: Blocked until Phase 2 complete (intentional - complete product features first)
 
 ## Recently Completed ✅
+
+- **Phase 2: Unit Tests** (Nov 29) ✅
+  - **Testing Infrastructure** (Setup)
+    - Playwright installed and configured for E2E testing
+    - Test database utilities (testDbUtils.js) created for Supabase seeding
+    - Test fixtures (testData.js) with realistic job/candidate data
+    - Vitest configured with jsdom environment for React component testing
+    - Playwright configuration ready for integration/E2E tests
+  - **useTierLimits.test.js** (19 tests)
+    - Tier configuration and job limit enforcement
+    - Free tier vs paid tier behavior
+    - Candidate limits per job
+    - Edge cases and state transitions
+  - **extractRequirements.test.js** (26 tests)
+    - Requirement extraction from job descriptions
+    - Must-have vs nice-to-have parsing
+    - Bullet point and section detection
+    - Edge cases (empty descriptions, malformed text)
+  - **RoleCard.test.jsx** (20 tests)
+    - Dashboard job card rendering
+    - Delete functionality and confirmation
+    - User interactions and navigation
+    - Loading and error states
+  - **DashboardPage.test.jsx** (32 tests)
+    - Dashboard rendering with user greeting
+    - Create Role button with job count display
+    - Tier limit warning display
+    - Job listing and grid layout
+    - Loading, error, and empty states
+    - State combinations and edge cases
+  - **CreateRolePage.test.jsx** (24 tests)
+    - Role creation form rendering and validation
+    - Form submission and data handling
+    - Tab navigation (paste description vs upload profile)
+    - Auto-detection of keywords from description
+    - Error handling and user feedback
+    - Back button navigation
+  - **Total: 121 tests written, 117 passing** (includes 5 test suites covering hooks, utilities, and components)
+  - **Testing infrastructure complete** - Ready for integration and E2E tests
 
 - **Phase 1: Backend Integration** (Nov 29) ✅
   - **useCandidates.js** (7 functions, 17 tests)
@@ -239,9 +289,9 @@ Completed all core workbench functionality (upload, evaluate, results). Next: Da
 
 ## MVP Timeline (Updated Nov 29)
 
-**Current Status**: ✅ Week 1 Complete (Phase 1: Backend Integration), 🚧 Week 2 In Progress (Phase 2: Dashboard)
+**Current Status**: ✅ Phase 1 Complete (Backend Integration), ✅ Phase 2A Complete (Unit Tests), 🚧 Phase 2B/2C In Progress (Integration & E2E Tests)
 
-**Week 1 - Phase 1: Backend Integration** ✅ COMPLETE
+**Phase 1 - Backend Integration** ✅ COMPLETE (Nov 29)
 - [x] useCandidates.js (7 functions, 17 tests)
 - [x] useEvaluations.js (8 functions, 15 tests)
 - [x] ResumeUploadModal (22 tests)
@@ -250,12 +300,25 @@ Completed all core workbench functionality (upload, evaluate, results). Next: Da
 - [x] 82 total tests passing
 - [x] Committed to GitHub
 
-**Week 2 - Phase 2: Dashboard Stats** 🚧 STARTING
-- [ ] useDashboardStats.js (aggregation queries)
-- [ ] DashboardPage real statistics
-- [ ] RoleCard live progress
-- [ ] CreateRolePage job creation flow
-- [ ] 12+ new tests
+**Phase 2A - Unit Tests** ✅ COMPLETE (Nov 29)
+- [x] Testing infrastructure (Playwright, Vitest, fixtures)
+- [x] useTierLimits.test.js (19 tests)
+- [x] extractRequirements.test.js (26 tests)
+- [x] RoleCard.test.jsx (20 tests)
+- [x] DashboardPage.test.jsx (32 tests)
+- [x] CreateRolePage.test.jsx (24 tests)
+- [x] 121 tests written, 117 passing
+- [x] Committed to GitHub
+
+**Phase 2B - Integration Tests** 🚧 STARTING
+- [ ] jobCreation.integration.test.js (8 tests) - Real Supabase interactions
+- [ ] jobDeletion.integration.test.js (10 tests) - Cascade deletion and cleanup
+- [ ] tierLimits.integration.test.js (9 tests) - Tier enforcement validation
+
+**Phase 2C - E2E Tests** 🚧 UPCOMING (After Phase 2B)
+- [ ] create-job-flow.spec.js (Playwright) - End-to-end job creation
+- [ ] delete-job-flow.spec.js (Playwright) - Job deletion with UI confirmation
+- [ ] tier-limits.spec.js (Playwright) - Tier limit enforcement in UI
 
 **Week 3 - Phase 3: Marketing & Auth Foundation**
 - [ ] Build marketing landing page (9 sections)

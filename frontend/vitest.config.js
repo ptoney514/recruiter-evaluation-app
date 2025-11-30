@@ -6,8 +6,15 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: './src/tests/setup.js',
+    setupFiles: [
+      './src/tests/setup.js',
+      './src/tests/setupDatabase.js',
+    ],
     css: true,
+    env: {
+      VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL || 'http://127.0.0.1:54321',
+      VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY,
+    },
   },
   resolve: {
     alias: {
