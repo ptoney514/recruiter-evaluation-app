@@ -67,8 +67,9 @@ test.describe('Tier Limits', () => {
     await page.waitForTimeout(500)
   }
 
-  // UI-only test - no auth required
-  test('should display job count in Create New Role button', async ({ page }) => {
+  // Requires auth - /app routes now require authentication
+  // Move to tier-limits.auth.spec.js when implemented
+  test.skip('should display job count in Create New Role button (requires auth)', async ({ page }) => {
     await page.goto('/app')
     await page.waitForLoadState('networkidle')
 

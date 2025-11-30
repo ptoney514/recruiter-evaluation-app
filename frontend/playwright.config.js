@@ -1,6 +1,11 @@
 /**
  * Playwright Configuration for E2E Tests
  * Configures browser automation for end-to-end testing
+ *
+ * Projects:
+ * - setup: Creates authenticated user and saves session
+ * - chromium: Runs unauthenticated tests (UI-only)
+ * - chromium-auth: Runs authenticated tests (uses saved session)
  */
 
 import { defineConfig, devices } from '@playwright/test'
@@ -15,7 +20,7 @@ export default defineConfig({
   // Global timeout for all tests
   globalTimeout: 30 * 60 * 1000,
 
-  // Fail on console errors during tests
+  // Common settings for all projects
   use: {
     baseURL: 'http://localhost:3000',
     screenshot: 'only-on-failure',
@@ -23,30 +28,40 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
 
-  // Configure projects for different browsers
+  // Configure projects
   projects: [
+    // Auth setup - runs first, creates test user
     {
-      name: 'chromium',
+      name: 'setup',
+      testMatch: /auth\.setup\.js/,
       use: { ...devices['Desktop Chrome'] },
     },
 
-    // Uncomment to test in Firefox and WebKit
-    // {
-    //   name: 'firefox',
-    //   use: { ...devices['Desktop Firefox'] },
-    // },
-    //
-    // {
-    //   name: 'webkit',
-    //   use: { ...devices['Desktop Safari'] },
-    // },
+    // Unauthenticated tests (UI-only, no login required)
+    {
+      name: 'chromium',
+      testMatch: '**/*.spec.js',
+      testIgnore: [/auth\.setup\.js/, /\.auth\.spec\.js/],
+      use: { ...devices['Desktop Chrome'] },
+    },
+
+    // Authenticated tests (requires login)
+    {
+      name: 'chromium-auth',
+      testMatch: '**/*.auth.spec.js',
+      dependencies: ['setup'],
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'playwright/.auth/user.json',
+      },
+    },
   ],
 
   // Web Server configuration
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:3000',
-    reuseExistingServer: true, // Always reuse existing server for faster tests
+    reuseExistingServer: true,
     timeout: 120 * 1000,
   },
 
@@ -63,5 +78,5 @@ export default defineConfig({
   retries: 1,
 
   // Number of workers
-  workers: 1, // Use 1 worker for consistency since tests share Supabase instance
+  workers: 1,
 })
