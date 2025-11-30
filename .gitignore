@@ -44,6 +44,8 @@ Thumbs.db
 # Testing
 coverage/
 .pytest_cache/
+playwright-report/
+test-results/
 
 # Temporary files
 *.tmp

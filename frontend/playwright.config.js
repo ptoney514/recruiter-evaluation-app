@@ -17,7 +17,7 @@ export default defineConfig({
 
   // Fail on console errors during tests
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:3000',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     trace: 'on-first-retry',
@@ -45,8 +45,8 @@ export default defineConfig({
   // Web Server configuration
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
+    url: 'http://localhost:3000',
+    reuseExistingServer: true, // Always reuse existing server for faster tests
     timeout: 120 * 1000,
   },
 
