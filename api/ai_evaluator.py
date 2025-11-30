@@ -224,10 +224,19 @@ def evaluate_candidate_with_ai(job_data, candidate_data, stage=1, provider='anth
         raise ValueError(f'Failed to initialize {provider} provider: {str(e)}')
 
     # Call LLM provider
-    response_text, usage_metadata = llm_provider.evaluate(prompt)
+    try:
+        response_text, usage_metadata = llm_provider.evaluate(prompt)
+    except Exception as e:
+        raise Exception(f'API call failed: {str(e)}')
 
-    # Parse response
-    evaluation_data = parse_stage1_response(response_text)
+    # Parse response with error handling
+    try:
+        evaluation_data = parse_stage1_response(response_text)
+    except Exception as e:
+        print(f'Warning: Failed to parse AI response: {str(e)}')
+        print(f'Raw response (first 500 chars): {response_text[:500]}')
+        # Return a valid response structure with error flag
+        raise Exception(f'Failed to parse evaluation response. Response format may not match expected pattern.')
 
     return {
         'success': True,

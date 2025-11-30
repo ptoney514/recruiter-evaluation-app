@@ -2,14 +2,17 @@
  * Test Database Utilities
  * Functions for seeding test data and cleaning up in integration/E2E tests
  * Uses Supabase admin client (with service role key) to bypass RLS policies
+ *
+ * NOTE: Creates its own Supabase client to bypass the mocks in setup.js
+ * For integration tests, we need real Supabase connections
  */
 
 import { createClient } from '@supabase/supabase-js'
 
-// Get environment variables
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'http://127.0.0.1:54321'
-const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFianZhYmN4eHd1Y3RydWdyYXZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzQ5NTMyNzcsImV4cCI6MTk5MDUyOTI3N30.2qQZ6BTsWqpM8V1rR2qmKGqZTTL5NRrFvQRKkMDxpEM'
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFianZhYmN4eHd1Y3RydWdyYXZxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTY3NDk1MzI3NywiZXhwIjoxOTkwNTI5Mjc3fQ.BHNiHR7KVZxD6fDUfTwHZ2TZGsLBxQPDf6lWrKL_JCU'
+// Get environment variables - use local Supabase defaults
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'http://127.0.0.1:54321'
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU'
 
 // Test user credentials (will be created via Supabase Auth)
 export const TEST_USER = {
@@ -22,11 +25,18 @@ let adminClient = null
 let testUserId = null
 
 /**
- * Get the anon client (for simulating authenticated user requests)
+ * Get the anon client (creates real client bypassing mocks)
+ * This client should be used for auth and will share session with hooks via storage
  */
 export function getSupabaseClient() {
   if (!anonClient) {
-    anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false,
+      }
+    })
   }
   return anonClient
 }
@@ -89,20 +99,44 @@ export async function getUserId() {
 
 /**
  * Sign in test user (for tests that need fresh session)
+ * Will attempt sign up if sign in fails (user doesn't exist)
  */
 export async function signInTestUser() {
   try {
+    // First try to sign in
     const { data, error } = await getSupabaseClient().auth.signInWithPassword({
       email: TEST_USER.email,
       password: TEST_USER.password,
     })
 
-    if (error) {
-      throw new Error(`Sign in failed: ${error.message}`)
+    if (!error && data?.user) {
+      testUserId = data.user.id
+      return data.user.id
     }
 
-    testUserId = data.user.id
-    return data.user.id
+    // If sign in failed, try to sign up first
+    console.log('Sign in failed, attempting to create test user...')
+    const { data: signUpData, error: signUpError } = await getSupabaseClient().auth.signUp({
+      email: TEST_USER.email,
+      password: TEST_USER.password,
+    })
+
+    if (signUpError && !signUpError.message.includes('already registered')) {
+      throw new Error(`Sign up failed: ${signUpError.message}`)
+    }
+
+    // Now try to sign in again
+    const { data: retryData, error: retryError } = await getSupabaseClient().auth.signInWithPassword({
+      email: TEST_USER.email,
+      password: TEST_USER.password,
+    })
+
+    if (retryError) {
+      throw new Error(`Sign in failed after signup: ${retryError.message}`)
+    }
+
+    testUserId = retryData.user.id
+    return retryData.user.id
   } catch (error) {
     console.error('signInTestUser error:', error)
     throw error
@@ -151,10 +185,12 @@ export async function seedJob(jobData = {}) {
  * Create test candidate linked to job
  */
 export async function seedCandidate(jobId, candidateData = {}) {
+  const userId = await getUserId()
   const admin = getAdminClient()
 
   const defaultCandidate = {
     job_id: jobId,
+    user_id: userId,
     full_name: 'Test Candidate',
     email: 'candidate@example.com',
     phone: '555-1234',
@@ -173,7 +209,7 @@ export async function seedCandidate(jobId, candidateData = {}) {
     additional_notes: null,
   }
 
-  const candidateToInsert = { ...defaultCandidate, ...candidateData, job_id: jobId }
+  const candidateToInsert = { ...defaultCandidate, ...candidateData, job_id: jobId, user_id: userId }
 
   const { data, error } = await admin
     .from('candidates')
@@ -352,4 +388,202 @@ export async function verifyJobDeleted(jobId) {
 export async function verifyCandidatesDeleted(jobId) {
   const count = await getCandidateCountForJob(jobId)
   return count === 0
+}
+
+/**
+ * Create test interview rating for a candidate
+ */
+export async function seedInterviewRating(candidateId, ratingData = {}) {
+  const userId = await getUserId()
+  const admin = getAdminClient()
+
+  const defaultRating = {
+    candidate_id: candidateId,
+    user_id: userId,
+    interviewer_name: 'Test Interviewer',
+    interview_date: new Date().toISOString().split('T')[0],
+    interview_type: 'phone_screen',
+    technical_skills_rating: 8,
+    communication_rating: 7,
+    problem_solving_rating: 8,
+    cultural_fit_rating: 9,
+    overall_rating: 8,
+    recommendation: 'HIRE',
+    strengths: 'Good technical skills',
+    concerns: 'None',
+    notes: 'Test interview notes',
+  }
+
+  const ratingToInsert = { ...defaultRating, ...ratingData, candidate_id: candidateId, user_id: userId }
+
+  const { data, error } = await admin
+    .from('interview_ratings')
+    .insert([ratingToInsert])
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(`Failed to create interview rating: ${error.message}`)
+  }
+
+  return data
+}
+
+/**
+ * Create test reference check for a candidate
+ */
+export async function seedReferenceCheck(candidateId, checkData = {}) {
+  const userId = await getUserId()
+  const admin = getAdminClient()
+
+  const defaultCheck = {
+    candidate_id: candidateId,
+    user_id: userId,
+    reference_name: 'Test Reference',
+    reference_title: 'Former Manager',
+    relationship: 'supervisor',
+    dates_worked_together: '2020-2023',
+    overall_rating: 8,
+    would_rehire: 'yes_definitely',
+    strengths: 'Great team player',
+    areas_for_development: 'Could improve time management',
+    notes: 'Test reference check notes',
+    checked_by: 'Test Checker',
+    check_date: new Date().toISOString().split('T')[0],
+  }
+
+  const checkToInsert = { ...defaultCheck, ...checkData, candidate_id: candidateId, user_id: userId }
+
+  const { data, error } = await admin
+    .from('reference_checks')
+    .insert([checkToInsert])
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(`Failed to create reference check: ${error.message}`)
+  }
+
+  return data
+}
+
+/**
+ * Create test candidate ranking
+ */
+export async function seedRanking(jobId, candidateId, rankingData = {}) {
+  const userId = await getUserId()
+  const admin = getAdminClient()
+
+  const defaultRanking = {
+    job_id: jobId,
+    candidate_id: candidateId,
+    user_id: userId,
+    rank: 1,
+    manual_notes: 'Test ranking notes',
+  }
+
+  const rankingToInsert = { ...defaultRanking, ...rankingData, user_id: userId }
+
+  const { data, error } = await admin
+    .from('candidate_rankings')
+    .insert([rankingToInsert])
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(`Failed to create ranking: ${error.message}`)
+  }
+
+  return data
+}
+
+/**
+ * Verify all evaluations for a job were deleted
+ */
+export async function verifyEvaluationsDeleted(jobId) {
+  const admin = getAdminClient()
+
+  const { data, error } = await admin
+    .from('evaluations')
+    .select('id')
+    .eq('job_id', jobId)
+
+  if (error) {
+    throw new Error(`Failed to check evaluations: ${error.message}`)
+  }
+
+  return !data || data.length === 0
+}
+
+/**
+ * Verify all interview ratings for a candidate were deleted
+ */
+export async function verifyInterviewRatingsDeleted(candidateId) {
+  const admin = getAdminClient()
+
+  const { data, error } = await admin
+    .from('interview_ratings')
+    .select('id')
+    .eq('candidate_id', candidateId)
+
+  if (error) {
+    throw new Error(`Failed to check interview ratings: ${error.message}`)
+  }
+
+  return !data || data.length === 0
+}
+
+/**
+ * Verify all reference checks for a candidate were deleted
+ */
+export async function verifyReferenceChecksDeleted(candidateId) {
+  const admin = getAdminClient()
+
+  const { data, error } = await admin
+    .from('reference_checks')
+    .select('id')
+    .eq('candidate_id', candidateId)
+
+  if (error) {
+    throw new Error(`Failed to check reference checks: ${error.message}`)
+  }
+
+  return !data || data.length === 0
+}
+
+/**
+ * Verify all rankings for a job were deleted
+ */
+export async function verifyRankingsDeleted(jobId) {
+  const admin = getAdminClient()
+
+  const { data, error } = await admin
+    .from('candidate_rankings')
+    .select('id')
+    .eq('job_id', jobId)
+
+  if (error) {
+    throw new Error(`Failed to check rankings: ${error.message}`)
+  }
+
+  return !data || data.length === 0
+}
+
+/**
+ * Get a job by ID (for verification)
+ */
+export async function getJobById(jobId) {
+  const admin = getAdminClient()
+
+  const { data, error } = await admin
+    .from('jobs')
+    .select('*')
+    .eq('id', jobId)
+    .single()
+
+  if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+    throw new Error(`Failed to get job: ${error.message}`)
+  }
+
+  return data
 }

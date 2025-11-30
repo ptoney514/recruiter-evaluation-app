@@ -4,12 +4,10 @@
  */
 import { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import { useStorageInfo } from '../../hooks/useEvaluations'
 import { Button } from '../ui/Button'
 
 export function UserMenu({ onOpenAuth }) {
   const { user, signOut, loading } = useAuth()
-  const { data: storageInfo } = useStorageInfo()
   const [showDropdown, setShowDropdown] = useState(false)
 
   if (loading) {
@@ -23,11 +21,6 @@ export function UserMenu({ onOpenAuth }) {
   if (!user) {
     return (
       <div className="flex items-center gap-2">
-        {storageInfo?.mode === 'session' && (
-          <span className="text-xs text-gray-500 hidden sm:inline">
-            Using temporary storage
-          </span>
-        )}
         <Button onClick={() => onOpenAuth('login')} variant="secondary" size="sm">
           Sign In
         </Button>
@@ -49,9 +42,6 @@ export function UserMenu({ onOpenAuth }) {
         </div>
         <div className="hidden sm:block text-left">
           <div className="text-sm font-medium text-gray-900">{user.email}</div>
-          <div className="text-xs text-gray-500">
-            {storageInfo?.mode === 'database' ? 'Cloud Storage' : 'Session Storage'}
-          </div>
         </div>
         <svg
           className={`w-4 h-4 text-gray-500 transition-transform ${showDropdown ? 'rotate-180' : ''}`}
@@ -75,9 +65,6 @@ export function UserMenu({ onOpenAuth }) {
           <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
             <div className="p-4 border-b border-gray-200">
               <div className="text-sm font-medium text-gray-900">{user.email}</div>
-              <div className="text-xs text-gray-500 mt-1">
-                Storage: {storageInfo?.mode === 'database' ? 'Cloud (Persistent)' : 'Session (Temporary)'}
-              </div>
             </div>
 
             <div className="p-2">

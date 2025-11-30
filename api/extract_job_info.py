@@ -8,6 +8,7 @@ import json
 import os
 from http.server import BaseHTTPRequestHandler
 from anthropic import Anthropic
+from http_utils import get_allowed_origins, is_origin_allowed
 
 def extract_job_info(job_description: str) -> dict:
     """
@@ -119,54 +120,89 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Handle POST request to extract job information"""
 
-        # CORS headers
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-        self.end_headers()
-
         try:
+            # Validate Content-Type header
+            content_type = self.headers.get('Content-Type', '')
+            if 'application/json' not in content_type:
+                self._send_error(400, 'Content-Type must be application/json')
+                return
+
+            # Validate Content-Length header
+            content_length_header = self.headers.get('Content-Length')
+            if not content_length_header:
+                self._send_error(400, 'Content-Length header is required')
+                return
+
+            try:
+                content_length = int(content_length_header)
+            except ValueError:
+                self._send_error(400, 'Content-Length must be a valid integer')
+                return
+
+            # Enforce size limit (50MB) to prevent DoS attacks
+            MAX_BODY_SIZE = 50_000_000
+            if content_length > MAX_BODY_SIZE:
+                self._send_error(413, f'Request body too large (max {MAX_BODY_SIZE} bytes)')
+                return
+
             # Parse request body
-            content_length = int(self.headers['Content-Length'])
             body = self.rfile.read(content_length)
-            data = json.loads(body.decode('utf-8'))
+            try:
+                data = json.loads(body.decode('utf-8'))
+            except json.JSONDecodeError as e:
+                self._send_error(400, f'Invalid JSON: {str(e)}')
+                return
 
             job_description = data.get('job_description', '')
 
             if not job_description or not job_description.strip():
-                response = {
-                    "success": False,
-                    "error": "job_description is required"
-                }
-                self.wfile.write(json.dumps(response).encode())
+                self._send_error(400, 'job_description is required')
                 return
 
             # Extract information
             result = extract_job_info(job_description)
 
             # Return result
-            self.wfile.write(json.dumps(result).encode())
-
-        except json.JSONDecodeError:
-            response = {
-                "success": False,
-                "error": "Invalid JSON in request body"
-            }
-            self.wfile.write(json.dumps(response).encode())
+            self._send_response(200, result)
 
         except Exception as e:
-            response = {
-                "success": False,
-                "error": str(e)
-            }
-            self.wfile.write(json.dumps(response).encode())
+            self._send_error(500, str(e))
+
+    def _send_response(self, status_code, data):
+        """Send JSON response with CORS headers"""
+        allowed_origins = get_allowed_origins()
+        origin = self.headers.get('Origin', '')
+
+        self.send_response(status_code)
+        self.send_header('Content-type', 'application/json')
+
+        # Only send CORS header if origin is allowed
+        if is_origin_allowed(origin, allowed_origins):
+            self.send_header('Access-Control-Allow-Origin', origin)
+
+        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode('utf-8'))
+
+    def _send_error(self, status_code, message):
+        """Send error response"""
+        self._send_response(status_code, {
+            'success': False,
+            'error': message
+        })
 
     def do_OPTIONS(self):
-        """Handle CORS preflight"""
+        """Handle CORS preflight requests"""
+        allowed_origins = get_allowed_origins()
+        origin = self.headers.get('Origin', '')
+
         self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
+
+        # Only send CORS header if origin is allowed
+        if is_origin_allowed(origin, allowed_origins):
+            self.send_header('Access-Control-Allow-Origin', origin)
+
         self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()

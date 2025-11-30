@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, AlertCircle } from 'lucide-react';
+import { useCreateJob } from '../hooks/useJobs';
+import { extractRequirements } from '../utils/requirementExtraction';
 
 /**
  * Badge component for keywords
@@ -41,6 +43,7 @@ function Button({ children, variant = 'primary', className = '', onClick, disabl
  */
 export function CreateRolePage() {
   const navigate = useNavigate();
+  const createJob = useCreateJob();
   const [activeTab, setActiveTab] = useState('paste'); // 'paste' or 'upload'
   const [formData, setFormData] = useState({
     title: '',
@@ -48,28 +51,60 @@ export function CreateRolePage() {
     description: '',
     education: 'bachelors',
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Auto-detected keywords (would be extracted from description in real implementation)
-  const detectedKeywords = formData.description.length > 50
-    ? ['Digital Marketing', 'Marketo', 'Budget Management']
-    : [];
+  // Extract keywords from description
+  const { mustHave, niceToHave } = extractRequirements(formData.description);
+  const detectedKeywords = [...mustHave, ...niceToHave].slice(0, 5);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setError(null); // Clear error when user starts typing
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    setError(null);
 
-    // TODO: Connect to job creation API
-    // For now, simulate a delay and navigate to workbench
-    setTimeout(() => {
-      setIsSubmitting(false);
-      navigate('/app');
-    }, 1000);
+    // Validation
+    if (!formData.title.trim()) {
+      setError('Job title is required');
+      return;
+    }
+
+    if (!formData.description.trim()) {
+      setError('Job description is required');
+      return;
+    }
+
+    if (formData.description.trim().length < 30) {
+      setError('Job description must be at least 30 characters');
+      return;
+    }
+
+    try {
+      // Extract requirements from description
+      const { mustHave: mustHaveReqs, niceToHave: niceToHaveReqs } = extractRequirements(formData.description);
+
+      // Create job in Supabase
+      const newJob = await createJob.mutateAsync({
+        title: formData.title.trim(),
+        department: formData.department.trim() || null,
+        description: formData.description.trim(),
+        must_have_requirements: mustHaveReqs,
+        preferred_requirements: niceToHaveReqs,
+        status: 'open'
+      });
+
+      // Navigate to workbench of created job
+      if (newJob?.id) {
+        navigate(`/app/role/${newJob.id}/workbench`);
+      }
+    } catch (err) {
+      setError(err?.message || 'Failed to create job. Please try again.');
+      console.error('Job creation error:', err);
+    }
   };
 
   return (
@@ -95,6 +130,18 @@ export function CreateRolePage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit}>
+          {error && (
+            <div className="px-8 pt-6 pb-0">
+              <div className="flex gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+                <div>
+                  <h3 className="font-semibold text-red-900">Error</h3>
+                  <p className="text-red-700 text-sm mt-1">{error}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="p-8 space-y-6">
             {/* Title and Department */}
             <div className="grid grid-cols-2 gap-6">
@@ -225,11 +272,11 @@ Nice to Have:
 
           {/* Footer */}
           <div className="p-6 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
-            <Button variant="outline" onClick={() => navigate('/app')}>
+            <Button variant="outline" onClick={() => navigate('/app')} disabled={createJob.isPending}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || !formData.title}>
-              {isSubmitting ? 'Creating...' : 'Save & Start Uploading'}
+            <Button type="submit" disabled={createJob.isPending || !formData.title}>
+              {createJob.isPending ? 'Creating...' : 'Save & Start Uploading'}
             </Button>
           </div>
         </form>

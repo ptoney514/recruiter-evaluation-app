@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users } from 'lucide-react';
+import { Users, Trash2 } from 'lucide-react';
+import { useDeleteJob } from '../../hooks/useJobs';
 
 /**
  * Badge component for role status
@@ -26,6 +27,7 @@ function Badge({ children, color = 'slate' }) {
  */
 export function RoleCard({ role, onClick }) {
   const navigate = useNavigate();
+  const deleteJob = useDeleteJob();
 
   // Derive status from role data
   const getStatus = () => {
@@ -36,11 +38,9 @@ export function RoleCard({ role, onClick }) {
 
   const status = getStatus();
 
-  // Mock data for now - will be wired to real data later
-  const applicantCount = role.candidate_count || 0;
-  const progress = role.progress || 35;
-  const location = role.location || 'Remote';
-  const department = role.department || 'General';
+  // Get real data from role
+  const candidatesCount = role.candidates_count || 0;
+  const evaluatedCount = role.evaluated_count || 0;
 
   const handleClick = () => {
     if (onClick) {
@@ -51,41 +51,43 @@ export function RoleCard({ role, onClick }) {
     }
   };
 
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    if (window.confirm(`Delete "${role.title}"? This will remove all ${candidatesCount} candidates and their evaluations.`)) {
+      deleteJob.mutate(role.id);
+    }
+  };
+
   return (
     <div
-      className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition cursor-pointer group"
+      className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition group"
       onClick={handleClick}
     >
       <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="font-bold text-lg text-slate-900 group-hover:text-teal-600 transition">
-            {role.title}
-          </h3>
-          <p className="text-slate-500 text-sm">
-            {location} • {department}
-          </p>
-        </div>
-        <Badge color={status.color}>{status.label}</Badge>
+        <h3 className="font-bold text-lg text-slate-900 group-hover:text-teal-600 transition flex-1">
+          {role.title}
+        </h3>
+        <button
+          onClick={handleDelete}
+          disabled={deleteJob.isPending}
+          className="p-2 text-slate-400 hover:text-red-600 disabled:opacity-50 ml-2 flex-shrink-0"
+          title="Delete role"
+        >
+          <Trash2 size={18} />
+        </button>
       </div>
 
-      <div className="flex items-center gap-2 text-sm text-slate-600 mb-4">
+      <div className="flex items-center gap-2 text-sm text-slate-600">
         <Users size={16} />
-        <span>{applicantCount} Applicants</span>
+        <span>{candidatesCount} candidate{candidatesCount !== 1 ? 's' : ''} • {evaluatedCount} evaluated</span>
       </div>
 
-      <div className="w-full bg-slate-100 rounded-full h-2 mb-2">
-        <div
-          className={`h-2 rounded-full transition-all ${
-            status.label === 'Active' ? 'bg-teal-500' : 'bg-slate-300'
-          }`}
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-
-      <div className="flex justify-between text-xs text-slate-500">
-        <span>Screening</span>
-        <span>{progress}% to goal</span>
-      </div>
+      <button
+        onClick={handleClick}
+        className="mt-4 w-full py-2 px-3 bg-teal-50 text-teal-700 rounded-lg font-medium hover:bg-teal-100 transition text-sm"
+      >
+        Open Workbench
+      </button>
     </div>
   );
 }

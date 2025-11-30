@@ -1,12 +1,10 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Users, Calendar, Briefcase } from 'lucide-react'
+import { Plus, Briefcase, AlertCircle } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
-import { StatCard } from '../components/dashboard/StatCard'
 import { RoleCard } from '../components/dashboard/RoleCard'
-import { CreateProjectModal } from '../components/dashboard/CreateProjectModal'
 import { useJobs } from '../hooks/useJobs'
+import { useTierLimits } from '../hooks/useTierLimits'
 import { useAuth } from '../hooks/useAuth'
 
 /**
@@ -15,20 +13,13 @@ import { useAuth } from '../hooks/useAuth'
  */
 export function DashboardPage() {
   const navigate = useNavigate()
-  const [showCreateModal, setShowCreateModal] = useState(false)
   const { data: jobs, isLoading, isError, error } = useJobs()
   const { user } = useAuth()
+  const { jobsUsed, jobsLimit, jobsAtLimit } = useTierLimits()
 
   // Get user's first name for greeting
   const userName = user?.email?.split('@')[0] || 'there'
   const displayName = userName.charAt(0).toUpperCase() + userName.slice(1)
-
-  // Mock stats for now
-  const stats = {
-    candidatesInQueue: jobs?.reduce((acc, job) => acc + (job.candidate_count || 0), 0) || 52,
-    interviewsScheduled: 8,
-    activeRoles: jobs?.filter(j => j.status !== 'archived').length || 3
-  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto animate-fade-in overflow-auto h-full">
@@ -36,32 +27,30 @@ export function DashboardPage() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Welcome back, {displayName}</h1>
-          <p className="text-slate-500 mt-1">Here's what's happening with your hiring pipeline.</p>
+          <p className="text-slate-500 mt-1">Manage your job roles and candidate evaluations.</p>
         </div>
-        <Button onClick={() => navigate('/app/create-role')} className="flex items-center gap-2">
+        <Button
+          onClick={() => navigate('/app/create-role')}
+          disabled={jobsAtLimit}
+          className="flex items-center gap-2"
+        >
           <Plus size={20} />
-          Create New Role
+          Create New Role ({jobsUsed}/{jobsLimit})
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <StatCard
-          label="Candidates in Queue"
-          value={stats.candidatesInQueue}
-          icon={Users}
-        />
-        <StatCard
-          label="Interviews Scheduled"
-          value={stats.interviewsScheduled}
-          icon={Calendar}
-        />
-        <StatCard
-          label="Active Roles"
-          value={stats.activeRoles}
-          icon={Briefcase}
-        />
-      </div>
+      {/* Tier Limit Warning */}
+      {jobsAtLimit && (
+        <Card className="mb-6 border-l-4 border-l-amber-500 bg-amber-50 p-4 flex items-start gap-3">
+          <AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={20} />
+          <div>
+            <h3 className="font-semibold text-amber-900">Job limit reached</h3>
+            <p className="text-amber-700 text-sm mt-1">
+              You've reached the limit of {jobsLimit} jobs on the free plan. Delete a job or upgrade to create more.
+            </p>
+          </div>
+        </Card>
+      )}
 
       {/* Active Roles Section */}
       <h2 className="text-xl font-bold text-slate-900 mb-4">Active Roles</h2>
@@ -121,11 +110,6 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* Create Project Modal */}
-      <CreateProjectModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-      />
     </div>
   )
 }
