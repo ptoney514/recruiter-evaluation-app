@@ -1,13 +1,17 @@
 /**
  * User Menu Component
  * Displays auth status and user menu in navigation
+ * Shows DEV MODE badge when auth bypass is enabled
  */
 import { useState } from 'react'
-import { useAuth } from '../../contexts/AuthContext'
+import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../ui/Button'
 
 export function UserMenu({ onOpenAuth }) {
-  const { user, signOut, loading } = useAuth()
+  const user = useAuth((state) => state.user)
+  const loading = useAuth((state) => state.loading)
+  const isDevBypass = useAuth((state) => state.isDevBypass)
+  const logout = useAuth((state) => state.logout)
   const [showDropdown, setShowDropdown] = useState(false)
 
   if (loading) {
@@ -32,12 +36,19 @@ export function UserMenu({ onOpenAuth }) {
   }
 
   return (
-    <div className="relative">
+    <div className="relative flex items-center gap-2">
+      {/* Dev Mode Badge */}
+      {isDevBypass && (
+        <span className="px-2 py-1 text-xs font-bold bg-amber-100 text-amber-800 rounded-md border border-amber-300">
+          DEV MODE
+        </span>
+      )}
+
       <button
         onClick={() => setShowDropdown(!showDropdown)}
         className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
       >
-        <div className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center text-white font-semibold">
+        <div className={`h-8 w-8 rounded-full flex items-center justify-center text-white font-semibold ${isDevBypass ? 'bg-amber-600' : 'bg-primary-600'}`}>
           {user.email.charAt(0).toUpperCase()}
         </div>
         <div className="hidden sm:block text-left">
@@ -62,15 +73,20 @@ export function UserMenu({ onOpenAuth }) {
           ></div>
 
           {/* Dropdown menu */}
-          <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+          <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
             <div className="p-4 border-b border-gray-200">
               <div className="text-sm font-medium text-gray-900">{user.email}</div>
+              {isDevBypass && (
+                <div className="text-xs text-amber-600 mt-1">
+                  Auth bypass enabled - edit .env.local to disable
+                </div>
+              )}
             </div>
 
             <div className="p-2">
               <button
                 onClick={async () => {
-                  await signOut()
+                  await logout()
                   setShowDropdown(false)
                 }}
                 className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
