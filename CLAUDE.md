@@ -1,19 +1,19 @@
-# CLAUDE.md
+# CLAUDE.md - Project Instructions
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+**Resume Scanner Pro** - AI-powered batch resume evaluation tool for recruiters.
 
-## Overview
+## Project Vision
 
-**Resume Scanner Pro** - AI-powered batch resume evaluation tool for recruiters. Upload 10-50 resumes, get instant keyword matching (free) or AI-powered analysis (paid). Preparing for web + iOS applications with persistent storage.
+Enable B2B recruiters to screen 50+ resumes instantly with AI-powered analysis, reducing evaluation time from hours to minutes while maintaining quality hiring decisions.
 
-**Key Value:**
-- Batch upload 1-50 resumes at once
-- Instant regex-based ranking (free, no AI cost)
-- Selective AI evaluation on top candidates (cost-optimized)
-- Two-stage evaluation framework (resume → interview)
-- Interview guide generation
-- Export to PDF reports
-- Multi-device access (web + upcoming iOS)
+**Core Features:**
+- ✅ Batch upload 1-50 resumes (free keyword ranking)
+- ✅ Two-stage evaluation (resume screening → interview assessment)
+- ✅ AI-powered analysis (Claude 3.5 Haiku + OpenAI GPT-4o)
+- ✅ Interview guide generation
+- ✅ PDF export reports
+- 🚧 Live testing and user validation
+- 📋 Mobile apps (iOS/Android - Phase 4)
 
 ## Tech Stack
 
@@ -56,21 +56,34 @@ cd frontend && npm run dev             # Terminal 2
 
 ## Development Commands
 
-### Essential Commands
+### Start All Services (must have Docker running)
 ```bash
-cd frontend && npm run dev          # Start frontend (localhost:5173)
-cd api && python3 dev_server.py 8000  # Start API server
-npm run test:run                    # Run tests
-supabase start                      # Start local Supabase (Docker)
-supabase status                     # Check Supabase status
+# Terminal 1: Supabase
+supabase start
+
+# Terminal 2: API Server
+cd api && python3 flask_server.py
+
+# Terminal 3: Frontend
+cd frontend && npm run dev
 ```
 
-### Less Common
+**Access Points:**
+- Frontend: http://localhost:3000
+- API: http://localhost:8000
+- Supabase Studio: http://localhost:54323
+
+### Testing
+```bash
+cd frontend && npm run test:run     # Run all tests
+cd frontend && npm run test:e2e     # Run E2E tests (Playwright)
+```
+
+### Other Commands
 ```bash
 npm run build                       # Production build
 npm run lint                        # ESLint
-supabase db reset                   # Reset local DB with migrations
-supabase db diff --schema public    # Check for schema changes
+supabase db reset                   # Reset local DB
 ```
 
 ## Architecture
@@ -311,10 +324,23 @@ OPENAI_API_KEY=sk-...  # Optional
 - **Recruiting skill** at `~/.claude/skills/recruiting-evaluation/SKILL.md` (falls back to inline)
 - **Multi-LLM support** via `llm_providers.py` abstraction layer
 
-## Current Phase
+## Current Focus
 
-**Phase:** MVP Development - Supabase Integration
+**🎯 Phase 3: Live Testing Preparation**
 
-**For current work, blockers, and progress: See [STATUS.md](STATUS.md)**
+### Session Goals:
+1. ✅ Clean up project structure for momentum tracking
+2. ⚠️ Test resume upload service (newly merged)
+3. ⚠️ Verify auth flow end-to-end
+4. ⚠️ Fix remaining code review issues (accessibility, ARIA labels)
+5. 📋 Prepare for Phase 4: Live user testing
 
-This file (CLAUDE.md) focuses on stable architecture and decisions. STATUS.md tracks current work.
+**For detailed progress and blockers, see [PROJECT_STATUS.md](PROJECT_STATUS.md)**
+
+---
+
+**File Organization:**
+- `CLAUDE.md` - This file (stable architecture, read once per session)
+- `PROJECT_STATUS.md` - Living status (update daily, reference often)
+- `WORKFLOW_GUIDE.md` - How to do common tasks
+- `TESTING_GUIDE.md` - Our testing standards
