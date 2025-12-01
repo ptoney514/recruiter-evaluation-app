@@ -33,5 +33,4 @@ export const STAGE2_WEIGHTS = {
 }
 
 // File Types
-export const SUPPORTED_FILE_TYPES = ['.pdf', '.txt']
-export const SUPPORTED_FILE_TYPES_FUTURE = ['.pdf', '.txt', '.docx'] // Coming soon
+export const SUPPORTED_FILE_TYPES = ['.pdf', '.txt', '.docx', '.doc']

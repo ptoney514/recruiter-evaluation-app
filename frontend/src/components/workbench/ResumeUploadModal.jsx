@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-import { UploadCloud, X, FileText, AlertCircle, CheckCircle } from 'lucide-react'
+import { UploadCloud, X, FileText, AlertCircle, CheckCircle, Loader2, ScanLine } from 'lucide-react'
 import { useBulkCreateCandidates } from '../../hooks/useCandidates'
 import { extractTextFromFile } from '../../utils/pdfParser'
 import { MAX_FILE_SIZE_MB, MAX_RESUMES_BATCH, SUPPORTED_FILE_TYPES } from '../../constants/config'
@@ -30,6 +30,7 @@ export function ResumeUploadModal({ isOpen, onClose, jobId, onSuccess }) {
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState({ current: 0, total: 0, stage: 'idle' })
+  const [ocrProgress, setOcrProgress] = useState(null) // Detailed OCR progress for current file
   const [processedFiles, setProcessedFiles] = useState([])
   const [errors, setErrors] = useState([])
   const fileInputRef = useRef(null)
@@ -40,6 +41,7 @@ export function ResumeUploadModal({ isOpen, onClose, jobId, onSuccess }) {
     setIsDragging(false)
     setIsProcessing(false)
     setProgress({ current: 0, total: 0, stage: 'idle' })
+    setOcrProgress(null)
     setProcessedFiles([])
     setErrors([])
   }, [])
@@ -88,12 +90,19 @@ export function ResumeUploadModal({ isOpen, onClose, jobId, onSuccess }) {
         // Validate file type
         const extension = '.' + file.name.split('.').pop().toLowerCase()
         if (!SUPPORTED_FILE_TYPES.includes(extension)) {
-          fileErrors.push(`${file.name}: Unsupported file type. Supported: PDF, TXT`)
+          fileErrors.push(`${file.name}: Unsupported file type. Supported: PDF, DOCX, TXT`)
           continue
         }
 
-        // Extract text
-        const text = await extractTextFromFile(file)
+        // Extract text with progress callback for OCR
+        setOcrProgress(null)
+        const text = await extractTextFromFile(file, (progressInfo) => {
+          // Update OCR progress for detailed feedback
+          if (progressInfo.stage === 'ocr') {
+            setOcrProgress(progressInfo)
+          }
+        })
+        setOcrProgress(null)
 
         if (!text || text.trim().length === 0) {
           fileErrors.push(`${file.name}: No text extracted (may be scanned/image PDF)`)
@@ -191,9 +200,14 @@ export function ResumeUploadModal({ isOpen, onClose, jobId, onSuccess }) {
     : 0
 
   const getProgressMessage = () => {
+    // If OCR is in progress, show detailed OCR message
+    if (ocrProgress) {
+      return ocrProgress.message || 'Scanning document with OCR...'
+    }
+
     switch (progress.stage) {
       case 'parsing':
-        return `Parsing ${progress.current} of ${progress.total} files...`
+        return `Processing file ${progress.current} of ${progress.total}...`
       case 'saving':
         return 'Saving candidates to database...'
       case 'complete':
@@ -204,6 +218,8 @@ export function ResumeUploadModal({ isOpen, onClose, jobId, onSuccess }) {
         return ''
     }
   }
+
+  const isOcrInProgress = ocrProgress !== null
 
   return (
     <div
@@ -219,7 +235,7 @@ export function ResumeUploadModal({ isOpen, onClose, jobId, onSuccess }) {
           <div>
             <h2 className="text-xl font-bold text-slate-900">Upload Resumes</h2>
             <p className="text-sm text-slate-500 mt-1">
-              Upload up to {MAX_RESUMES_BATCH} PDF or TXT files
+              Upload up to {MAX_RESUMES_BATCH} PDF, DOCX, or TXT files
             </p>
           </div>
           <button
@@ -264,7 +280,10 @@ export function ResumeUploadModal({ isOpen, onClose, jobId, onSuccess }) {
 
             <button
               type="button"
-              onClick={handleChooseFiles}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleChooseFiles()
+              }}
               disabled={isProcessing}
               className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors disabled:opacity-50"
             >
@@ -275,22 +294,43 @@ export function ResumeUploadModal({ isOpen, onClose, jobId, onSuccess }) {
               ref={fileInputRef}
               type="file"
               multiple
-              accept=".pdf,.txt"
+              accept=".pdf,.txt,.docx,.doc"
               onChange={handleFileInput}
               className="hidden"
             />
 
             <p className="text-xs text-slate-400 mt-4">
-              Supports PDF and TXT files up to {MAX_FILE_SIZE_MB}MB each
+              Supports PDF, DOCX, and TXT files up to {MAX_FILE_SIZE_MB}MB each
             </p>
           </div>
 
           {/* Progress Section */}
           {isProcessing && (
             <div className="mt-6">
+              {/* OCR Scanning Animation */}
+              {isOcrInProgress && (
+                <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg mb-4">
+                  <div className="relative">
+                    <ScanLine size={24} className="text-amber-600 animate-pulse" />
+                    <Loader2 size={16} className="text-amber-500 animate-spin absolute -top-1 -right-1" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-amber-800">Scanning Document with OCR</p>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      This file appears to be scanned. Using optical character recognition...
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center justify-between text-sm mb-2">
-                <span className="text-slate-600 font-medium">{getProgressMessage()}</span>
-                {progress.stage === 'parsing' && (
+                <div className="flex items-center gap-2">
+                  {(progress.stage === 'parsing' || progress.stage === 'saving') && !isOcrInProgress && (
+                    <Loader2 size={16} className="text-teal-500 animate-spin" />
+                  )}
+                  <span className="text-slate-600 font-medium">{getProgressMessage()}</span>
+                </div>
+                {progress.stage === 'parsing' && !isOcrInProgress && (
                   <span className="text-slate-500">{progressPercentage}%</span>
                 )}
               </div>
@@ -302,11 +342,15 @@ export function ResumeUploadModal({ isOpen, onClose, jobId, onSuccess }) {
                       ? 'bg-emerald-500'
                       : progress.stage === 'error'
                       ? 'bg-rose-500'
+                      : isOcrInProgress
+                      ? 'bg-amber-500'
                       : 'bg-teal-500'
-                  }`}
+                  } ${isOcrInProgress ? 'animate-pulse' : ''}`}
                   style={{
                     width: progress.stage === 'saving' || progress.stage === 'complete'
                       ? '100%'
+                      : isOcrInProgress
+                      ? '50%'
                       : `${progressPercentage}%`
                   }}
                 />

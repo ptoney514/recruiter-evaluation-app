@@ -71,7 +71,7 @@ describe('ResumeUploadModal', () => {
     it('shows file type support information', () => {
       render(<ResumeUploadModal {...defaultProps} />, { wrapper: createWrapper() })
 
-      expect(screen.getByText(/Supports PDF and TXT files/i)).toBeInTheDocument()
+      expect(screen.getByText(/Supports PDF, DOCX, and TXT files/i)).toBeInTheDocument()
     })
   })
 
@@ -121,11 +121,11 @@ describe('ResumeUploadModal', () => {
       expect(clickSpy).toHaveBeenCalled()
     })
 
-    it('accepts .pdf and .txt files', () => {
+    it('accepts .pdf, .txt, .docx, and .doc files', () => {
       render(<ResumeUploadModal {...defaultProps} />, { wrapper: createWrapper() })
 
       const fileInput = document.querySelector('input[type="file"]')
-      expect(fileInput).toHaveAttribute('accept', '.pdf,.txt')
+      expect(fileInput).toHaveAttribute('accept', '.pdf,.txt,.docx,.doc')
       expect(fileInput).toHaveAttribute('multiple')
     })
   })
@@ -145,7 +145,7 @@ describe('ResumeUploadModal', () => {
 
       // Wait for processing
       await waitFor(() => {
-        expect(screen.getByText(/Parsing/i)).toBeInTheDocument()
+        expect(screen.getByText(/Processing/i)).toBeInTheDocument()
       }, { timeout: 2000 })
     })
 
@@ -217,7 +217,7 @@ describe('ResumeUploadModal', () => {
     it('shows error for unsupported file types', async () => {
       render(<ResumeUploadModal {...defaultProps} />, { wrapper: createWrapper() })
 
-      const file = createMockFile('document.docx', 'content', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+      const file = createMockFile('spreadsheet.xlsx', 'content', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
       const fileInput = document.querySelector('input[type="file"]')
 
       await fireEvent.change(fileInput, { target: { files: [file] } })
