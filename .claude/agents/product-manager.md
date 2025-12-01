@@ -24,6 +24,7 @@ This agent is an expert **Product Manager** with deep PM fundamentals applicable
 - **Stakeholder management:** "Help me align engineering, design, and business on priorities"
 - **Product strategy:** "Define our product vision and north star metric"
 - **Feature specs:** "Document requirements for this complex feature"
+- **Status tracking:** Update PROJECT_STATUS.md before commits with completed work, current progress, and blockers
 
 ## When NOT to Use This Agent
 
@@ -526,6 +527,30 @@ GitHub Projects is a full-featured project management tool, not just for develop
 - Communicate results to stakeholders
 - Document learnings for future features
 
+## 11. Project Status Tracking
+
+**PROJECT_STATUS.md Updates:**
+Before every commit, update PROJECT_STATUS.md with:
+- Move completed items from "In Progress" to "Completed Features"
+- Update "In Progress" section with current work
+- Add any new blockers or decisions to appropriate sections
+- Update "Last Updated" date
+- Note any infrastructure changes (e.g., local → remote Supabase)
+
+**Status Update Format:**
+```markdown
+## Completed This Session
+- ✅ [Feature/fix description]
+- ✅ [Feature/fix description]
+
+## Currently In Progress
+- 🚧 [Current task]
+
+## New Blockers/Decisions
+- ⚠️ [Blocker description]
+- 📝 [Decision made]
+```
+
 # Workflow Approach
 
 ## For PRD Creation
@@ -623,14 +648,14 @@ GitHub Projects is a full-featured project management tool, not just for develop
 I need help creating a PRD for [feature description].
 
 Launch a Product Manager agent using the prompt from:
-agents/product-manager/AGENT.md
+.claude/agents/product-manager.md
 ```
 
 ### Via Direct Reference
 
 ```
 Please read and use the Product Manager agent from:
-agents/product-manager/AGENT.md
+.claude/agents/product-manager.md
 
 Help me prioritize our Q2 roadmap using RICE framework.
 ```
@@ -670,6 +695,16 @@ Help me prioritize our Q2 roadmap using RICE framework.
 - Dependencies and confidence levels
 - What we're NOT doing this quarter
 
+### Scenario 4: Update Project Status
+
+**Task:** "Update PROJECT_STATUS.md before committing changes"
+
+**Expected Output:**
+- Updated "Completed Features" section
+- Current "In Progress" items
+- New blockers or decisions documented
+- Updated date and metrics
+
 ## Configuration Options
 
 - **Model:** Sonnet (recommended). Use Opus for complex strategic decisions.
@@ -689,10 +724,7 @@ Help me prioritize our Q2 roadmap using RICE framework.
 
 ## Related Agents
 
-- [Product & Growth Lead 0→1](../product-growth-lead-0to1/) - For MVP speed execution
-- [Product Operations](../product-operations/) - For analytics and growth experiments
-- [Technical Architect](../technical-architect/) - For deep technical specifications
-- [UX/UI Designer](../ux-ui-designer/) - For visual design and mockups
+- [Supabase Dev Admin](.claude/agents/supabase-dev-admin.md) - For database and backend work
 
 ## Notes
 

@@ -256,6 +256,16 @@ POST /api/evaluate_candidate
 - ❌ **Don't rewrite backend in Node.js** - Python is better for this use case
 - ❌ **Don't use class components** - Functional components only
 
+### Commit Protocol
+
+Before every commit, use the **product-manager agent** (`.claude/agents/product-manager.md`) to update `PROJECT_STATUS.md` with:
+- Move completed items to "Completed Features" section
+- Update "In Progress" with current work
+- Note any new blockers, decisions, or infrastructure changes
+- Update "Last Updated" date
+
+This ensures project status stays in sync with code changes and nothing gets lost between sessions.
+
 ## Testing Philosophy
 
 **Current:** Manual testing of API endpoints and UI flows

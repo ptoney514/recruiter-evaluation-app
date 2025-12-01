@@ -1,6 +1,6 @@
 # Project Status
 
-**Last Updated:** Nov 30, 2025
+**Last Updated:** Dec 1, 2025
 **Current Phase:** Phase 3 - Live Testing Preparation
 **Running Services:** Supabase ✅ | API ✅ | Frontend ✅
 
@@ -34,6 +34,9 @@
   - ✅ useEffect dependency infinite loop fix
   - ✅ Validation logic extraction (DRY principle)
 - ✅ Resume upload service (330+ lines, 20+ tests)
+- ✅ Agent organization: Moved `product-manager` to `.claude/agents/`
+- ✅ Commit protocol: Added rule to update PROJECT_STATUS.md before commits
+- ✅ Cleaned up unused agents folder (deleted `product-growth-lead-0to1`, `technical-architect`)
 
 ---
 
@@ -116,6 +119,12 @@
    - Added "Current Focus" section
    - Organized file references
    - Made "What NOT to Do" more actionable
+
+4. **Reorganized Claude agents** ✅
+   - Moved `product-manager` agent to `.claude/agents/` (correct location)
+   - Added commit protocol rule to CLAUDE.md
+   - Deleted unused agents (`product-growth-lead-0to1`, `technical-architect`)
+   - Now only 2 active agents: `product-manager`, `supabase-dev-admin`
 
 ---
 
