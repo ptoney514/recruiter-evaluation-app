@@ -2,6 +2,10 @@
  * Authentication Hook with Zustand
  * Manages user authentication state and provides auth methods
  *
+ * DEV AUTH BYPASS:
+ * Set VITE_AUTH_BYPASS=true in .env.local to skip authentication during development.
+ * This automatically logs you in as a dev admin user without needing to sign in.
+ *
  * IMPORTANT FOR WEEK 2+:
  * All data mutations (jobs, candidates, evaluations, etc.) MUST include user_id
  * from this auth state, or RLS policies will reject the operation.
@@ -13,6 +17,11 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 
+// Dev bypass configuration from environment variables
+const DEV_AUTH_BYPASS = import.meta.env.VITE_AUTH_BYPASS === 'true'
+const DEV_USER_EMAIL = import.meta.env.VITE_DEV_USER_EMAIL || 'dev-admin@localhost'
+const DEV_USER_PASSWORD = 'devpassword123' // Must match seed.sql
+
 export const useAuth = create((set) => {
   let unsubscribe = null
 
@@ -21,6 +30,7 @@ export const useAuth = create((set) => {
     session: null,
     loading: true,
     error: null,
+    isDevBypass: DEV_AUTH_BYPASS,
 
     // Initialize auth state and set up listener
     // NOTE: Should only be called once during app initialization (App.jsx useEffect)
@@ -28,6 +38,35 @@ export const useAuth = create((set) => {
     initialize: async () => {
       try {
         set({ loading: true })
+
+        // DEV BYPASS MODE: Auto-login with dev user (real Supabase auth for RLS to work)
+        if (DEV_AUTH_BYPASS) {
+          console.log('🔓 DEV AUTH BYPASS ENABLED - Signing in as:', DEV_USER_EMAIL)
+          console.log('   To disable: Remove VITE_AUTH_BYPASS from .env.local')
+
+          // Actually sign in to get a real JWT token (required for RLS policies)
+          const { data, error: signInError } = await supabase.auth.signInWithPassword({
+            email: DEV_USER_EMAIL,
+            password: DEV_USER_PASSWORD,
+          })
+
+          if (signInError) {
+            console.error('❌ DEV AUTH BYPASS FAILED:', signInError.message)
+            console.log('   Make sure you ran: supabase db reset')
+            console.log('   This creates the dev user from seed.sql')
+            set({ error: signInError, loading: false })
+            return
+          }
+
+          console.log('✅ DEV AUTH BYPASS: Signed in with user ID:', data.user?.id)
+          set({
+            user: data.user,
+            session: data.session,
+            loading: false,
+            isDevBypass: true,
+          })
+          return
+        }
 
         // Check if Supabase is configured
         if (!supabase) {
@@ -117,6 +156,13 @@ export const useAuth = create((set) => {
 
     // Log out current user
     logout: async () => {
+      // In dev bypass mode, just clear the mock user (no Supabase call needed)
+      if (DEV_AUTH_BYPASS) {
+        console.log('🔓 DEV MODE: Logout (mock) - Refreshing will restore dev user')
+        set({ user: null, session: null, loading: false })
+        return { error: null }
+      }
+
       set({ loading: true, error: null })
 
       const { error } = await supabase.auth.signOut()
@@ -161,3 +207,6 @@ export const useUser = () => useAuth((state) => state.user)
 
 // Helper hook to check if user is authenticated
 export const useIsAuthenticated = () => useAuth((state) => !!state.user)
+
+// Helper hook to check if dev bypass mode is active
+export const useIsDevBypass = () => useAuth((state) => state.isDevBypass)

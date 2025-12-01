@@ -35,7 +35,7 @@ export function DashboardPage() {
           className="flex items-center gap-2"
         >
           <Plus size={20} />
-          Create New Role ({jobsUsed}/{jobsLimit})
+          Create New Role {jobsLimit === Infinity ? `(${jobsUsed})` : `(${jobsUsed}/${jobsLimit})`}
         </Button>
       </div>
 
