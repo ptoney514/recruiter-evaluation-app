@@ -5,17 +5,6 @@ import { useCreateJob } from '../hooks/useJobs';
 import { extractRequirements } from '../utils/requirementExtraction';
 
 /**
- * Badge component for keywords
- */
-function Badge({ children }) {
-  return (
-    <span className="px-2 py-1 rounded-md text-xs font-semibold border bg-slate-100 text-slate-700 border-slate-200">
-      {children}
-    </span>
-  );
-}
-
-/**
  * Button component
  */
 function Button({ children, variant = 'primary', className = '', onClick, disabled, type = 'button' }) {
@@ -38,8 +27,11 @@ function Button({ children, variant = 'primary', className = '', onClick, disabl
 }
 
 /**
- * CreateRolePage - New role creation form
- * Allows users to define job requirements and success criteria
+ * CreateRolePage - New position creation form
+ * Allows users to paste a job description for AI evaluation
+ *
+ * Simplified form: Just title, JD, and optional priorities
+ * Evala will intelligently evaluate candidates against the job description
  */
 export function CreateRolePage() {
   const navigate = useNavigate();
@@ -47,15 +39,10 @@ export function CreateRolePage() {
   const [activeTab, setActiveTab] = useState('paste'); // 'paste' or 'upload'
   const [formData, setFormData] = useState({
     title: '',
-    department: '',
     description: '',
-    education: 'bachelors',
+    priorities: '', // Optional: what matters most to the recruiter
   });
   const [error, setError] = useState(null);
-
-  // Extract keywords from description
-  const { mustHave, niceToHave } = extractRequirements(formData.description);
-  const detectedKeywords = [...mustHave, ...niceToHave].slice(0, 5);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -90,8 +77,8 @@ export function CreateRolePage() {
       // Create job in Supabase
       const newJob = await createJob.mutateAsync({
         title: formData.title.trim(),
-        department: formData.department.trim() || null,
         description: formData.description.trim(),
+        priorities: formData.priorities.trim() || null,
         must_have_requirements: mustHaveReqs,
         preferred_requirements: niceToHaveReqs,
         status: 'open'
@@ -122,9 +109,9 @@ export function CreateRolePage() {
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         {/* Header */}
         <div className="p-8 border-b border-slate-100">
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Create New Role</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Create New Position</h1>
           <p className="text-slate-500">
-            Define the success criteria for this position. This sets the "Truth" for the AI.
+            Paste the job description and let Evala intelligently evaluate candidates against it.
           </p>
         </div>
 
@@ -143,35 +130,20 @@ export function CreateRolePage() {
           )}
 
           <div className="p-8 space-y-6">
-            {/* Title and Department */}
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Job Title
-                </label>
-                <input
-                  type="text"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  placeholder="e.g. Senior Marketing Manager"
-                  className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Department
-                </label>
-                <input
-                  type="text"
-                  name="department"
-                  value={formData.department}
-                  onChange={handleChange}
-                  placeholder="e.g. Sales, Engineering"
-                  className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
-                />
-              </div>
+            {/* Position Title */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Position Title
+              </label>
+              <input
+                type="text"
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+                placeholder="e.g. Senior Marketing Manager"
+                className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
+                required
+              />
             </div>
 
             {/* Job Description Tabs */}
@@ -231,42 +203,22 @@ Nice to Have:
               )}
             </div>
 
-            {/* Keywords and Education */}
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Must-Have Keywords (Auto-detected)
-                </label>
-                <div className="flex flex-wrap gap-2 p-3 border border-slate-300 rounded-lg bg-slate-50 min-h-[50px]">
-                  {detectedKeywords.length > 0 ? (
-                    detectedKeywords.map((keyword) => (
-                      <Badge key={keyword}>{keyword}</Badge>
-                    ))
-                  ) : (
-                    <span className="text-slate-400 text-sm">
-                      Enter a job description to auto-detect keywords
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Education Requirement
-                </label>
-                <select
-                  name="education"
-                  value={formData.education}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-slate-300 rounded-lg bg-white outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                >
-                  <option value="none">No Preference</option>
-                  <option value="highschool">High School</option>
-                  <option value="associates">Associate's Degree</option>
-                  <option value="bachelors">Bachelor's Degree</option>
-                  <option value="masters">Master's Degree</option>
-                  <option value="phd">PhD</option>
-                </select>
-              </div>
+            {/* Optional: What matters most */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                What Matters Most <span className="text-slate-400 font-normal">(Optional)</span>
+              </label>
+              <textarea
+                name="priorities"
+                value={formData.priorities}
+                onChange={handleChange}
+                rows={3}
+                className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none text-sm"
+                placeholder="e.g. Strong leadership experience is critical, must have managed budgets over $1M, startup experience preferred over corporate..."
+              />
+              <p className="text-xs text-slate-400 mt-1">
+                Tell the AI what to prioritize when evaluating candidates
+              </p>
             </div>
           </div>
 

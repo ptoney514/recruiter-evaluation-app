@@ -71,15 +71,20 @@ function mapStatusToDisplay(evaluationStatus) {
 }
 
 /**
- * Map recommendation from database to display format
+ * Map recommendation from database to Fit label
  */
-function mapRecommendationToDisplay(recommendation) {
+function mapRecommendationToFitLabel(recommendation, score) {
+  // Use score-based fit labels instead of ATS workflow stages
+  if (score >= 85) return 'Strong Fit';
+  if (score >= 70) return 'Possible Fit';
+  if (score !== null && score !== undefined) return 'Weak Fit';
+  // Fallback based on recommendation if no score
   switch (recommendation) {
-    case 'INTERVIEW': return 'Interview';
-    case 'PHONE_SCREEN': return 'Phone Screen';
-    case 'DECLINE': return 'Decline';
+    case 'INTERVIEW': return 'Strong Fit';
+    case 'PHONE_SCREEN': return 'Possible Fit';
+    case 'DECLINE': return 'Weak Fit';
     case 'ERROR': return 'Error';
-    default: return recommendation;
+    default: return null;
   }
 }
 
@@ -308,19 +313,17 @@ export function WorkbenchPage() {
                   onChange={toggleSelectAll}
                 />
               </th>
-              <th className="py-3">Candidate Name</th>
+              <th className="py-3">Candidate</th>
               <th className="py-3">Date Uploaded</th>
-              <th className="py-3">Tier 1: Keyword Match</th>
-              <th className="py-3">Tier 2: AI Score</th>
-              <th className="py-3">Recommendation</th>
-              <th className="py-3">Status</th>
+              <th className="py-3">Evala Score</th>
+              <th className="py-3">Fit</th>
               <th className="py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredCandidates.length === 0 ? (
               <tr>
-                <td colSpan="8" className="py-12 text-center">
+                <td colSpan="6" className="py-12 text-center">
                   <div className="flex flex-col items-center">
                     <UploadCloud size={48} className="text-slate-300 mb-4" />
                     <p className="text-slate-500 mb-2">No candidates yet</p>
@@ -334,9 +337,9 @@ export function WorkbenchPage() {
             ) : (
               filteredCandidates.map((candidate) => {
                 const displayName = candidate.name || candidate.fullName || 'Unknown';
+                const lastTitle = candidate.lastTitle || candidate.currentTitle || 'Title not extracted';
                 const hasEvaluation = candidate.evaluationStatus === 'evaluated' && candidate.score !== null;
-                const displayRecommendation = mapRecommendationToDisplay(candidate.recommendation);
-                const displayStatus = mapStatusToDisplay(candidate.evaluationStatus);
+                const fitLabel = mapRecommendationToFitLabel(candidate.recommendation, candidate.score);
                 const evaluation = candidate.evaluation;
 
                 return (
@@ -356,18 +359,9 @@ export function WorkbenchPage() {
                     </td>
                     <td className="py-4">
                       <div className="font-medium text-slate-900">{displayName}</div>
-                      <div className="text-xs text-slate-500">{activeRoleName}</div>
+                      <div className="text-xs text-slate-500">{lastTitle}</div>
                     </td>
                     <td className="py-4 text-sm text-slate-600">{formatDate(candidate.createdAt)}</td>
-
-                    <td className="py-4">
-                      {/* Tier 1 placeholder - shows resume uploaded indicator */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs px-2 py-1 bg-slate-100 text-slate-600 rounded">
-                          Resume
-                        </span>
-                      </div>
-                    </td>
 
                     <td className="py-4">
                       {hasEvaluation ? (
@@ -417,26 +411,24 @@ export function WorkbenchPage() {
                     </td>
 
                     <td className="py-4">
-                      {displayRecommendation ? (
+                      {fitLabel ? (
                         <Badge
                           color={
-                            displayRecommendation === 'Interview'
+                            fitLabel === 'Strong Fit'
                               ? 'green'
-                              : displayRecommendation === 'Decline'
+                              : fitLabel === 'Weak Fit'
                               ? 'red'
-                              : displayRecommendation === 'Error'
+                              : fitLabel === 'Error'
                               ? 'red'
                               : 'yellow'
                           }
                         >
-                          {displayRecommendation}
+                          {fitLabel}
                         </Badge>
                       ) : (
                         <span className="text-slate-400 text-sm">--</span>
                       )}
                     </td>
-
-                    <td className="py-4 text-sm text-slate-600">{displayStatus}</td>
 
                     <td className="py-4 text-right pr-4">
                       {hasEvaluation ? (

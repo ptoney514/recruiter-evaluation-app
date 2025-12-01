@@ -1,7 +1,7 @@
 /**
  * Unit Tests for CreateRolePage
  * Tests form rendering, validation, submission, and error handling
- * 24 test cases covering all user scenarios
+ * Updated to match simplified form (title, description, priorities)
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -45,6 +45,11 @@ const renderWithRouter = (component) => {
   return render(<BrowserRouter>{component}</BrowserRouter>)
 }
 
+// Helper to get form inputs by name attribute
+const getInputByName = (name) => {
+  return document.querySelector(`[name="${name}"]`)
+}
+
 describe('CreateRolePage', () => {
   const mockMutateAsync = vi.fn()
 
@@ -63,8 +68,8 @@ describe('CreateRolePage', () => {
   describe('Form Rendering', () => {
     it('should render page title and description', () => {
       renderWithRouter(<CreateRolePage />)
-      expect(screen.getByText('Create New Role')).toBeInTheDocument()
-      expect(screen.getByText(/Define the success criteria/i)).toBeInTheDocument()
+      expect(screen.getByText('Create New Position')).toBeInTheDocument()
+      expect(screen.getByText(/Paste the job description and let Evala intelligently evaluate/i)).toBeInTheDocument()
     })
 
     it('should render back to dashboard button', () => {
@@ -72,40 +77,25 @@ describe('CreateRolePage', () => {
       expect(screen.getByText('Back to Dashboard')).toBeInTheDocument()
     })
 
-    it('should render job title input field', () => {
+    it('should render position title input field', () => {
       renderWithRouter(<CreateRolePage />)
-      const titleInput = screen.getByPlaceholderText(/Senior Marketing Manager/i)
+      const titleInput = getInputByName('title')
       expect(titleInput).toBeInTheDocument()
       expect(titleInput).toHaveValue('')
     })
 
-    it('should render department input field', () => {
-      renderWithRouter(<CreateRolePage />)
-      const deptInput = screen.getByPlaceholderText(/Sales, Engineering/i)
-      expect(deptInput).toBeInTheDocument()
-      expect(deptInput).toHaveValue('')
-    })
-
     it('should render job description textarea', () => {
       renderWithRouter(<CreateRolePage />)
-      const descInput = screen.getByPlaceholderText(/About the Role:/i)
+      const descInput = getInputByName('description')
       expect(descInput).toBeInTheDocument()
       expect(descInput).toHaveValue('')
     })
 
-    it('should render education dropdown with default value "Bachelor\'s Degree"', () => {
+    it('should render "What Matters Most" priorities field', () => {
       renderWithRouter(<CreateRolePage />)
-      const educationSelect = screen.getByDisplayValue(/Bachelor.s Degree/i)
-      expect(educationSelect).toBeInTheDocument()
-    })
-
-    it('should render all education options', () => {
-      renderWithRouter(<CreateRolePage />)
-      expect(screen.getByText(/No Preference/i)).toBeInTheDocument()
-      expect(screen.getByText(/High School/i)).toBeInTheDocument()
-      expect(screen.getByText(/Associate.s Degree/i)).toBeInTheDocument()
-      expect(screen.getByText(/Master.s Degree/i)).toBeInTheDocument()
-      expect(screen.getByText(/PhD/i)).toBeInTheDocument()
+      expect(screen.getByText(/What Matters Most/i)).toBeInTheDocument()
+      const prioritiesInput = getInputByName('priorities')
+      expect(prioritiesInput).toBeInTheDocument()
     })
 
     it('should render Save & Start Uploading submit button', () => {
@@ -123,26 +113,23 @@ describe('CreateRolePage', () => {
       expect(screen.getByText('Job Description (Paste)')).toBeInTheDocument()
       expect(screen.getByText('Performance Profile (Upload)')).toBeInTheDocument()
     })
-
-    it('should render auto-detected keywords section', () => {
-      renderWithRouter(<CreateRolePage />)
-      expect(screen.getByText('Must-Have Keywords (Auto-detected)')).toBeInTheDocument()
-      expect(screen.getByText(/Enter a job description to auto-detect keywords/i)).toBeInTheDocument()
-    })
   })
 
   describe('Form Validation', () => {
-    it('should show error when title is empty on submit', async () => {
+    it('should disable submit button when title is empty', async () => {
       renderWithRouter(<CreateRolePage />)
-      const submitButton = screen.getByText('Save & Start Uploading')
-      fireEvent.click(submitButton)
+      // Fill description first
+      const descInput = getInputByName('description')
+      await userEvent.type(descInput, 'This is a detailed job description with sufficient length')
 
-      expect(screen.getByText('Job title is required')).toBeInTheDocument()
+      const submitButton = screen.getByText('Save & Start Uploading')
+      // Button should be disabled when title is empty (validation happens via disabled state)
+      expect(submitButton).toBeDisabled()
     })
 
     it('should show error when description is empty on submit', async () => {
       renderWithRouter(<CreateRolePage />)
-      const titleInput = screen.getByPlaceholderText(/Senior Marketing Manager/i)
+      const titleInput = getInputByName('title')
       await userEvent.type(titleInput, 'Test Job')
 
       const submitButton = screen.getByText('Save & Start Uploading')
@@ -153,8 +140,8 @@ describe('CreateRolePage', () => {
 
     it('should show error when description is less than 30 characters', async () => {
       renderWithRouter(<CreateRolePage />)
-      const titleInput = screen.getByPlaceholderText(/Senior Marketing Manager/i)
-      const descInput = screen.getByPlaceholderText(/About the Role:/i)
+      const titleInput = getInputByName('title')
+      const descInput = getInputByName('description')
 
       await userEvent.type(titleInput, 'Test Job')
       await userEvent.type(descInput, 'Short desc')
@@ -167,16 +154,24 @@ describe('CreateRolePage', () => {
 
     it('should clear error when user starts typing', async () => {
       renderWithRouter(<CreateRolePage />)
+      // First fill title and short description to trigger validation error
+      const titleInput = getInputByName('title')
+      const descInput = getInputByName('description')
+
+      await userEvent.type(titleInput, 'Test Job')
+      await userEvent.type(descInput, 'Short')
+
       const submitButton = screen.getByText('Save & Start Uploading')
       fireEvent.click(submitButton)
 
-      expect(screen.getByText('Job title is required')).toBeInTheDocument()
+      // Expect description error
+      expect(screen.getByText('Job description must be at least 30 characters')).toBeInTheDocument()
 
-      const titleInput = screen.getByPlaceholderText(/Senior Marketing Manager/i)
-      await userEvent.type(titleInput, 'T')
+      // Clear error by typing more
+      await userEvent.type(descInput, ' - adding more text to make it longer')
 
       await waitFor(() => {
-        expect(screen.queryByText('Job title is required')).not.toBeInTheDocument()
+        expect(screen.queryByText('Job description must be at least 30 characters')).not.toBeInTheDocument()
       })
     })
 
@@ -188,13 +183,11 @@ describe('CreateRolePage', () => {
       expect(submitButton).toBeDisabled()
     })
 
-    it('should enable submit when title and description are valid', async () => {
+    it('should enable submit when title is provided', async () => {
       renderWithRouter(<CreateRolePage />)
-      const titleInput = screen.getByPlaceholderText(/Senior Marketing Manager/i)
-      const descInput = screen.getByPlaceholderText(/About the Role:/i)
+      const titleInput = getInputByName('title')
 
       await userEvent.type(titleInput, 'Senior Marketing Manager')
-      await userEvent.type(descInput, 'This is a detailed job description with sufficient length')
 
       const submitButton = screen.getByText('Save & Start Uploading')
       expect(submitButton).not.toBeDisabled()
@@ -206,12 +199,10 @@ describe('CreateRolePage', () => {
       mockMutateAsync.mockResolvedValue({ id: 'job-123' })
       renderWithRouter(<CreateRolePage />)
 
-      const titleInput = screen.getByPlaceholderText(/Senior Marketing Manager/i)
-      const deptInput = screen.getByPlaceholderText(/Sales, Engineering/i)
-      const descInput = screen.getByPlaceholderText(/About the Role:/i)
+      const titleInput = getInputByName('title')
+      const descInput = getInputByName('description')
 
       await userEvent.type(titleInput, 'Senior Marketing Manager')
-      await userEvent.type(deptInput, 'Marketing')
       await userEvent.type(descInput, 'This is a detailed job description with sufficient length for validation')
 
       const submitButton = screen.getByText('Save & Start Uploading')
@@ -221,8 +212,54 @@ describe('CreateRolePage', () => {
         expect(mockMutateAsync).toHaveBeenCalledWith(
           expect.objectContaining({
             title: 'Senior Marketing Manager',
-            department: 'Marketing',
+            description: 'This is a detailed job description with sufficient length for validation',
             status: 'open',
+          })
+        )
+      })
+    })
+
+    it('should include priorities when provided', async () => {
+      mockMutateAsync.mockResolvedValue({ id: 'job-123' })
+      renderWithRouter(<CreateRolePage />)
+
+      const titleInput = getInputByName('title')
+      const descInput = getInputByName('description')
+      const prioritiesInput = getInputByName('priorities')
+
+      await userEvent.type(titleInput, 'Senior Marketing Manager')
+      await userEvent.type(descInput, 'This is a detailed job description with sufficient length')
+      await userEvent.type(prioritiesInput, 'Must have SaaS experience')
+
+      const submitButton = screen.getByText('Save & Start Uploading')
+      fireEvent.click(submitButton)
+
+      await waitFor(() => {
+        expect(mockMutateAsync).toHaveBeenCalledWith(
+          expect.objectContaining({
+            priorities: 'Must have SaaS experience',
+          })
+        )
+      })
+    })
+
+    it('should set priorities to null when empty', async () => {
+      mockMutateAsync.mockResolvedValue({ id: 'job-123' })
+      renderWithRouter(<CreateRolePage />)
+
+      const titleInput = getInputByName('title')
+      const descInput = getInputByName('description')
+
+      await userEvent.type(titleInput, 'Senior Marketing Manager')
+      await userEvent.type(descInput, 'This is a detailed job description with sufficient length')
+
+      const submitButton = screen.getByText('Save & Start Uploading')
+      fireEvent.click(submitButton)
+
+      await waitFor(() => {
+        expect(mockMutateAsync).toHaveBeenCalledWith(
+          expect.objectContaining({
+            priorities: null,
           })
         )
       })
@@ -232,8 +269,8 @@ describe('CreateRolePage', () => {
       mockMutateAsync.mockResolvedValue({ id: 'job-123' })
       renderWithRouter(<CreateRolePage />)
 
-      const titleInput = screen.getByPlaceholderText(/Senior Marketing Manager/i)
-      const descInput = screen.getByPlaceholderText(/About the Role:/i)
+      const titleInput = getInputByName('title')
+      const descInput = getInputByName('description')
 
       await userEvent.type(titleInput, '  Senior Marketing Manager  ')
       await userEvent.type(descInput, '  Detailed description with spaces  ')
@@ -251,15 +288,18 @@ describe('CreateRolePage', () => {
       })
     })
 
-    it('should set department to null when empty', async () => {
+    it('should extract requirements from description', async () => {
       mockMutateAsync.mockResolvedValue({ id: 'job-123' })
       renderWithRouter(<CreateRolePage />)
 
-      const titleInput = screen.getByPlaceholderText(/Senior Marketing Manager/i)
-      const descInput = screen.getByPlaceholderText(/About the Role:/i)
+      const titleInput = getInputByName('title')
+      const descInput = getInputByName('description')
 
       await userEvent.type(titleInput, 'Senior Marketing Manager')
-      await userEvent.type(descInput, 'This is a detailed job description with sufficient length')
+      await userEvent.type(descInput, `About the Role:
+- 5+ years marketing experience
+- Team leadership skills
+- Budget management`)
 
       const submitButton = screen.getByText('Save & Start Uploading')
       fireEvent.click(submitButton)
@@ -267,7 +307,8 @@ describe('CreateRolePage', () => {
       await waitFor(() => {
         expect(mockMutateAsync).toHaveBeenCalledWith(
           expect.objectContaining({
-            department: null,
+            must_have_requirements: expect.any(Array),
+            preferred_requirements: expect.any(Array),
           })
         )
       })
@@ -277,8 +318,8 @@ describe('CreateRolePage', () => {
       mockMutateAsync.mockResolvedValue({ id: 'job-456' })
       renderWithRouter(<CreateRolePage />)
 
-      const titleInput = screen.getByPlaceholderText(/Senior Marketing Manager/i)
-      const descInput = screen.getByPlaceholderText(/About the Role:/i)
+      const titleInput = getInputByName('title')
+      const descInput = getInputByName('description')
 
       await userEvent.type(titleInput, 'Senior Marketing Manager')
       await userEvent.type(descInput, 'This is a detailed job description with sufficient length')
@@ -295,8 +336,27 @@ describe('CreateRolePage', () => {
       mockMutateAsync.mockRejectedValue(new Error('Network error'))
       renderWithRouter(<CreateRolePage />)
 
-      const titleInput = screen.getByPlaceholderText(/Senior Marketing Manager/i)
-      const descInput = screen.getByPlaceholderText(/About the Role:/i)
+      const titleInput = getInputByName('title')
+      const descInput = getInputByName('description')
+
+      await userEvent.type(titleInput, 'Senior Marketing Manager')
+      await userEvent.type(descInput, 'This is a detailed job description with sufficient length')
+
+      const submitButton = screen.getByText('Save & Start Uploading')
+      fireEvent.click(submitButton)
+
+      // The component shows the error message from the API error
+      await waitFor(() => {
+        expect(screen.getByText('Network error')).toBeInTheDocument()
+      })
+    })
+
+    it('should show specific error message from API', async () => {
+      mockMutateAsync.mockRejectedValue(new Error('Could not find the \'priorities\' column'))
+      renderWithRouter(<CreateRolePage />)
+
+      const titleInput = getInputByName('title')
+      const descInput = getInputByName('description')
 
       await userEvent.type(titleInput, 'Senior Marketing Manager')
       await userEvent.type(descInput, 'This is a detailed job description with sufficient length')
@@ -305,7 +365,7 @@ describe('CreateRolePage', () => {
       fireEvent.click(submitButton)
 
       await waitFor(() => {
-        expect(screen.getByText('Failed to create job. Please try again.')).toBeInTheDocument()
+        expect(screen.getByText(/Could not find the 'priorities' column/)).toBeInTheDocument()
       })
     })
 
@@ -341,7 +401,8 @@ describe('CreateRolePage', () => {
 
     it('should show textarea in paste tab', () => {
       renderWithRouter(<CreateRolePage />)
-      expect(screen.getByPlaceholderText(/About the Role:/i)).toBeInTheDocument()
+      const descInput = getInputByName('description')
+      expect(descInput).toBeInTheDocument()
     })
 
     it('should show upload placeholder in upload tab', async () => {
@@ -350,64 +411,6 @@ describe('CreateRolePage', () => {
       fireEvent.click(uploadTab)
 
       expect(screen.getByText('Upload a Performance Profile document')).toBeInTheDocument()
-    })
-  })
-
-  describe('Auto-Detection of Keywords', () => {
-    it('should display no keywords placeholder when description is empty', () => {
-      renderWithRouter(<CreateRolePage />)
-      expect(screen.getByText(/Enter a job description to auto-detect keywords/i)).toBeInTheDocument()
-    })
-
-    it('should auto-detect and display keywords when description contains requirements', async () => {
-      renderWithRouter(<CreateRolePage />)
-      const descInput = screen.getByPlaceholderText(/About the Role:/i)
-
-      await userEvent.type(descInput, `Must Have:
-- 5+ years experience
-- Team leadership
-- Communication skills`)
-
-      await waitFor(() => {
-        expect(screen.getByText('5+ years experience')).toBeInTheDocument()
-      })
-    })
-
-    it('should limit displayed keywords to first 5', async () => {
-      renderWithRouter(<CreateRolePage />)
-      const descInput = screen.getByPlaceholderText(/About the Role:/i)
-
-      await userEvent.type(descInput, `Must Have:
-- Requirement 1
-- Requirement 2
-- Requirement 3
-- Requirement 4
-- Requirement 5
-- Requirement 6
-- Requirement 7`)
-
-      await waitFor(() => {
-        expect(screen.getByText('Requirement 1')).toBeInTheDocument()
-        expect(screen.getByText('Requirement 5')).toBeInTheDocument()
-        expect(screen.queryByText('Requirement 6')).not.toBeInTheDocument()
-      })
-    })
-
-    it('should update keywords as user types description', async () => {
-      renderWithRouter(<CreateRolePage />)
-      const descInput = screen.getByPlaceholderText(/About the Role:/i)
-
-      await userEvent.type(descInput, '- First skill')
-
-      await waitFor(() => {
-        expect(screen.getByText('First skill')).toBeInTheDocument()
-      })
-
-      await userEvent.type(descInput, '\n- Second skill')
-
-      await waitFor(() => {
-        expect(screen.getByText('Second skill')).toBeInTheDocument()
-      })
     })
   })
 
@@ -432,8 +435,8 @@ describe('CreateRolePage', () => {
   describe('Edge Cases', () => {
     it('should handle description with only whitespace as invalid', async () => {
       renderWithRouter(<CreateRolePage />)
-      const titleInput = screen.getByPlaceholderText(/Senior Marketing Manager/i)
-      const descInput = screen.getByPlaceholderText(/About the Role:/i)
+      const titleInput = getInputByName('title')
+      const descInput = getInputByName('description')
 
       await userEvent.type(titleInput, 'Test Job')
       await userEvent.type(descInput, '     ')
@@ -448,8 +451,8 @@ describe('CreateRolePage', () => {
       mockMutateAsync.mockResolvedValue({ id: 'job-789' })
       renderWithRouter(<CreateRolePage />)
 
-      const titleInput = screen.getByPlaceholderText(/Senior Marketing Manager/i)
-      const descInput = screen.getByPlaceholderText(/About the Role:/i)
+      const titleInput = getInputByName('title')
+      const descInput = getInputByName('description')
       const longTitle = 'Senior Vice President of Product Management and Strategic Growth Initiatives'
 
       await userEvent.type(titleInput, longTitle)
@@ -467,27 +470,61 @@ describe('CreateRolePage', () => {
       })
     })
 
-    it('should change education requirement when selected', async () => {
-      mockMutateAsync.mockResolvedValue({ id: 'job-999' })
+    it('should handle null return from createJob', async () => {
+      mockMutateAsync.mockResolvedValue(null)
       renderWithRouter(<CreateRolePage />)
 
-      const titleInput = screen.getByPlaceholderText(/Senior Marketing Manager/i)
-      const descInput = screen.getByPlaceholderText(/About the Role:/i)
-      const educationSelect = screen.getByDisplayValue(/Bachelor.s Degree/i)
+      const titleInput = getInputByName('title')
+      const descInput = getInputByName('description')
 
-      await userEvent.type(titleInput, 'Senior Marketing Manager')
+      await userEvent.type(titleInput, 'Test Job')
       await userEvent.type(descInput, 'This is a detailed job description with sufficient length')
-      await userEvent.selectOptions(educationSelect, 'masters')
+
+      const submitButton = screen.getByText('Save & Start Uploading')
+      fireEvent.click(submitButton)
+
+      // Should not navigate if newJob is null
+      await waitFor(() => {
+        expect(mockNavigateFn).not.toHaveBeenCalled()
+      })
+    })
+  })
+
+  describe('Authentication Integration', () => {
+    it('should call mutateAsync which handles auth internally', async () => {
+      mockMutateAsync.mockResolvedValue({ id: 'job-123' })
+      renderWithRouter(<CreateRolePage />)
+
+      const titleInput = getInputByName('title')
+      const descInput = getInputByName('description')
+
+      await userEvent.type(titleInput, 'Test Job')
+      await userEvent.type(descInput, 'This is a detailed job description with sufficient length')
 
       const submitButton = screen.getByText('Save & Start Uploading')
       fireEvent.click(submitButton)
 
       await waitFor(() => {
-        expect(mockMutateAsync).toHaveBeenCalledWith(
-          expect.objectContaining({
-            education: 'masters',
-          })
-        )
+        // useCreateJob hook handles user_id internally
+        expect(mockMutateAsync).toHaveBeenCalled()
+      })
+    })
+
+    it('should show auth error when useCreateJob fails due to auth', async () => {
+      mockMutateAsync.mockRejectedValue(new Error('User not authenticated'))
+      renderWithRouter(<CreateRolePage />)
+
+      const titleInput = getInputByName('title')
+      const descInput = getInputByName('description')
+
+      await userEvent.type(titleInput, 'Test Job')
+      await userEvent.type(descInput, 'This is a detailed job description with sufficient length')
+
+      const submitButton = screen.getByText('Save & Start Uploading')
+      fireEvent.click(submitButton)
+
+      await waitFor(() => {
+        expect(screen.getByText('User not authenticated')).toBeInTheDocument()
       })
     })
   })

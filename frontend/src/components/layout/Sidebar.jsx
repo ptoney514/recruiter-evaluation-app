@@ -21,8 +21,8 @@ export function Sidebar() {
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/app' },
-    { icon: Users, label: 'Active Roles', path: '/app/roles' },
-    { icon: Archive, label: 'Archived Roles', path: '/app/archived' },
+    { icon: Users, label: 'Active Positions', path: '/app/positions' },
+    { icon: Archive, label: 'Archived Positions', path: '/app/archived' },
     { icon: Database, label: 'Candidate DB', path: '/app/candidates' },
   ];
 

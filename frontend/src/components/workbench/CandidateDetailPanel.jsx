@@ -3,8 +3,7 @@ import {
   X,
   Sparkles,
   CheckCircle2,
-  AlertCircle,
-  ArrowRight
+  AlertCircle
 } from 'lucide-react';
 
 /**
@@ -49,16 +48,9 @@ function Button({ children, variant = 'primary', className = '', onClick }) {
 export function CandidateDetailPanel({ candidate, onClose, onUpdateStatus }) {
   if (!candidate) return null;
 
-  const handleReject = () => {
+  const handleRemove = () => {
     if (onUpdateStatus) {
-      onUpdateStatus(candidate.id, 'Declined');
-    }
-    onClose();
-  };
-
-  const handleMoveToInterview = () => {
-    if (onUpdateStatus) {
-      onUpdateStatus(candidate.id, 'Interview');
+      onUpdateStatus(candidate.id, 'Removed');
     }
     onClose();
   };
@@ -165,7 +157,7 @@ export function CandidateDetailPanel({ candidate, onClose, onUpdateStatus }) {
           <div className="w-1/2 bg-slate-50/50 p-8 overflow-y-auto">
             <div className="mb-8">
               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">
-                AI Intelligence
+                Evala Intelligence
               </h3>
 
               {/* Score Cards */}
@@ -178,7 +170,7 @@ export function CandidateDetailPanel({ candidate, onClose, onUpdateStatus }) {
                   >
                     {candidate.tier2Score}
                   </div>
-                  <div className="text-xs text-slate-500 font-medium mt-1">Total Score</div>
+                  <div className="text-xs text-slate-500 font-medium mt-1">Evala Score</div>
                 </div>
                 <div className="col-span-3 bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-around items-center">
                   <div className="text-center">
@@ -208,7 +200,7 @@ export function CandidateDetailPanel({ candidate, onClose, onUpdateStatus }) {
               <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
                 <h4 className="font-bold text-slate-900 mb-3 flex items-center gap-2">
                   <Sparkles size={16} className="text-teal-500" />
-                  AI Assessment
+                  Evala Assessment
                 </h4>
                 <p className="text-slate-600 text-sm leading-relaxed mb-4">
                   {candidate.summary}
@@ -252,20 +244,20 @@ export function CandidateDetailPanel({ candidate, onClose, onUpdateStatus }) {
                 </div>
               </div>
 
-              {/* Recommendation */}
-              {candidate.recommendation && (
+              {/* Fit Assessment */}
+              {candidate.score !== undefined && candidate.score !== null && (
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                  <h4 className="text-sm font-bold text-slate-900 mb-2">AI Recommendation</h4>
+                  <h4 className="text-sm font-bold text-slate-900 mb-2">Fit Assessment</h4>
                   <Badge
                     color={
-                      candidate.recommendation === 'Interview'
+                      candidate.score >= 85
                         ? 'green'
-                        : candidate.recommendation === 'Decline'
-                        ? 'red'
-                        : 'yellow'
+                        : candidate.score >= 70
+                        ? 'yellow'
+                        : 'red'
                     }
                   >
-                    {candidate.recommendation}
+                    {candidate.score >= 85 ? 'Strong Fit' : candidate.score >= 70 ? 'Possible Fit' : 'Weak Fit'}
                   </Badge>
                 </div>
               )}
@@ -275,14 +267,14 @@ export function CandidateDetailPanel({ candidate, onClose, onUpdateStatus }) {
 
         {/* Footer */}
         <div className="p-6 bg-white border-t border-slate-200 flex justify-between items-center">
-          <Button variant="danger" onClick={handleReject}>
-            Reject Candidate
+          <Button variant="danger" onClick={handleRemove}>
+            Remove from Pool
           </Button>
           <div className="flex gap-3">
-            <Button variant="outline">Share Profile</Button>
-            <Button onClick={handleMoveToInterview}>
-              Move to Interview
-              <ArrowRight size={16} />
+            <Button variant="outline">View Resume</Button>
+            <Button>
+              <Sparkles size={16} />
+              Generate Interview Qs
             </Button>
           </div>
         </div>
