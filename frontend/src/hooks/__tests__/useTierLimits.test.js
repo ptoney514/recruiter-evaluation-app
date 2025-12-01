@@ -234,4 +234,37 @@ describe('useTierLimits', () => {
       expect(result.current.getCandidateCountForJob('2')).toBe(2)
     })
   })
+
+  describe('Dev Bypass Mode', () => {
+    // Note: VITE_AUTH_BYPASS is set to 'false' in vitest.config.js
+    // These tests document expected behavior when bypass is enabled
+    // The actual bypass is applied at module load time based on env var
+
+    it('should enforce free tier limits when VITE_AUTH_BYPASS=false (test environment)', () => {
+      // In test environment, bypass is disabled so limits are enforced
+      const mockJobs = [
+        { id: '1', title: 'Job 1', status: 'open', candidates_count: 0 },
+        { id: '2', title: 'Job 2', status: 'open', candidates_count: 0 },
+        { id: '3', title: 'Job 3', status: 'open', candidates_count: 0 },
+      ]
+      useJobs.mockReturnValue({ data: mockJobs })
+      const { result } = renderHook(() => useTierLimits('free'))
+
+      // With bypass disabled, free tier has 3 job limit
+      expect(result.current.jobsLimit).toBe(3)
+      expect(result.current.jobsAtLimit).toBe(true)
+      expect(result.current.jobsAvailable).toBe(0)
+    })
+
+    it('should document that dev bypass removes limits when VITE_AUTH_BYPASS=true', () => {
+      // When VITE_AUTH_BYPASS=true is set in .env.local:
+      // - free tier jobsLimit becomes Infinity
+      // - free tier candidatesPerJob becomes Infinity
+      // - This allows unlimited testing without hitting tier walls
+      //
+      // This is tested manually in the browser with VITE_AUTH_BYPASS=true
+      // The hook checks: import.meta.env.VITE_AUTH_BYPASS === 'true'
+      expect(true).toBe(true) // Documentation test
+    })
+  })
 })

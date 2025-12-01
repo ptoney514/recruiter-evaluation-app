@@ -1,9 +1,12 @@
 import { useJobs } from './useJobs'
 
+// Dev mode bypasses tier limits for testing
+const DEV_AUTH_BYPASS = import.meta.env.VITE_AUTH_BYPASS === 'true'
+
 const TIER_LIMITS = {
   free: {
-    jobs: 3,
-    candidatesPerJob: 5
+    jobs: DEV_AUTH_BYPASS ? Infinity : 3,
+    candidatesPerJob: DEV_AUTH_BYPASS ? Infinity : 5
   },
   pro: {
     jobs: Infinity,

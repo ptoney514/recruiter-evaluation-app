@@ -2,6 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 
 /**
+ * Helper to get the current user ID from Supabase auth
+ * Works with both normal auth and dev bypass mode (which now uses real auth)
+ */
+async function getCurrentUserId() {
+  const { data: { user } } = await supabase.auth.getUser()
+  return user?.id || null
+}
+
+/**
  * React Query hook to fetch all jobs for the current user
  * Sorted by created_at descending (newest first)
  *
@@ -11,9 +20,9 @@ export function useJobs() {
   return useQuery({
     queryKey: ['jobs'],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const userId = await getCurrentUserId()
 
-      if (!user) {
+      if (!userId) {
         throw new Error('User not authenticated')
       }
 
@@ -36,7 +45,7 @@ export function useJobs() {
           candidates (count),
           evaluations (count)
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -78,9 +87,9 @@ export function useJob(jobId) {
   return useQuery({
     queryKey: ['jobs', jobId],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const userId = await getCurrentUserId()
 
-      if (!user) {
+      if (!userId) {
         throw new Error('User not authenticated')
       }
 
@@ -103,7 +112,7 @@ export function useJob(jobId) {
           updated_at
         `)
         .eq('id', jobId)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .single()
 
       if (error) {
@@ -127,16 +136,16 @@ export function useCreateJob() {
 
   return useMutation({
     mutationFn: async (jobData) => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const userId = await getCurrentUserId()
 
-      if (!user) {
+      if (!userId) {
         throw new Error('User not authenticated')
       }
 
       // Add user_id to job data
       const jobWithUser = {
         ...jobData,
-        user_id: user.id
+        user_id: userId
       }
 
       const { data, error } = await supabase
@@ -168,9 +177,9 @@ export function useUpdateJob() {
 
   return useMutation({
     mutationFn: async ({ jobId, updates }) => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const userId = await getCurrentUserId()
 
-      if (!user) {
+      if (!userId) {
         throw new Error('User not authenticated')
       }
 
@@ -178,7 +187,7 @@ export function useUpdateJob() {
         .from('jobs')
         .update(updates)
         .eq('id', jobId)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .select()
         .single()
 
@@ -206,9 +215,9 @@ export function useDeleteJob() {
 
   return useMutation({
     mutationFn: async (jobId) => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const userId = await getCurrentUserId()
 
-      if (!user) {
+      if (!userId) {
         throw new Error('User not authenticated')
       }
 
@@ -216,7 +225,7 @@ export function useDeleteJob() {
         .from('jobs')
         .delete()
         .eq('id', jobId)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
 
       if (error) {
         throw error

@@ -2,6 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 
 /**
+ * Helper to get the current user ID from Supabase auth
+ * Works with both normal auth and dev bypass mode (which now uses real auth)
+ */
+async function getCurrentUserId() {
+  const { data: { user } } = await supabase.auth.getUser()
+  return user?.id || null
+}
+
+/**
  * React Query hook to fetch all candidates for a specific job
  * Includes latest evaluation data via LEFT JOIN
  *
@@ -12,9 +21,9 @@ export function useCandidates(jobId) {
   return useQuery({
     queryKey: ['candidates', jobId],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const userId = await getCurrentUserId()
 
-      if (!user) {
+      if (!userId) {
         throw new Error('User not authenticated')
       }
 
@@ -61,7 +70,7 @@ export function useCandidates(jobId) {
           )
         `)
         .eq('job_id', jobId)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -135,9 +144,9 @@ export function useCandidate(candidateId) {
   return useQuery({
     queryKey: ['candidates', 'detail', candidateId],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const userId = await getCurrentUserId()
 
-      if (!user) {
+      if (!userId) {
         throw new Error('User not authenticated')
       }
 
@@ -192,7 +201,7 @@ export function useCandidate(candidateId) {
           )
         `)
         .eq('id', candidateId)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .single()
 
       if (error) {
@@ -270,16 +279,16 @@ export function useCreateCandidate() {
 
   return useMutation({
     mutationFn: async (candidateData) => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const userId = await getCurrentUserId()
 
-      if (!user) {
+      if (!userId) {
         throw new Error('User not authenticated')
       }
 
       // Transform camelCase to snake_case for database
       const dbCandidate = {
         job_id: candidateData.jobId,
-        user_id: user.id,
+        user_id: userId,
         full_name: candidateData.name || candidateData.fullName,
         email: candidateData.email || null,
         phone: candidateData.phone || null,
@@ -332,16 +341,16 @@ export function useBulkCreateCandidates() {
 
   return useMutation({
     mutationFn: async ({ jobId, candidates }) => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const userId = await getCurrentUserId()
 
-      if (!user) {
+      if (!userId) {
         throw new Error('User not authenticated')
       }
 
       // Transform all candidates to snake_case
       const dbCandidates = candidates.map(candidate => ({
         job_id: jobId,
-        user_id: user.id,
+        user_id: userId,
         full_name: candidate.name || candidate.fullName || 'Unknown',
         email: candidate.email || null,
         phone: candidate.phone || null,
@@ -393,9 +402,9 @@ export function useUpdateCandidate() {
 
   return useMutation({
     mutationFn: async ({ candidateId, updates }) => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const userId = await getCurrentUserId()
 
-      if (!user) {
+      if (!userId) {
         throw new Error('User not authenticated')
       }
 
@@ -430,7 +439,7 @@ export function useUpdateCandidate() {
         .from('candidates')
         .update(dbUpdates)
         .eq('id', candidateId)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .select()
         .single()
 
@@ -460,9 +469,9 @@ export function useDeleteCandidate() {
 
   return useMutation({
     mutationFn: async ({ candidateId, jobId }) => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const userId = await getCurrentUserId()
 
-      if (!user) {
+      if (!userId) {
         throw new Error('User not authenticated')
       }
 
@@ -470,7 +479,7 @@ export function useDeleteCandidate() {
         .from('candidates')
         .delete()
         .eq('id', candidateId)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
 
       if (error) {
         throw error
@@ -497,9 +506,9 @@ export function useToggleShortlist() {
 
   return useMutation({
     mutationFn: async ({ candidateId, shortlisted }) => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const userId = await getCurrentUserId()
 
-      if (!user) {
+      if (!userId) {
         throw new Error('User not authenticated')
       }
 
@@ -507,7 +516,7 @@ export function useToggleShortlist() {
         .from('candidates')
         .update({ shortlisted })
         .eq('id', candidateId)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .select()
         .single()
 

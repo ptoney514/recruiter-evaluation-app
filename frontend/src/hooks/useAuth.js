@@ -19,29 +19,8 @@ import { supabase } from '../lib/supabase'
 
 // Dev bypass configuration from environment variables
 const DEV_AUTH_BYPASS = import.meta.env.VITE_AUTH_BYPASS === 'true'
-const DEV_USER_ID = import.meta.env.VITE_DEV_USER_ID || '00000000-0000-0000-0000-000000000001'
 const DEV_USER_EMAIL = import.meta.env.VITE_DEV_USER_EMAIL || 'dev-admin@localhost'
-
-// Mock dev user for bypass mode
-const DEV_USER = {
-  id: DEV_USER_ID,
-  email: DEV_USER_EMAIL,
-  role: 'authenticated',
-  app_metadata: { provider: 'dev-bypass', role: 'admin' },
-  user_metadata: { name: 'Dev Admin', is_dev: true },
-  aud: 'authenticated',
-  created_at: new Date().toISOString(),
-}
-
-// Mock session for bypass mode
-const DEV_SESSION = {
-  access_token: 'dev-bypass-token',
-  token_type: 'bearer',
-  expires_in: 86400,
-  expires_at: Math.floor(Date.now() / 1000) + 86400,
-  refresh_token: 'dev-bypass-refresh',
-  user: DEV_USER,
-}
+const DEV_USER_PASSWORD = 'devpassword123' // Must match seed.sql
 
 export const useAuth = create((set) => {
   let unsubscribe = null
@@ -60,14 +39,29 @@ export const useAuth = create((set) => {
       try {
         set({ loading: true })
 
-        // DEV BYPASS MODE: Skip real auth, use mock dev user
+        // DEV BYPASS MODE: Auto-login with dev user (real Supabase auth for RLS to work)
         if (DEV_AUTH_BYPASS) {
-          console.log('🔓 DEV AUTH BYPASS ENABLED - Auto-logged in as:', DEV_USER_EMAIL)
-          console.log('   User ID:', DEV_USER_ID)
+          console.log('🔓 DEV AUTH BYPASS ENABLED - Signing in as:', DEV_USER_EMAIL)
           console.log('   To disable: Remove VITE_AUTH_BYPASS from .env.local')
+
+          // Actually sign in to get a real JWT token (required for RLS policies)
+          const { data, error: signInError } = await supabase.auth.signInWithPassword({
+            email: DEV_USER_EMAIL,
+            password: DEV_USER_PASSWORD,
+          })
+
+          if (signInError) {
+            console.error('❌ DEV AUTH BYPASS FAILED:', signInError.message)
+            console.log('   Make sure you ran: supabase db reset')
+            console.log('   This creates the dev user from seed.sql')
+            set({ error: signInError, loading: false })
+            return
+          }
+
+          console.log('✅ DEV AUTH BYPASS: Signed in with user ID:', data.user?.id)
           set({
-            user: DEV_USER,
-            session: DEV_SESSION,
+            user: data.user,
+            session: data.session,
             loading: false,
             isDevBypass: true,
           })
