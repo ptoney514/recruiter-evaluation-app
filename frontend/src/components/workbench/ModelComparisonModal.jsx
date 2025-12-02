@@ -36,10 +36,10 @@ export function ModelComparisonModal({ isOpen, onClose, job, candidate, onScoreS
     if (!job || !candidate || selectedModels.length === 0) return;
 
     runComparison(
-      { job, candidate, models: selectedModels },
+      { candidateId: candidate.id, jobId: job.id, models: selectedModels },
       {
         onSuccess: (data) => {
-          if (data.success) {
+          if (data.results) {
             setResults(data.results);
           }
         }

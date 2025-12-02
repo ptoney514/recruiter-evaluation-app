@@ -96,12 +96,13 @@ export const useAuth = create((set) => {
         }
 
         // Listen for auth state changes (login, logout, token refresh)
-        unsubscribe = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
           set({
             session,
             user: session?.user ?? null
           })
         })
+        unsubscribe = () => subscription.unsubscribe()
       } catch (error) {
         console.error('Error initializing auth:', error)
         set({ loading: false })
