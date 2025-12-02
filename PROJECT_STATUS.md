@@ -40,7 +40,7 @@
 - ✅ Simplified app for personal use (removed tier limits, credits)
 - ✅ Added delete candidate functionality
 
-### Phase 3B: Three-Tier Scoring System (NEW)
+### Phase 3B: Three-Tier Scoring System (COMPLETE)
 - ✅ Database migration: quick_score, stage1_score, stage2_score columns
 - ✅ Backend Ollama provider (api/ollama_provider.py)
 - ✅ New API endpoints:
@@ -51,6 +51,13 @@
 - ✅ Frontend Ollama service (ollamaService.js)
 - ✅ New React hooks: useOllamaStatus, useQuickEvaluate, useBatchQuickEvaluate, useModelComparison
 - ✅ ResumeUploadModal: Model selector dropdown + auto Quick Score on upload
+- ✅ ModelComparisonModal: Side-by-side A/B testing of Ollama models
+- ✅ WorkbenchPage UI Redesign:
+  - New columns: Rank (medals), Candidate, Quick Score, Evala Score (S1/S2), Fit, Actions
+  - Actions dropdown menu (View Details, Compare Models, Delete)
+  - Removed: Date Uploaded, Stage indicator, Title subtitle, Credits, dots
+  - Candidates sorted by best score (S2 > S1 > Quick) descending
+- ✅ Updated useCandidates hook to fetch three-tier score columns
 
 ---
 
@@ -58,25 +65,14 @@
 
 ### This Session's Active Tasks:
 
-1. **WorkbenchPage UI Redesign** (Step 8)
-   - New columns: Rank, Candidate, Quick Score, Evala Score (S1/S2), Fit, Actions
-   - Dropdown menu for actions (View Details, Compare Models, Delete)
-   - Remove: Date Uploaded, Stage indicator, Title subtitle, Credits, dots
-   - Status: **Pending** (backend ready)
-
-2. **Model Comparison Modal** (Step 7)
-   - Side-by-side comparison of Ollama models (phi3, mistral, llama3)
-   - "Use this score" button to save selected result
-   - Status: **Pending** (hook ready)
+All UI redesign tasks complete! Ready for testing.
 
 ---
 
 ## Pending/Backlog 📋
 
-### High Priority (UI Redesign)
-- [ ] **WorkbenchPage table redesign** - New column layout with three-tier scores
-- [ ] **ModelComparisonModal component** - Side-by-side model testing
-- [ ] **Run database migration** - Apply 009_add_three_tier_scoring.sql
+### High Priority (Setup & Testing)
+- [ ] **Run database migration** - Apply 009_add_three_tier_scoring.sql (`supabase db push`)
 - [ ] **Install/Start Ollama** - Required for Quick Score to work
 - [ ] **Test Quick Score flow** - Upload resumes → auto score with Ollama
 
@@ -219,8 +215,8 @@
 
 ## Notes
 
-- **Branch:** `ui-design` (in progress)
-- **Latest Commit:** `9d62c48` - feat: Add Ollama local LLM for Quick Score evaluation
-- Backend complete: Ollama provider, endpoints, hooks all ready
-- UI redesign remaining: WorkbenchPage table + ModelComparisonModal
+- **Branch:** `ui-design` (complete, ready to merge)
+- **Latest Commit:** `4433a30` - feat: Redesign WorkbenchPage with three-tier scoring UI
+- All UI redesign tasks complete
+- Next: Run migration, install Ollama, test the flow
 - Plan file: `~/.claude/plans/cuddly-tickling-rabbit.md`
