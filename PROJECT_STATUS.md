@@ -1,8 +1,8 @@
 # Project Status
 
-**Last Updated:** Dec 1, 2025
-**Current Phase:** Phase 3 - Live Testing Preparation
-**Running Services:** Supabase ✅ | API ✅ | Frontend ✅
+**Last Updated:** Dec 2, 2025
+**Current Phase:** Phase 3B - UI Redesign & Three-Tier Scoring
+**Running Services:** Supabase ✅ | API ✅ | Frontend ✅ | Ollama (optional)
 
 ---
 
@@ -36,7 +36,21 @@
 - ✅ Resume upload service (330+ lines, 20+ tests)
 - ✅ Agent organization: Moved `product-manager` to `.claude/agents/`
 - ✅ Commit protocol: Added rule to update PROJECT_STATUS.md before commits
-- ✅ Cleaned up unused agents folder (deleted `product-growth-lead-0to1`, `technical-architect`)
+- ✅ Cleaned up unused agents folder
+- ✅ Simplified app for personal use (removed tier limits, credits)
+- ✅ Added delete candidate functionality
+
+### Phase 3B: Three-Tier Scoring System (NEW)
+- ✅ Database migration: quick_score, stage1_score, stage2_score columns
+- ✅ Backend Ollama provider (api/ollama_provider.py)
+- ✅ New API endpoints:
+  - `/api/evaluate_quick` - Single candidate quick score
+  - `/api/evaluate_quick/batch` - Batch quick scoring
+  - `/api/evaluate_quick/compare` - Model comparison
+  - `/api/ollama/status` - Check Ollama availability
+- ✅ Frontend Ollama service (ollamaService.js)
+- ✅ New React hooks: useOllamaStatus, useQuickEvaluate, useBatchQuickEvaluate, useModelComparison
+- ✅ ResumeUploadModal: Model selector dropdown + auto Quick Score on upload
 
 ---
 
@@ -44,32 +58,33 @@
 
 ### This Session's Active Tasks:
 
-1. **Test Resume Upload Integration**
-   - Service merged successfully
-   - Need to: Verify UI integration, test file handling
-   - Status: Ready for testing
+1. **WorkbenchPage UI Redesign** (Step 8)
+   - New columns: Rank, Candidate, Quick Score, Evala Score (S1/S2), Fit, Actions
+   - Dropdown menu for actions (View Details, Compare Models, Delete)
+   - Remove: Date Uploaded, Stage indicator, Title subtitle, Credits, dots
+   - Status: **Pending** (backend ready)
 
-2. **Accessibility Fixes** (from code review)
-   - ARIA labels for FAQ buttons
-   - FAQ max-height responsiveness
-   - Status: Pending implementation
-
-3. **E2E Test Coverage**
-   - Current: 17 auth tests passing
-   - Need: Test resume upload flow
-   - Status: Playwright ready
+2. **Model Comparison Modal** (Step 7)
+   - Side-by-side comparison of Ollama models (phi3, mistral, llama3)
+   - "Use this score" button to save selected result
+   - Status: **Pending** (hook ready)
 
 ---
 
 ## Pending/Backlog 📋
 
-### High Priority (Before Live Testing)
+### High Priority (UI Redesign)
+- [ ] **WorkbenchPage table redesign** - New column layout with three-tier scores
+- [ ] **ModelComparisonModal component** - Side-by-side model testing
+- [ ] **Run database migration** - Apply 009_add_three_tier_scoring.sql
+- [ ] **Install/Start Ollama** - Required for Quick Score to work
+- [ ] **Test Quick Score flow** - Upload resumes → auto score with Ollama
+
+### Medium Priority (Before Live Testing)
 - [ ] Add ARIA labels to FAQ section (accessibility)
 - [ ] Fix FAQ max-height for mobile responsiveness
-- [ ] Integrate resume upload service into WorkbenchPage
 - [ ] E2E test: Complete resume upload → evaluation flow
 - [ ] Manual testing: Full user flow on localhost
-- [ ] Fix remaining 12 E2E tests (currently skipped for auth)
 
 ### Medium Priority (After Live Testing)
 - [ ] Performance optimization (bundle size, load time)
@@ -106,25 +121,24 @@
 
 ## Recent Decisions 📝
 
-1. **Merged `resume-upload-feature` branch** ✅
-   - Production-ready service with 20+ tests
-   - All dependencies working (no conflicts)
-   - Removes stale `modernize-website-design` branch
+1. **Three-Tier Scoring Architecture** ✅ (Dec 2, 2025)
+   - **Quick Score**: Local Ollama LLM (phi3/mistral/llama3) - runs auto on upload, free
+   - **Evala Stage 1**: Anthropic Claude resume-only deep analysis - manual trigger
+   - **Evala Stage 2**: Claude resume+interview+references - manual trigger
+   - Scoring priority: S2 > S1 > Quick Score
 
-2. **Deleted stale `modernize-website-design` branch**
-   - Was incompatible with Phase 3A auth system
-   - Would have required major rework
+2. **Ollama Model Selection at Upload**
+   - Users can choose phi3 (fast), mistral (balanced), or llama3 (best) per upload batch
+   - Model comparison modal for A/B testing different models on same candidate
 
-3. **Updated CLAUDE.md for clarity**
-   - Added "Current Focus" section
-   - Organized file references
-   - Made "What NOT to Do" more actionable
+3. **Simplified App for Personal Use** ✅
+   - Removed tier limits, credits system
+   - Kept auth (professional feel) and landing page (good for demos)
 
-4. **Reorganized Claude agents** ✅
-   - Moved `product-manager` agent to `.claude/agents/` (correct location)
-   - Added commit protocol rule to CLAUDE.md
-   - Deleted unused agents (`product-growth-lead-0to1`, `technical-architect`)
-   - Now only 2 active agents: `product-manager`, `supabase-dev-admin`
+4. **WorkbenchPage UI Redesign** (planned)
+   - New columns: Rank (medals), Quick Score, Evala S1/S2, Fit
+   - Dropdown actions menu (⋮) instead of inline buttons
+   - Remove clutter: Date, Stage indicator, Title, Credits, dots
 
 ---
 
@@ -156,27 +170,20 @@
 
 ## Next Session Goals
 
-### Priority 1: Test Resume Upload Service
-- [ ] Sign up and create a job role
-- [ ] Upload test resume files
-- [ ] Verify text extraction works
-- [ ] Check candidate listing and ranking
+### Priority 1: Complete UI Redesign
+- [ ] Create ModelComparisonModal component
+- [ ] Redesign WorkbenchPage table (Rank, Quick Score, Evala S1/S2, Fit, Actions dropdown)
+- [ ] Test full upload → Quick Score flow
 
-### Priority 2: Fix Accessibility Issues
-- [ ] Add ARIA labels to FAQ buttons
-- [ ] Fix FAQ responsive height
-- [ ] Test with screen reader (optional)
+### Priority 2: Setup & Test Ollama
+- [ ] Install Ollama locally (`brew install ollama`)
+- [ ] Pull models: `ollama pull mistral`, `ollama pull phi3`, `ollama pull llama3`
+- [ ] Run database migration: `supabase db push`
+- [ ] Test Quick Score with sample resumes
 
-### Priority 3: Prepare for Live Testing
-- [ ] Run full E2E test suite
-- [ ] Manual end-to-end flow testing
-- [ ] Document any bugs found
-- [ ] Create live testing checklist
-
-### Priority 4: Clean Up Project Structure
-- [ ] Update old branch list in Git
-- [ ] Archive completed phase docs
-- [ ] Verify all files are properly organized
+### Priority 3: Update useCandidates Hook
+- [ ] Fetch new columns: quick_score, stage1_score, stage2_score
+- [ ] Update candidate list to display three-tier scores
 
 ---
 
@@ -184,9 +191,9 @@
 
 | Blocker | Impact | Action |
 |---------|--------|--------|
-| 12 E2E tests skipped | Medium | Need to enable after fixing auth setup |
-| FAQ accessibility | Low | Quick fix (1-2 hours) |
-| Resume upload integration | High | Should test today |
+| Ollama not installed | High | Required for Quick Score - install before testing |
+| DB migration not applied | High | Run `supabase db push` for new score columns |
+| UI redesign incomplete | Medium | Steps 7-8 of plan still pending |
 
 ---
 
@@ -212,7 +219,8 @@
 
 ## Notes
 
-- Services all running smoothly locally
-- Code review complete, all fixes merged
-- Ready to focus on testing resume upload functionality
-- Next major milestone: Phase 4 (live user testing)
+- **Branch:** `ui-design` (in progress)
+- **Latest Commit:** `9d62c48` - feat: Add Ollama local LLM for Quick Score evaluation
+- Backend complete: Ollama provider, endpoints, hooks all ready
+- UI redesign remaining: WorkbenchPage table + ModelComparisonModal
+- Plan file: `~/.claude/plans/cuddly-tickling-rabbit.md`
