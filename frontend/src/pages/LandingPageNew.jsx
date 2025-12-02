@@ -33,7 +33,7 @@ const FAQ_DATA = [
   },
   {
     question: 'How much does AI evaluation cost?',
-    answer: 'AI evaluations use credits. Free tier includes 5 credits/month. Pro plan includes 500 credits/month. Each candidate evaluation uses 1 credit.'
+    answer: 'The tool uses Claude AI for evaluations. Each evaluation costs approximately $0.003 using Claude Haiku. You provide your own API key for full control over costs.'
   }
 ];
 

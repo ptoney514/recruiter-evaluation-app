@@ -17,6 +17,58 @@ function extractCandidateName(filename) {
 }
 
 /**
+ * Extract current job title from resume text
+ * Looks for common patterns like "Title at Company" or job titles near dates
+ */
+function extractCurrentTitle(text) {
+  if (!text) return null
+
+  // Common job title patterns - look for title followed by date range ending in "present"
+  const patterns = [
+    // "Director, Engineering Outreach and Recruitment    12/24-present"
+    /^([A-Z][A-Za-z\s,&]+(?:Director|Manager|Engineer|Developer|Analyst|Coordinator|Specialist|Lead|Head|VP|President|Chief|Officer|Consultant|Designer|Architect|Administrator|Supervisor|Executive)[\w\s,&]*)\s+\d{1,2}\/\d{2,4}[\s-]+present/im,
+    // "Title" on line before "Company" and "present" date
+    /^([A-Z][A-Za-z\s,&]+(?:Director|Manager|Engineer|Developer|Analyst|Coordinator|Specialist|Lead|Head|VP|President|Chief|Officer|Consultant|Designer|Architect|Administrator|Supervisor|Executive)[\w\s,&]*)\s*$/im,
+  ]
+
+  // First, try to find the WORK HISTORY/EXPERIENCE section
+  const workSectionMatch = text.match(/(?:WORK\s*HISTORY|EXPERIENCE|EMPLOYMENT|PROFESSIONAL\s*EXPERIENCE)[:\s]*\n([\s\S]*?)(?:\n(?:EDUCATION|SKILLS|CERTIFICATIONS|REFERENCES|$))/i)
+  const workSection = workSectionMatch ? workSectionMatch[1] : text
+
+  // Look for lines with "present" or current dates
+  const lines = workSection.split('\n')
+  for (const line of lines) {
+    const trimmed = line.trim()
+    // Skip empty lines and lines that are just dates
+    if (!trimmed || /^\d{1,2}\/\d{2,4}/.test(trimmed)) continue
+
+    // Check if this line or nearby lines contain "present"
+    const lineIndex = lines.indexOf(line)
+    const nearbyText = lines.slice(lineIndex, lineIndex + 3).join(' ')
+
+    if (/present|current/i.test(nearbyText)) {
+      // Look for job title pattern in this line
+      // Common titles contain: Director, Manager, Engineer, etc.
+      const titleMatch = trimmed.match(/^([A-Z][A-Za-z\s,&]+(?:Director|Manager|Engineer|Developer|Analyst|Coordinator|Specialist|Lead|Head|VP|President|Chief|Officer|Consultant|Designer|Architect|Administrator|Supervisor|Executive|Recruiter|Recruiment)[\w\s,&]*)(?:\s+\d|$)/i)
+      if (titleMatch) {
+        return titleMatch[1].trim().replace(/\s+/g, ' ')
+      }
+
+      // Alternative: title might be the whole line if it's short and capitalized
+      if (trimmed.length < 80 && /^[A-Z]/.test(trimmed) && !/^\d/.test(trimmed) && !/^[A-Z\s]+$/.test(trimmed)) {
+        // Remove date suffixes
+        const cleaned = trimmed.replace(/\s+\d{1,2}\/\d{2,4}.*$/, '').trim()
+        if (cleaned.length > 5 && cleaned.length < 60) {
+          return cleaned
+        }
+      }
+    }
+  }
+
+  return null
+}
+
+/**
  * ResumeUploadModal Component
  * Allows bulk upload of resume files with drag-drop and file picker
  *
@@ -112,11 +164,15 @@ export function ResumeUploadModal({ isOpen, onClose, jobId, onSuccess }) {
         // Extract candidate name from filename
         const candidateName = extractCandidateName(file.name)
 
+        // Extract current job title from resume text
+        const currentTitle = extractCurrentTitle(text)
+
         processed.push({
           name: candidateName,
           fullName: candidateName,
           resumeText: text,
           resumeFileName: file.name,
+          currentTitle: currentTitle,
           evaluationStatus: 'pending'
         })
 

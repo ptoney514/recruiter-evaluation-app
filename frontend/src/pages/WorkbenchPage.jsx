@@ -8,11 +8,12 @@ import {
   MoreHorizontal,
   AlertCircle,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  Trash2
 } from 'lucide-react';
 import { CandidateDetailPanel } from '../components/workbench/CandidateDetailPanel';
 import { ResumeUploadModal } from '../components/workbench/ResumeUploadModal';
-import { useCandidates } from '../hooks/useCandidates';
+import { useCandidates, useDeleteCandidate } from '../hooks/useCandidates';
 import { useJob } from '../hooks/useJobs';
 import { useBatchEvaluate } from '../hooks/useEvaluations';
 
@@ -113,6 +114,9 @@ export function WorkbenchPage() {
   // Batch evaluation mutation
   const batchEvaluate = useBatchEvaluate();
 
+  // Delete candidate mutation
+  const deleteCandidate = useDeleteCandidate();
+
   // Local state
   const [selectedCandidates, setSelectedCandidates] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -143,48 +147,54 @@ export function WorkbenchPage() {
   const runAIAnalysis = useCallback(async () => {
     if (selectedCandidates.length === 0 || !job) return;
 
-    // Get candidates to evaluate
-    const candidatesToEvaluate = candidates.filter(c => selectedCandidates.includes(c.id));
-
-    setEvaluationProgress({ current: 0, total: candidatesToEvaluate.length });
+    setEvaluationProgress({ current: 0, total: selectedCandidates.length });
 
     try {
       await batchEvaluate.mutateAsync({
+        candidateIds: selectedCandidates,
         jobId: roleId,
-        job: {
-          title: job.title,
-          description: job.description,
-          must_have_requirements: job.must_have_requirements || [],
-          preferred_requirements: job.preferred_requirements || []
-        },
-        candidates: candidatesToEvaluate.map(c => ({
-          id: c.id,
-          name: c.name || c.fullName,
-          text: c.resumeText,
-          email: c.email
-        })),
-        onProgress: (progress) => {
-          setEvaluationProgress({
-            current: progress.current,
-            total: progress.total
-          });
+        options: {
+          onProgress: (progress) => {
+            setEvaluationProgress({
+              current: progress.current,
+              total: progress.total
+            });
+          }
         }
       });
 
       // Clear selection after successful evaluation
       setSelectedCandidates([]);
       setEvaluationProgress({ current: 0, total: 0 });
+
+      // Explicitly refetch candidates to ensure UI updates
+      await refetchCandidates();
     } catch (error) {
       console.error('Batch evaluation failed:', error);
       setEvaluationProgress({ current: 0, total: 0 });
     }
-  }, [selectedCandidates, candidates, job, roleId, batchEvaluate]);
+  }, [selectedCandidates, job, roleId, batchEvaluate, refetchCandidates]);
 
   const handleUploadSuccess = useCallback((count) => {
     console.log(`Successfully uploaded ${count} candidates`);
     setShowUploadModal(false);
     // Candidates list will auto-refresh via React Query invalidation
   }, []);
+
+  const handleDeleteCandidate = useCallback(async (candidateId, candidateName) => {
+    if (!window.confirm(`Are you sure you want to delete ${candidateName}? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await deleteCandidate.mutateAsync({ candidateId, jobId: roleId });
+      // Remove from selection if selected
+      setSelectedCandidates(prev => prev.filter(id => id !== candidateId));
+    } catch (error) {
+      console.error('Failed to delete candidate:', error);
+      alert('Failed to delete candidate. Please try again.');
+    }
+  }, [deleteCandidate, roleId]);
 
   const getScoreColor = (score) => {
     if (!score) return 'text-slate-400';
@@ -431,18 +441,23 @@ export function WorkbenchPage() {
                     </td>
 
                     <td className="py-4 text-right pr-4">
-                      {hasEvaluation ? (
+                      <div className="flex items-center justify-end gap-2">
+                        {hasEvaluation && (
+                          <button
+                            className="text-teal-600 hover:text-teal-800 font-medium text-sm"
+                            onClick={() => setDetailCandidate(candidate)}
+                          >
+                            View Details
+                          </button>
+                        )}
                         <button
-                          className="text-teal-600 hover:text-teal-800 font-medium text-sm"
-                          onClick={() => setDetailCandidate(candidate)}
+                          className="text-slate-400 hover:text-rose-600 p-1 rounded transition-colors"
+                          onClick={() => handleDeleteCandidate(candidate.id, displayName)}
+                          title="Delete candidate"
                         >
-                          View Details
+                          <Trash2 size={16} />
                         </button>
-                      ) : (
-                        <span className="text-slate-300">
-                          <MoreHorizontal size={20} className="inline" />
-                        </span>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 );

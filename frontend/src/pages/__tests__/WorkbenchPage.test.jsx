@@ -375,12 +375,16 @@ describe('WorkbenchPage', () => {
       await user.click(aiButton)
 
       expect(mockMutateAsync).toHaveBeenCalled()
+      // Verify the correct parameters are passed (candidateIds, jobId, options)
       expect(mockMutateAsync.mock.calls[0][0]).toMatchObject({
+        candidateIds: expect.any(Array),
         jobId: 'job-123',
-        job: expect.objectContaining({
-          title: 'Senior Software Engineer'
+        options: expect.objectContaining({
+          onProgress: expect.any(Function)
         })
       })
+      // Verify candidate IDs are passed correctly
+      expect(mockMutateAsync.mock.calls[0][0].candidateIds).toContain('cand-1')
     })
 
     it('should show progress during evaluation', () => {

@@ -194,7 +194,8 @@ async function processBatch(candidates, evaluateFn, concurrency = 3, onProgress 
         completed++
 
         if (onProgress) {
-          onProgress({
+          // Await onProgress to ensure database updates complete before continuing
+          await onProgress({
             current: completed,
             total: candidates.length,
             currentCandidate: candidate.name,

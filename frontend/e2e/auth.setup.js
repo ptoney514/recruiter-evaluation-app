@@ -33,7 +33,7 @@ setup('authenticate', async ({ page }) => {
   await expect(page).toHaveURL('/app', { timeout: 10000 })
 
   // Verify we're logged in by checking for dashboard elements
-  await expect(page.getByRole('button', { name: /create new role/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /create new position/i })).toBeVisible()
 
   // Save authenticated browser state
   await page.context().storageState({ path: authFile })

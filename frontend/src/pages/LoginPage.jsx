@@ -9,6 +9,11 @@ import { Card } from '../components/ui/Card'
 import { useAuth } from '../hooks/useAuth'
 import { validateLoginForm } from '../lib/validators'
 
+// Dev bypass configuration
+const DEV_AUTH_BYPASS = import.meta.env.VITE_AUTH_BYPASS === 'true'
+const DEV_USER_EMAIL = import.meta.env.VITE_DEV_USER_EMAIL || 'dev-admin@localhost'
+const DEV_USER_PASSWORD = 'devpassword123'
+
 export function LoginPage() {
   const navigate = useNavigate()
   const login = useAuth((state) => state.login)
@@ -54,6 +59,21 @@ export function LoginPage() {
 
     if (user) {
       // Successful login - redirect to app
+      navigate('/app')
+    }
+  }
+
+  // Dev bypass quick login
+  const handleDevLogin = async () => {
+    setLocalError(null)
+    const { user, error } = await login(DEV_USER_EMAIL, DEV_USER_PASSWORD)
+
+    if (error) {
+      setLocalError(error.message || 'Dev login failed. Make sure local Supabase is running with seed data.')
+      return
+    }
+
+    if (user) {
       navigate('/app')
     }
   }
@@ -137,6 +157,24 @@ export function LoginPage() {
             ← Back to Home
           </Link>
         </div>
+
+        {/* Dev bypass quick login - only shows when VITE_AUTH_BYPASS=true */}
+        {DEV_AUTH_BYPASS && (
+          <div className="mt-4 pt-4 border-t border-dashed border-yellow-300 bg-yellow-50 -mx-6 -mb-6 px-6 pb-6 rounded-b-lg">
+            <p className="text-xs text-yellow-700 mb-2 font-medium">🔧 Dev Mode Enabled</p>
+            <Button
+              type="button"
+              onClick={handleDevLogin}
+              disabled={loading}
+              className="w-full bg-yellow-500 hover:bg-yellow-600 text-yellow-900"
+            >
+              {loading ? 'Logging in...' : '⚡ Quick Dev Login'}
+            </Button>
+            <p className="text-xs text-yellow-600 mt-2">
+              Logs in as {DEV_USER_EMAIL}
+            </p>
+          </div>
+        )}
       </Card>
     </div>
   )

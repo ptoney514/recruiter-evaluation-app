@@ -43,8 +43,8 @@ test.describe('Create Job Flow (Authenticated)', () => {
     // Verify we're on the dashboard (not redirected to login)
     await expect(page).toHaveURL('/app')
 
-    // Verify Create New Role button is visible
-    const createButton = page.getByRole('button', { name: /create new role/i })
+    // Verify Create New Position button is visible
+    const createButton = page.getByRole('button', { name: /create new position/i })
     await expect(createButton).toBeVisible()
   })
 
@@ -95,7 +95,7 @@ test.describe('Create Job Flow (Authenticated)', () => {
     await page.goto('/app')
     await page.waitForLoadState('networkidle')
 
-    const createButton = page.getByRole('button', { name: /create new role/i })
+    const createButton = page.getByRole('button', { name: /create new position/i })
     const initialText = await createButton.textContent()
     // Match both patterns: "(X/3)" for production, "(X)" for dev bypass mode with unlimited
     const initialMatch = initialText.match(/\((\d+)(?:\/\d+)?\)/)
