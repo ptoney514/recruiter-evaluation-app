@@ -57,6 +57,14 @@ export function useCandidates(jobId) {
           recruiter_notes,
           created_at,
           updated_at,
+          quick_score,
+          quick_score_at,
+          quick_score_model,
+          quick_score_reasoning,
+          stage1_score,
+          stage1_evaluated_at,
+          stage2_score,
+          stage2_evaluated_at,
           evaluations (
             id,
             overall_score,
@@ -112,6 +120,15 @@ export function useCandidates(jobId) {
           recruiterNotes: candidate.recruiter_notes,
           createdAt: candidate.created_at,
           updatedAt: candidate.updated_at,
+          // Three-tier scoring
+          quickScore: candidate.quick_score,
+          quickScoreAt: candidate.quick_score_at,
+          quickScoreModel: candidate.quick_score_model,
+          quickScoreReasoning: candidate.quick_score_reasoning,
+          stage1Score: candidate.stage1_score,
+          stage1EvaluatedAt: candidate.stage1_evaluated_at,
+          stage2Score: candidate.stage2_score,
+          stage2EvaluatedAt: candidate.stage2_evaluated_at,
           // Latest evaluation details
           evaluation: latestEvaluation ? {
             id: latestEvaluation.id,

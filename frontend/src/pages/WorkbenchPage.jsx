@@ -1,18 +1,21 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ChevronRight,
   Search,
   UploadCloud,
   Sparkles,
-  MoreHorizontal,
+  MoreVertical,
   AlertCircle,
   Loader2,
   RefreshCw,
-  Trash2
+  Trash2,
+  Eye,
+  GitCompare
 } from 'lucide-react';
 import { CandidateDetailPanel } from '../components/workbench/CandidateDetailPanel';
 import { ResumeUploadModal } from '../components/workbench/ResumeUploadModal';
+import { ModelComparisonModal } from '../components/workbench/ModelComparisonModal';
 import { useCandidates, useDeleteCandidate } from '../hooks/useCandidates';
 import { useJob } from '../hooks/useJobs';
 import { useBatchEvaluate } from '../hooks/useEvaluations';
@@ -72,21 +75,44 @@ function mapStatusToDisplay(evaluationStatus) {
 }
 
 /**
- * Map recommendation from database to Fit label
+ * Get the best available score for fit calculation
+ * Priority: Stage 2 > Stage 1 > Quick Score
  */
-function mapRecommendationToFitLabel(recommendation, score) {
-  // Use score-based fit labels instead of ATS workflow stages
+function getBestScore(candidate) {
+  if (candidate.stage2Score !== null && candidate.stage2Score !== undefined) {
+    return { score: candidate.stage2Score, source: 'S2' };
+  }
+  if (candidate.stage1Score !== null && candidate.stage1Score !== undefined) {
+    return { score: candidate.stage1Score, source: 'S1' };
+  }
+  if (candidate.quickScore !== null && candidate.quickScore !== undefined) {
+    return { score: candidate.quickScore, source: 'Quick' };
+  }
+  // Fallback to legacy score
+  if (candidate.score !== null && candidate.score !== undefined) {
+    return { score: candidate.score, source: 'Legacy' };
+  }
+  return { score: null, source: null };
+}
+
+/**
+ * Map score to Fit label
+ */
+function getFitLabel(score) {
+  if (score === null || score === undefined) return null;
   if (score >= 85) return 'Strong Fit';
   if (score >= 70) return 'Possible Fit';
-  if (score !== null && score !== undefined) return 'Weak Fit';
-  // Fallback based on recommendation if no score
-  switch (recommendation) {
-    case 'INTERVIEW': return 'Strong Fit';
-    case 'PHONE_SCREEN': return 'Possible Fit';
-    case 'DECLINE': return 'Weak Fit';
-    case 'ERROR': return 'Error';
-    default: return null;
-  }
+  return 'Weak Fit';
+}
+
+/**
+ * Get rank medal for top candidates
+ */
+function getRankDisplay(rank) {
+  if (rank === 1) return { medal: '🥇', text: '#1' };
+  if (rank === 2) return { medal: '🥈', text: '#2' };
+  if (rank === 3) return { medal: '🥉', text: '#3' };
+  return { medal: null, text: `#${rank}` };
 }
 
 /**
@@ -96,6 +122,79 @@ function formatDate(dateString) {
   if (!dateString) return '';
   const date = new Date(dateString);
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/**
+ * Actions Dropdown Menu component
+ */
+function ActionsDropdown({ candidate, onViewDetails, onCompareModels, onDelete }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const hasEvaluation = candidate.evaluationStatus === 'evaluated' ||
+    candidate.quickScore !== null ||
+    candidate.stage1Score !== null ||
+    candidate.stage2Score !== null;
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-700 transition-colors"
+      >
+        <MoreVertical size={18} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-20">
+          {hasEvaluation && (
+            <button
+              onClick={() => {
+                onViewDetails(candidate);
+                setIsOpen(false);
+              }}
+              className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+            >
+              <Eye size={16} />
+              View Details
+            </button>
+          )}
+          <button
+            onClick={() => {
+              onCompareModels(candidate);
+              setIsOpen(false);
+            }}
+            className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+          >
+            <GitCompare size={16} />
+            Compare Models
+          </button>
+          <div className="border-t border-slate-100 my-1" />
+          <button
+            onClick={() => {
+              onDelete(candidate.id, candidate.name || candidate.fullName);
+              setIsOpen(false);
+            }}
+            className="w-full px-4 py-2 text-left text-sm text-rose-600 hover:bg-rose-50 flex items-center gap-2"
+          >
+            <Trash2 size={16} />
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -122,6 +221,8 @@ export function WorkbenchPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [detailCandidate, setDetailCandidate] = useState(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showComparisonModal, setShowComparisonModal] = useState(false);
+  const [comparisonCandidate, setComparisonCandidate] = useState(null);
   const [evaluationProgress, setEvaluationProgress] = useState({ current: 0, total: 0 });
 
   // Derived state
@@ -181,6 +282,16 @@ export function WorkbenchPage() {
     // Candidates list will auto-refresh via React Query invalidation
   }, []);
 
+  const handleCompareModels = useCallback((candidate) => {
+    setComparisonCandidate(candidate);
+    setShowComparisonModal(true);
+  }, []);
+
+  const handleScoreSaved = useCallback((candidateId, score, model) => {
+    console.log(`Score saved for ${candidateId}: ${score} (${model})`);
+    refetchCandidates();
+  }, [refetchCandidates]);
+
   const handleDeleteCandidate = useCallback(async (candidateId, candidateName) => {
     if (!window.confirm(`Are you sure you want to delete ${candidateName}? This cannot be undone.`)) {
       return;
@@ -203,9 +314,19 @@ export function WorkbenchPage() {
     return 'text-rose-600 font-bold';
   };
 
-  const filteredCandidates = candidates.filter(c =>
-    (c.name || c.fullName || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter and sort candidates by best score (descending)
+  const filteredCandidates = candidates
+    .filter(c => (c.name || c.fullName || '').toLowerCase().includes(searchQuery.toLowerCase()))
+    .map(c => ({ ...c, bestScore: getBestScore(c) }))
+    .sort((a, b) => {
+      // Sort by best score descending (nulls last)
+      const scoreA = a.bestScore.score;
+      const scoreB = b.bestScore.score;
+      if (scoreA === null && scoreB === null) return 0;
+      if (scoreA === null) return 1;
+      if (scoreB === null) return -1;
+      return scoreB - scoreA;
+    });
 
   // Loading state
   if (isLoading) {
@@ -250,12 +371,6 @@ export function WorkbenchPage() {
           <h1 className="text-2xl font-bold text-slate-900">Candidate Workbench</h1>
         </div>
         <div className="flex items-center gap-4">
-          <div className="text-right mr-4">
-            <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Stage</div>
-            <div className="font-medium text-teal-700 bg-teal-50 px-3 py-1 rounded-full text-sm">
-              Resume Screening
-            </div>
-          </div>
           <Button variant="outline" onClick={() => setShowUploadModal(true)}>
             <UploadCloud size={18} />
             Upload Resumes
@@ -303,7 +418,7 @@ export function WorkbenchPage() {
             ) : (
               <>
                 <Sparkles size={16} />
-                Run AI Analysis ({selectedCandidates.length * 5} Credits)
+                Run Evala S1
               </>
             )}
           </Button>
@@ -323,17 +438,18 @@ export function WorkbenchPage() {
                   onChange={toggleSelectAll}
                 />
               </th>
+              <th className="py-3 w-16">Rank</th>
               <th className="py-3">Candidate</th>
-              <th className="py-3">Date Uploaded</th>
-              <th className="py-3">Evala Score</th>
-              <th className="py-3">Fit</th>
-              <th className="py-3 text-right">Actions</th>
+              <th className="py-3 w-28">Quick Score</th>
+              <th className="py-3 w-36">Evala Score</th>
+              <th className="py-3 w-28">Fit</th>
+              <th className="py-3 w-16 text-center">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredCandidates.length === 0 ? (
               <tr>
-                <td colSpan="6" className="py-12 text-center">
+                <td colSpan="7" className="py-12 text-center">
                   <div className="flex flex-col items-center">
                     <UploadCloud size={48} className="text-slate-300 mb-4" />
                     <p className="text-slate-500 mb-2">No candidates yet</p>
@@ -345,12 +461,11 @@ export function WorkbenchPage() {
                 </td>
               </tr>
             ) : (
-              filteredCandidates.map((candidate) => {
+              filteredCandidates.map((candidate, index) => {
                 const displayName = candidate.name || candidate.fullName || 'Unknown';
-                const lastTitle = candidate.lastTitle || candidate.currentTitle || 'Title not extracted';
-                const hasEvaluation = candidate.evaluationStatus === 'evaluated' && candidate.score !== null;
-                const fitLabel = mapRecommendationToFitLabel(candidate.recommendation, candidate.score);
-                const evaluation = candidate.evaluation;
+                const rank = index + 1;
+                const rankDisplay = getRankDisplay(rank);
+                const fitLabel = getFitLabel(candidate.bestScore.score);
 
                 return (
                   <tr
@@ -359,6 +474,7 @@ export function WorkbenchPage() {
                       selectedCandidates.includes(candidate.id) ? 'bg-indigo-50 hover:bg-indigo-50' : ''
                     }`}
                   >
+                    {/* Checkbox */}
                     <td className="py-4 pl-4">
                       <input
                         type="checkbox"
@@ -367,59 +483,65 @@ export function WorkbenchPage() {
                         onChange={() => toggleCandidateSelection(candidate.id)}
                       />
                     </td>
+
+                    {/* Rank */}
+                    <td className="py-4">
+                      <div className="flex items-center gap-1">
+                        {rankDisplay.medal && (
+                          <span className="text-lg">{rankDisplay.medal}</span>
+                        )}
+                        <span className={`font-semibold ${rank <= 3 ? 'text-slate-800' : 'text-slate-500'}`}>
+                          {rankDisplay.text}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Candidate Name */}
                     <td className="py-4">
                       <div className="font-medium text-slate-900">{displayName}</div>
-                      <div className="text-xs text-slate-500">{lastTitle}</div>
                     </td>
-                    <td className="py-4 text-sm text-slate-600">{formatDate(candidate.createdAt)}</td>
 
+                    {/* Quick Score */}
                     <td className="py-4">
-                      {hasEvaluation ? (
-                        <div className="flex flex-col">
-                          <span className={`text-lg ${getScoreColor(candidate.score)}`}>
-                            {candidate.score}/100
-                          </span>
-                          {evaluation && (
-                            <div className="flex gap-1 mt-1">
-                              <div
-                                title={`Confidence: ${evaluation.confidence || 'N/A'}`}
-                                className={`w-2 h-2 rounded-full ${
-                                  (evaluation.confidence || 0) >= 80 ? 'bg-emerald-400' : 'bg-amber-400'
-                                }`}
-                              ></div>
-                              <div
-                                title={`Strengths: ${(evaluation.keyStrengths || []).length}`}
-                                className={`w-2 h-2 rounded-full ${
-                                  (evaluation.keyStrengths || []).length > 2 ? 'bg-emerald-400' : 'bg-amber-400'
-                                }`}
-                              ></div>
-                              <div
-                                title={`Concerns: ${(evaluation.concerns || []).length}`}
-                                className={`w-2 h-2 rounded-full ${
-                                  (evaluation.concerns || []).length === 0 ? 'bg-emerald-400' : 'bg-rose-400'
-                                }`}
-                              ></div>
-                            </div>
-                          )}
-                        </div>
-                      ) : candidate.evaluationStatus === 'evaluating' ? (
-                        <span className="text-xs font-medium text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full flex items-center w-fit gap-1">
-                          <Loader2 size={12} className="animate-spin" /> Processing
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            if (!selectedCandidates.includes(candidate.id)) {
-                              toggleCandidateSelection(candidate.id);
-                            }
-                          }}
-                          className="text-xs font-medium text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition flex items-center w-fit gap-1"
+                      {candidate.quickScore !== null && candidate.quickScore !== undefined ? (
+                        <div
+                          className={`text-lg font-bold ${getScoreColor(candidate.quickScore)}`}
+                          title={candidate.quickScoreModel ? `Model: ${candidate.quickScoreModel}` : undefined}
                         >
-                          <Sparkles size={12} /> Unlock
-                        </button>
+                          {candidate.quickScore}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-sm">--</span>
                       )}
                     </td>
 
+                    {/* Evala Score (S1 / S2) */}
+                    <td className="py-4">
+                      <div className="flex items-center gap-3 text-sm">
+                        <div>
+                          <span className="text-slate-500">S1:</span>{' '}
+                          {candidate.stage1Score !== null && candidate.stage1Score !== undefined ? (
+                            <span className={`font-bold ${getScoreColor(candidate.stage1Score)}`}>
+                              {Math.round(candidate.stage1Score)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">--</span>
+                          )}
+                        </div>
+                        <div>
+                          <span className="text-slate-500">S2:</span>{' '}
+                          {candidate.stage2Score !== null && candidate.stage2Score !== undefined ? (
+                            <span className={`font-bold ${getScoreColor(candidate.stage2Score)}`}>
+                              {Math.round(candidate.stage2Score)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">--</span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Fit */}
                     <td className="py-4">
                       {fitLabel ? (
                         <Badge
@@ -427,8 +549,6 @@ export function WorkbenchPage() {
                             fitLabel === 'Strong Fit'
                               ? 'green'
                               : fitLabel === 'Weak Fit'
-                              ? 'red'
-                              : fitLabel === 'Error'
                               ? 'red'
                               : 'yellow'
                           }
@@ -440,24 +560,14 @@ export function WorkbenchPage() {
                       )}
                     </td>
 
-                    <td className="py-4 text-right pr-4">
-                      <div className="flex items-center justify-end gap-2">
-                        {hasEvaluation && (
-                          <button
-                            className="text-teal-600 hover:text-teal-800 font-medium text-sm"
-                            onClick={() => setDetailCandidate(candidate)}
-                          >
-                            View Details
-                          </button>
-                        )}
-                        <button
-                          className="text-slate-400 hover:text-rose-600 p-1 rounded transition-colors"
-                          onClick={() => handleDeleteCandidate(candidate.id, displayName)}
-                          title="Delete candidate"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+                    {/* Actions */}
+                    <td className="py-4 text-center">
+                      <ActionsDropdown
+                        candidate={candidate}
+                        onViewDetails={setDetailCandidate}
+                        onCompareModels={handleCompareModels}
+                        onDelete={handleDeleteCandidate}
+                      />
                     </td>
                   </tr>
                 );
@@ -484,6 +594,18 @@ export function WorkbenchPage() {
         onClose={() => setShowUploadModal(false)}
         jobId={roleId}
         onSuccess={handleUploadSuccess}
+      />
+
+      {/* Model Comparison Modal */}
+      <ModelComparisonModal
+        isOpen={showComparisonModal}
+        onClose={() => {
+          setShowComparisonModal(false);
+          setComparisonCandidate(null);
+        }}
+        job={job}
+        candidate={comparisonCandidate}
+        onScoreSaved={handleScoreSaved}
       />
     </div>
   );
