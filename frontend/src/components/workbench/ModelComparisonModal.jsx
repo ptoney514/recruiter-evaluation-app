@@ -55,7 +55,11 @@ export function ModelComparisonModal({ isOpen, onClose, job, candidate, onScoreS
         candidateId: candidate.id,
         score: modelResult.score,
         model: modelResult.model,
-        reasoning: modelResult.reasoning
+        reasoning: modelResult.reasoning,
+        requirements_identified: modelResult.requirements_identified,
+        match_analysis: modelResult.match_analysis,
+        methodology: modelResult.methodology,
+        evaluated_at: modelResult.evaluated_at
       },
       {
         onSuccess: () => {

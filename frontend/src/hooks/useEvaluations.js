@@ -1032,14 +1032,24 @@ export function useQuickEvaluate() {
         throw new Error(result.error || 'Quick evaluation failed')
       }
 
-      // Update candidate with quick score
+      // Build the analysis object for storage
+      const quickScoreAnalysis = {
+        requirements_identified: result.requirements_identified || { must_have: [], preferred: [] },
+        match_analysis: result.match_analysis || [],
+        methodology: result.methodology || 'Q(40%) + E(40%) + R(20%)',
+        model: model,
+        evaluated_at: result.evaluated_at || new Date().toISOString()
+      }
+
+      // Update candidate with quick score and analysis
       const { error: updateError } = await supabase
         .from('candidates')
         .update({
           quick_score: result.score,
           quick_score_at: new Date().toISOString(),
           quick_score_model: model,
-          quick_score_reasoning: result.reasoning
+          quick_score_reasoning: result.reasoning,
+          quick_score_analysis: quickScoreAnalysis
         })
         .eq('id', candidateId)
         .eq('user_id', user.id)
@@ -1053,6 +1063,9 @@ export function useQuickEvaluate() {
         candidateName: candidate.full_name,
         score: result.score,
         reasoning: result.reasoning,
+        requirements_identified: result.requirements_identified,
+        match_analysis: result.match_analysis,
+        methodology: result.methodology,
         model,
         usage: result.usage
       }
@@ -1134,21 +1147,29 @@ export function useBatchQuickEvaluate() {
         throw new Error(result.error || 'Batch quick evaluation failed')
       }
 
-      // Update each candidate with their quick score
+      // Update each candidate with their quick score and analysis
       const updatePromises = result.results
         .filter(r => r.success)
-        .map(r =>
-          supabase
+        .map(r => {
+          const quickScoreAnalysis = {
+            requirements_identified: r.requirements_identified || { must_have: [], preferred: [] },
+            match_analysis: r.match_analysis || [],
+            methodology: r.methodology || 'Q(40%) + E(40%) + R(20%)',
+            model: model,
+            evaluated_at: r.evaluated_at || new Date().toISOString()
+          }
+          return supabase
             .from('candidates')
             .update({
               quick_score: r.score,
               quick_score_at: new Date().toISOString(),
               quick_score_model: model,
-              quick_score_reasoning: r.reasoning
+              quick_score_reasoning: r.reasoning,
+              quick_score_analysis: quickScoreAnalysis
             })
             .eq('id', r.candidate_id)
             .eq('user_id', user.id)
-        )
+        })
 
       await Promise.all(updatePromises)
 
@@ -1250,21 +1271,35 @@ export function useSaveQuickScore() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ candidateId, score, reasoning, model }) => {
+    mutationFn: async ({ candidateId, score, reasoning, model, requirements_identified, match_analysis, methodology, evaluated_at }) => {
       const { data: { user } } = await supabase.auth.getUser()
 
       if (!user) {
         throw new Error('User not authenticated')
       }
 
+      // Build analysis object if analysis data provided
+      const updateData = {
+        quick_score: score,
+        quick_score_at: new Date().toISOString(),
+        quick_score_model: model,
+        quick_score_reasoning: reasoning
+      }
+
+      // Include analysis if provided (from model comparison)
+      if (requirements_identified || match_analysis) {
+        updateData.quick_score_analysis = {
+          requirements_identified: requirements_identified || { must_have: [], preferred: [] },
+          match_analysis: match_analysis || [],
+          methodology: methodology || 'Q(40%) + E(40%) + R(20%)',
+          model: model,
+          evaluated_at: evaluated_at || new Date().toISOString()
+        }
+      }
+
       const { error: updateError } = await supabase
         .from('candidates')
-        .update({
-          quick_score: score,
-          quick_score_at: new Date().toISOString(),
-          quick_score_model: model,
-          quick_score_reasoning: reasoning
-        })
+        .update(updateData)
         .eq('id', candidateId)
         .eq('user_id', user.id)
 

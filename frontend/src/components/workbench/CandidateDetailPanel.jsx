@@ -1,9 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   X,
   Sparkles,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  FileText,
+  ClipboardList,
+  RefreshCw,
+  Check,
+  X as XIcon,
+  Minus
 } from 'lucide-react';
 
 /**
@@ -43,9 +49,189 @@ function Button({ children, variant = 'primary', className = '', onClick }) {
 }
 
 /**
+ * RequirementStatus icon component
+ */
+function StatusIcon({ status }) {
+  switch (status) {
+    case 'MET':
+      return <Check size={14} className="text-emerald-600" />;
+    case 'NOT_MET':
+      return <XIcon size={14} className="text-rose-600" />;
+    case 'PARTIAL':
+      return <Minus size={14} className="text-amber-600" />;
+    default:
+      return <Minus size={14} className="text-slate-400" />;
+  }
+}
+
+/**
+ * Analysis Tab Content - Shows requirements breakdown
+ */
+function AnalysisTab({ candidate, job, onReEvaluate }) {
+  const analysis = candidate?.quick_score_analysis;
+
+  if (!analysis) {
+    return (
+      <div className="text-center py-12">
+        <ClipboardList size={48} className="mx-auto text-slate-300 mb-4" />
+        <h3 className="text-lg font-semibold text-slate-600 mb-2">No Analysis Available</h3>
+        <p className="text-sm text-slate-500 mb-4">
+          Run a Quick Score evaluation to see the requirements analysis.
+        </p>
+      </div>
+    );
+  }
+
+  const { requirements_identified, match_analysis, methodology, model, evaluated_at } = analysis;
+
+  // Count statuses
+  const statusCounts = (match_analysis || []).reduce((acc, item) => {
+    acc[item.status] = (acc[item.status] || 0) + 1;
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Screening Analysis</h3>
+            <p className="text-sm text-slate-500">
+              {job?.title || 'Position'}
+            </p>
+          </div>
+          {onReEvaluate && (
+            <button
+              onClick={onReEvaluate}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg border border-slate-200"
+            >
+              <RefreshCw size={14} />
+              Re-evaluate
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-3 gap-4 text-sm">
+          <div>
+            <span className="text-slate-500">Model:</span>
+            <span className="ml-2 font-medium text-slate-900">{model || 'Unknown'}</span>
+          </div>
+          <div>
+            <span className="text-slate-500">Evaluated:</span>
+            <span className="ml-2 font-medium text-slate-900">
+              {evaluated_at ? new Date(evaluated_at).toLocaleDateString() : 'N/A'}
+            </span>
+          </div>
+          <div>
+            <span className="text-slate-500">Methodology:</span>
+            <span className="ml-2 font-medium text-slate-900">{methodology}</span>
+          </div>
+        </div>
+
+        {/* Summary badges */}
+        <div className="flex gap-3 mt-4 pt-4 border-t border-slate-100">
+          <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium border border-emerald-200">
+            {statusCounts.MET || 0} Met
+          </span>
+          <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-medium border border-amber-200">
+            {statusCounts.PARTIAL || 0} Partial
+          </span>
+          <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-medium border border-rose-200">
+            {statusCounts.NOT_MET || 0} Not Met
+          </span>
+        </div>
+      </div>
+
+      {/* Requirements Identified */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <h4 className="font-bold text-slate-900 mb-4">Requirements Identified</h4>
+
+        <div className="grid grid-cols-2 gap-6">
+          {/* Must-Have */}
+          <div>
+            <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+              Must-Have ({requirements_identified?.must_have?.length || 0})
+            </h5>
+            <ul className="space-y-2">
+              {(requirements_identified?.must_have || []).map((req, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                  <span className="text-slate-400 mt-0.5">•</span>
+                  {req}
+                </li>
+              ))}
+              {(!requirements_identified?.must_have || requirements_identified.must_have.length === 0) && (
+                <li className="text-sm text-slate-400 italic">None identified</li>
+              )}
+            </ul>
+          </div>
+
+          {/* Preferred */}
+          <div>
+            <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+              Preferred ({requirements_identified?.preferred?.length || 0})
+            </h5>
+            <ul className="space-y-2">
+              {(requirements_identified?.preferred || []).map((req, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                  <span className="text-slate-400 mt-0.5">•</span>
+                  {req}
+                </li>
+              ))}
+              {(!requirements_identified?.preferred || requirements_identified.preferred.length === 0) && (
+                <li className="text-sm text-slate-400 italic">None identified</li>
+              )}
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Match Analysis */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <h4 className="font-bold text-slate-900 mb-4">Match Analysis</h4>
+
+        <div className="space-y-4">
+          {(match_analysis || []).map((item, i) => (
+            <div key={i} className="flex items-start gap-3 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
+              <div className="mt-0.5">
+                <StatusIcon status={item.status} />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium text-slate-900 text-sm">{item.requirement}</span>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                    item.status === 'MET' ? 'bg-emerald-50 text-emerald-700' :
+                    item.status === 'NOT_MET' ? 'bg-rose-50 text-rose-700' :
+                    item.status === 'PARTIAL' ? 'bg-amber-50 text-amber-700' :
+                    'bg-slate-50 text-slate-700'
+                  }`}>
+                    {item.status?.replace('_', ' ') || 'Unknown'}
+                  </span>
+                </div>
+                <p className="text-sm text-slate-600">
+                  {item.evidence || 'No evidence provided'}
+                </p>
+              </div>
+            </div>
+          ))}
+
+          {(!match_analysis || match_analysis.length === 0) && (
+            <p className="text-sm text-slate-400 italic text-center py-4">
+              No match analysis available
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * CandidateDetailPanel - Slide-in panel for candidate details
  */
-export function CandidateDetailPanel({ candidate, onClose, onUpdateStatus }) {
+export function CandidateDetailPanel({ candidate, job, onClose, onUpdateStatus, onReEvaluate }) {
+  const [activeTab, setActiveTab] = useState('overview');
+
   if (!candidate) return null;
 
   const handleRemove = () => {
@@ -153,12 +339,48 @@ export function CandidateDetailPanel({ candidate, onClose, onUpdateStatus }) {
             </div>
           </div>
 
-          {/* Right Side: AI Assessment */}
-          <div className="w-1/2 bg-slate-50/50 p-8 overflow-y-auto">
-            <div className="mb-8">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">
-                Evala Intelligence
-              </h3>
+          {/* Right Side: AI Assessment with Tabs */}
+          <div className="w-1/2 bg-slate-50/50 flex flex-col overflow-hidden">
+            {/* Tabs */}
+            <div className="flex border-b border-slate-200 bg-white px-6">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                  activeTab === 'overview'
+                    ? 'border-teal-500 text-teal-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <FileText size={16} />
+                Overview
+              </button>
+              <button
+                onClick={() => setActiveTab('analysis')}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                  activeTab === 'analysis'
+                    ? 'border-teal-500 text-teal-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <ClipboardList size={16} />
+                Analysis
+                {candidate.quick_score_analysis && (
+                  <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-teal-100 text-teal-700">
+                    New
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Tab Content */}
+            <div className="flex-1 overflow-y-auto p-8">
+              {activeTab === 'analysis' ? (
+                <AnalysisTab candidate={candidate} job={job} onReEvaluate={onReEvaluate} />
+              ) : (
+                <div className="mb-8">
+                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">
+                    Evala Intelligence
+                  </h3>
 
               {/* Score Cards */}
               <div className="grid grid-cols-4 gap-4 mb-6">
@@ -259,6 +481,8 @@ export function CandidateDetailPanel({ candidate, onClose, onUpdateStatus }) {
                   >
                     {candidate.score >= 85 ? 'Strong Fit' : candidate.score >= 70 ? 'Possible Fit' : 'Weak Fit'}
                   </Badge>
+                </div>
+              )}
                 </div>
               )}
             </div>

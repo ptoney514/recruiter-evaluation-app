@@ -67,12 +67,6 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 COMMENT ON FUNCTION get_best_score IS 'Returns the highest-priority available score for candidate ranking (S2 > S1 > Quick)';
 
 -- ============================================================================
--- UPDATE existing candidates: Copy current score to stage1_score if evaluated
+-- NOTE: No data migration needed - candidates table didn't have score/evaluation_status
+-- columns previously. The new three-tier scoring system is a fresh addition.
 -- ============================================================================
-
-UPDATE candidates
-SET stage1_score = score,
-    stage1_evaluated_at = evaluated_at
-WHERE evaluation_status = 'evaluated'
-  AND score IS NOT NULL
-  AND stage1_score IS NULL;

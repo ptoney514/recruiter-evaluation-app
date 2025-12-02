@@ -246,13 +246,17 @@ def evaluate_quick():
         prompt = build_quick_score_prompt(job, candidate)
         response_text, usage = provider.evaluate(prompt)
 
-        # Parse the response
-        result = parse_quick_score_response(response_text)
+        # Parse the response with full analysis
+        result = parse_quick_score_response(response_text, model=model)
 
         return jsonify({
             'success': True,
             'score': result['score'],
             'reasoning': result['reasoning'],
+            'requirements_identified': result['requirements_identified'],
+            'match_analysis': result['match_analysis'],
+            'methodology': result['methodology'],
+            'evaluated_at': result['evaluated_at'],
             'model': model,
             'usage': usage,
             'ollama_available': True
@@ -305,13 +309,17 @@ def evaluate_quick_batch():
             try:
                 prompt = build_quick_score_prompt(job, candidate)
                 response_text, usage = provider.evaluate(prompt)
-                result = parse_quick_score_response(response_text)
+                result = parse_quick_score_response(response_text, model=model)
 
                 results.append({
                     'candidate_id': candidate.get('id'),
                     'success': True,
                     'score': result['score'],
                     'reasoning': result['reasoning'],
+                    'requirements_identified': result['requirements_identified'],
+                    'match_analysis': result['match_analysis'],
+                    'methodology': result['methodology'],
+                    'evaluated_at': result['evaluated_at'],
                     'model': model,
                     'usage': usage
                 })
@@ -377,13 +385,17 @@ def evaluate_quick_compare():
             try:
                 provider = OllamaProvider(model=model)
                 response_text, usage = provider.evaluate(prompt)
-                result = parse_quick_score_response(response_text)
+                result = parse_quick_score_response(response_text, model=model)
 
                 results.append({
                     'model': model,
                     'success': True,
                     'score': result['score'],
                     'reasoning': result['reasoning'],
+                    'requirements_identified': result['requirements_identified'],
+                    'match_analysis': result['match_analysis'],
+                    'methodology': result['methodology'],
+                    'evaluated_at': result['evaluated_at'],
                     'elapsed_seconds': usage.get('elapsed_seconds', 0),
                     'usage': usage
                 })

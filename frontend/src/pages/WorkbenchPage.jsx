@@ -158,18 +158,16 @@ function ActionsDropdown({ candidate, onViewDetails, onCompareModels, onDelete }
 
       {isOpen && (
         <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-20">
-          {hasEvaluation && (
-            <button
-              onClick={() => {
-                onViewDetails(candidate);
-                setIsOpen(false);
-              }}
-              className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-            >
-              <Eye size={16} />
-              View Details
-            </button>
-          )}
+          <button
+            onClick={() => {
+              onViewDetails(candidate);
+              setIsOpen(false);
+            }}
+            className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+          >
+            <Eye size={16} />
+            View Details
+          </button>
           <button
             onClick={() => {
               onCompareModels(candidate);
