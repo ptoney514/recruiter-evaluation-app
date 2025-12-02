@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
-import { UploadCloud, X, FileText, AlertCircle, CheckCircle, Loader2, ScanLine } from 'lucide-react'
+import { UploadCloud, X, FileText, AlertCircle, CheckCircle, Loader2, ScanLine, Sparkles, ChevronDown } from 'lucide-react'
 import { useBulkCreateCandidates } from '../../hooks/useCandidates'
+import { useBatchQuickEvaluate, useOllamaStatus, getOllamaModels, getDefaultOllamaModel } from '../../hooks/useEvaluations'
 import { extractTextFromFile } from '../../utils/pdfParser'
 import { MAX_FILE_SIZE_MB, MAX_RESUMES_BATCH, SUPPORTED_FILE_TYPES } from '../../constants/config'
 
@@ -85,9 +86,14 @@ export function ResumeUploadModal({ isOpen, onClose, jobId, onSuccess }) {
   const [ocrProgress, setOcrProgress] = useState(null) // Detailed OCR progress for current file
   const [processedFiles, setProcessedFiles] = useState([])
   const [errors, setErrors] = useState([])
+  const [selectedModel, setSelectedModel] = useState(getDefaultOllamaModel())
+  const [quickScoreProgress, setQuickScoreProgress] = useState(null)
   const fileInputRef = useRef(null)
 
   const bulkCreateCandidates = useBulkCreateCandidates()
+  const batchQuickEvaluate = useBatchQuickEvaluate()
+  const { data: ollamaStatus } = useOllamaStatus()
+  const ollamaModels = getOllamaModels()
 
   const resetState = useCallback(() => {
     setIsDragging(false)
@@ -96,6 +102,7 @@ export function ResumeUploadModal({ isOpen, onClose, jobId, onSuccess }) {
     setOcrProgress(null)
     setProcessedFiles([])
     setErrors([])
+    setQuickScoreProgress(null)
   }, [])
 
   const handleClose = useCallback(() => {
@@ -189,12 +196,34 @@ export function ResumeUploadModal({ isOpen, onClose, jobId, onSuccess }) {
       setProgress(prev => ({ ...prev, stage: 'saving', current: 0 }))
 
       try {
-        await bulkCreateCandidates.mutateAsync({
+        const savedResult = await bulkCreateCandidates.mutateAsync({
           jobId,
           candidates: processed
         })
 
+        // If Ollama is available, run Quick Score evaluation
+        if (ollamaStatus?.available && savedResult?.candidates?.length > 0) {
+          setProgress(prev => ({ ...prev, stage: 'quick_scoring' }))
+          setQuickScoreProgress({ current: 0, total: savedResult.candidates.length })
+
+          try {
+            await batchQuickEvaluate.mutateAsync({
+              candidateIds: savedResult.candidates.map(c => c.id),
+              jobId,
+              model: selectedModel,
+              onProgress: (prog) => {
+                setQuickScoreProgress({ current: prog.current, total: prog.total })
+              }
+            })
+          } catch (quickError) {
+            // Quick scoring failed, but candidates were saved - don't fail the whole operation
+            console.warn('Quick scoring failed:', quickError)
+            setErrors(prev => [...prev, `Quick Score skipped: ${quickError.message}`])
+          }
+        }
+
         setProgress(prev => ({ ...prev, stage: 'complete' }))
+        setQuickScoreProgress(null)
 
         // Call success callback after short delay to show completion
         setTimeout(() => {
@@ -266,6 +295,11 @@ export function ResumeUploadModal({ isOpen, onClose, jobId, onSuccess }) {
         return `Processing file ${progress.current} of ${progress.total}...`
       case 'saving':
         return 'Saving candidates to database...'
+      case 'quick_scoring':
+        if (quickScoreProgress) {
+          return `Running Quick Score (${quickScoreProgress.current}/${quickScoreProgress.total})...`
+        }
+        return 'Running Quick Score analysis...'
       case 'complete':
         return `Successfully uploaded ${processedFiles.length} candidate${processedFiles.length !== 1 ? 's' : ''}!`
       case 'error':
@@ -305,6 +339,46 @@ export function ResumeUploadModal({ isOpen, onClose, jobId, onSuccess }) {
 
         {/* Content */}
         <div className="p-6">
+          {/* Model Selector */}
+          <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles size={18} className="text-indigo-500" />
+                <span className="text-sm font-medium text-slate-700">Quick Score Model</span>
+                {ollamaStatus?.available ? (
+                  <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    Ollama Ready
+                  </span>
+                ) : (
+                  <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                    Ollama Offline
+                  </span>
+                )}
+              </div>
+              <div className="relative">
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  disabled={isProcessing || !ollamaStatus?.available}
+                  className="appearance-none bg-white border border-slate-300 rounded-lg pl-3 pr-8 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {ollamaModels.map(model => (
+                    <option key={model.id} value={model.id}>
+                      {model.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              {ollamaStatus?.available
+                ? `Candidates will be automatically scored using ${ollamaModels.find(m => m.id === selectedModel)?.name || selectedModel}`
+                : 'Start Ollama to enable automatic Quick Score on upload'
+              }
+            </p>
+          </div>
+
           {/* Drop Zone */}
           <div
             onDrop={handleDrop}
@@ -400,11 +474,17 @@ export function ResumeUploadModal({ isOpen, onClose, jobId, onSuccess }) {
                       ? 'bg-rose-500'
                       : isOcrInProgress
                       ? 'bg-amber-500'
+                      : progress.stage === 'quick_scoring'
+                      ? 'bg-indigo-500'
                       : 'bg-teal-500'
-                  } ${isOcrInProgress ? 'animate-pulse' : ''}`}
+                  } ${isOcrInProgress || progress.stage === 'quick_scoring' ? 'animate-pulse' : ''}`}
                   style={{
                     width: progress.stage === 'saving' || progress.stage === 'complete'
                       ? '100%'
+                      : progress.stage === 'quick_scoring'
+                      ? quickScoreProgress
+                        ? `${Math.round((quickScoreProgress.current / quickScoreProgress.total) * 100)}%`
+                        : '50%'
                       : isOcrInProgress
                       ? '50%'
                       : `${progressPercentage}%`

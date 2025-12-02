@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { evaluateWithAI, evaluateWithRegex } from '../services/evaluationService'
+import { checkOllamaStatus, evaluateQuick, evaluateQuickBatch, compareModels, OLLAMA_MODELS, DEFAULT_MODEL } from '../services/ollamaService'
 
 /**
  * Map API recommendation to database value
@@ -929,5 +930,352 @@ export function useEvaluationResults(jobId) {
     },
     enabled: !!jobId,
     staleTime: 2 * 60 * 1000, // 2 minutes
+  })
+}
+
+// ============================================================================
+// OLLAMA QUICK SCORE HOOKS
+// ============================================================================
+
+/**
+ * React Query hook to check Ollama availability
+ * Polls every 30 seconds to keep status fresh
+ *
+ * @returns {Object} React Query result with Ollama status
+ */
+export function useOllamaStatus() {
+  return useQuery({
+    queryKey: ['ollama', 'status'],
+    queryFn: checkOllamaStatus,
+    staleTime: 30 * 1000, // Check every 30 seconds
+    refetchInterval: 60 * 1000, // Auto-refresh every minute
+  })
+}
+
+/**
+ * Get available Ollama models configuration
+ * @returns {Array} Array of model objects with id, name, description
+ */
+export function getOllamaModels() {
+  return OLLAMA_MODELS
+}
+
+/**
+ * Get default Ollama model
+ * @returns {string} Default model ID
+ */
+export function getDefaultOllamaModel() {
+  return DEFAULT_MODEL
+}
+
+/**
+ * React Query mutation hook to run quick score on a single candidate
+ *
+ * @returns {Object} React Query mutation with mutate function and status
+ */
+export function useQuickEvaluate() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ candidateId, jobId, model = DEFAULT_MODEL }) => {
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      // Fetch candidate data
+      const { data: candidate, error: candidateError } = await supabase
+        .from('candidates')
+        .select('id, full_name, email, resume_text')
+        .eq('id', candidateId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (candidateError) {
+        throw new Error(`Failed to fetch candidate: ${candidateError.message}`)
+      }
+
+      if (!candidate.resume_text) {
+        throw new Error('Candidate has no resume text to evaluate')
+      }
+
+      // Fetch job data
+      const { data: job, error: jobError } = await supabase
+        .from('jobs')
+        .select('id, title, must_have_requirements, preferred_requirements')
+        .eq('id', jobId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (jobError) {
+        throw new Error(`Failed to fetch job: ${jobError.message}`)
+      }
+
+      // Format data for Ollama evaluation
+      const formattedJob = {
+        title: job.title,
+        mustHaveRequirements: job.must_have_requirements || [],
+        preferredRequirements: job.preferred_requirements || []
+      }
+
+      const formattedCandidate = {
+        id: candidate.id,
+        name: candidate.full_name,
+        resumeText: candidate.resume_text
+      }
+
+      // Call Ollama quick evaluation
+      const result = await evaluateQuick(formattedJob, formattedCandidate, model)
+
+      if (!result.success) {
+        throw new Error(result.error || 'Quick evaluation failed')
+      }
+
+      // Update candidate with quick score
+      const { error: updateError } = await supabase
+        .from('candidates')
+        .update({
+          quick_score: result.score,
+          quick_score_at: new Date().toISOString(),
+          quick_score_model: model,
+          quick_score_reasoning: result.reasoning
+        })
+        .eq('id', candidateId)
+        .eq('user_id', user.id)
+
+      if (updateError) {
+        throw new Error(`Failed to save quick score: ${updateError.message}`)
+      }
+
+      return {
+        candidateId,
+        candidateName: candidate.full_name,
+        score: result.score,
+        reasoning: result.reasoning,
+        model,
+        usage: result.usage
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
+    },
+  })
+}
+
+/**
+ * React Query mutation hook to run quick score on multiple candidates
+ * Used after resume upload to auto-score all new candidates
+ *
+ * @returns {Object} React Query mutation with mutate function and status
+ */
+export function useBatchQuickEvaluate() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ candidateIds, jobId, model = DEFAULT_MODEL, onProgress = null }) => {
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      if (!candidateIds || candidateIds.length === 0) {
+        throw new Error('No candidates selected for evaluation')
+      }
+
+      // Fetch all candidates
+      const { data: candidates, error: candidatesError } = await supabase
+        .from('candidates')
+        .select('id, full_name, email, resume_text')
+        .in('id', candidateIds)
+        .eq('user_id', user.id)
+
+      if (candidatesError) {
+        throw new Error(`Failed to fetch candidates: ${candidatesError.message}`)
+      }
+
+      // Filter out candidates without resume text
+      const validCandidates = candidates.filter(c => c.resume_text)
+
+      if (validCandidates.length === 0) {
+        throw new Error('No candidates have resume text to evaluate')
+      }
+
+      // Fetch job data
+      const { data: job, error: jobError } = await supabase
+        .from('jobs')
+        .select('id, title, must_have_requirements, preferred_requirements')
+        .eq('id', jobId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (jobError) {
+        throw new Error(`Failed to fetch job: ${jobError.message}`)
+      }
+
+      // Format data
+      const formattedJob = {
+        title: job.title,
+        mustHaveRequirements: job.must_have_requirements || [],
+        preferredRequirements: job.preferred_requirements || []
+      }
+
+      const formattedCandidates = validCandidates.map(c => ({
+        id: c.id,
+        name: c.full_name,
+        resumeText: c.resume_text
+      }))
+
+      // Call batch quick evaluation
+      const result = await evaluateQuickBatch(formattedJob, formattedCandidates, model, onProgress)
+
+      if (!result.success) {
+        throw new Error(result.error || 'Batch quick evaluation failed')
+      }
+
+      // Update each candidate with their quick score
+      const updatePromises = result.results
+        .filter(r => r.success)
+        .map(r =>
+          supabase
+            .from('candidates')
+            .update({
+              quick_score: r.score,
+              quick_score_at: new Date().toISOString(),
+              quick_score_model: model,
+              quick_score_reasoning: r.reasoning
+            })
+            .eq('id', r.candidate_id)
+            .eq('user_id', user.id)
+        )
+
+      await Promise.all(updatePromises)
+
+      return {
+        success: true,
+        results: result.results,
+        model,
+        evaluated: result.results.filter(r => r.success).length,
+        failed: result.results.filter(r => !r.success).length
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
+    },
+  })
+}
+
+/**
+ * React Query mutation hook to compare multiple Ollama models on the same candidate
+ * Used in the ModelComparisonModal for testing/tuning
+ *
+ * @returns {Object} React Query mutation with mutate function and status
+ */
+export function useModelComparison() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ candidateId, jobId, models = ['phi3', 'mistral', 'llama3'] }) => {
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      // Fetch candidate data
+      const { data: candidate, error: candidateError } = await supabase
+        .from('candidates')
+        .select('id, full_name, email, resume_text')
+        .eq('id', candidateId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (candidateError) {
+        throw new Error(`Failed to fetch candidate: ${candidateError.message}`)
+      }
+
+      if (!candidate.resume_text) {
+        throw new Error('Candidate has no resume text to evaluate')
+      }
+
+      // Fetch job data
+      const { data: job, error: jobError } = await supabase
+        .from('jobs')
+        .select('id, title, must_have_requirements, preferred_requirements')
+        .eq('id', jobId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (jobError) {
+        throw new Error(`Failed to fetch job: ${jobError.message}`)
+      }
+
+      // Format data
+      const formattedJob = {
+        title: job.title,
+        mustHaveRequirements: job.must_have_requirements || [],
+        preferredRequirements: job.preferred_requirements || []
+      }
+
+      const formattedCandidate = {
+        id: candidate.id,
+        name: candidate.full_name,
+        resumeText: candidate.resume_text
+      }
+
+      // Call model comparison
+      const result = await compareModels(formattedJob, formattedCandidate, models)
+
+      if (!result.success) {
+        throw new Error(result.error || 'Model comparison failed')
+      }
+
+      return {
+        candidateId,
+        candidateName: candidate.full_name,
+        results: result.results
+      }
+    },
+  })
+}
+
+/**
+ * React Query mutation hook to save a selected model's score as the candidate's quick score
+ * Used after model comparison to "accept" a particular result
+ *
+ * @returns {Object} React Query mutation with mutate function and status
+ */
+export function useSaveQuickScore() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ candidateId, score, reasoning, model }) => {
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      const { error: updateError } = await supabase
+        .from('candidates')
+        .update({
+          quick_score: score,
+          quick_score_at: new Date().toISOString(),
+          quick_score_model: model,
+          quick_score_reasoning: reasoning
+        })
+        .eq('id', candidateId)
+        .eq('user_id', user.id)
+
+      if (updateError) {
+        throw new Error(`Failed to save quick score: ${updateError.message}`)
+      }
+
+      return { candidateId, score, model }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['candidates'] })
+    },
   })
 }

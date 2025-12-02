@@ -154,7 +154,7 @@ def get_provider(provider_name: str, api_key: str = None, model: str = None) -> 
     Factory function to get an LLM provider instance
 
     Args:
-        provider_name: Provider name ('anthropic' or 'openai')
+        provider_name: Provider name ('anthropic', 'openai', or 'ollama')
         api_key: API key for the provider (optional, reads from env if None)
         model: Model name (optional, uses provider default if None)
 
@@ -176,8 +176,12 @@ def get_provider(provider_name: str, api_key: str = None, model: str = None) -> 
             return OpenAIProvider(api_key=api_key, model=model)
         return OpenAIProvider(api_key=api_key)
 
+    elif provider_name == 'ollama':
+        from ollama_provider import OllamaProvider
+        return OllamaProvider(model=model)
+
     else:
-        raise ValueError(f"Unsupported provider: {provider_name}. Supported: 'anthropic', 'openai'")
+        raise ValueError(f"Unsupported provider: {provider_name}. Supported: 'anthropic', 'openai', 'ollama'")
 
 
 # Provider configurations (default models and display names)
@@ -198,5 +202,14 @@ PROVIDER_CONFIGS = {
             {'id': 'gpt-4-turbo', 'name': 'GPT-4 Turbo', 'cost': 'High'},
         ],
         'default_model': 'gpt-4o'
+    },
+    'ollama': {
+        'display_name': 'Ollama (Local)',
+        'models': [
+            {'id': 'phi3', 'name': 'Phi-3 (Fast)', 'cost': 'Free'},
+            {'id': 'mistral', 'name': 'Mistral (Balanced)', 'cost': 'Free'},
+            {'id': 'llama3', 'name': 'Llama 3 (Best)', 'cost': 'Free'},
+        ],
+        'default_model': 'mistral'
     }
 }

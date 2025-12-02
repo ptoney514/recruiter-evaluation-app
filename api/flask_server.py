@@ -20,6 +20,7 @@ from evaluator_logic import evaluate_candidate, generate_summary
 from ai_evaluator import evaluate_candidate_with_ai
 from extract_job_info import extract_job_info
 from parse_performance_profile import parse_performance_profile
+from ollama_provider import OllamaProvider, build_quick_score_prompt, parse_quick_score_response
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -182,6 +183,235 @@ def parse_profile():
         }), 500
 
 
+@app.route('/api/ollama/status', methods=['GET', 'OPTIONS'])
+def ollama_status():
+    """Check if Ollama is running and get available models"""
+    if request.method == 'OPTIONS':
+        return '', 200
+
+    try:
+        provider = OllamaProvider()
+        is_available = provider.is_available()
+        available_models = provider.get_available_models() if is_available else []
+
+        return jsonify({
+            'success': True,
+            'available': is_available,
+            'models': available_models,
+            'configured_models': OllamaProvider.AVAILABLE_MODELS
+        })
+
+    except Exception as e:
+        print(f"Error checking Ollama status: {e}")
+        return jsonify({
+            'success': True,
+            'available': False,
+            'models': [],
+            'configured_models': OllamaProvider.AVAILABLE_MODELS,
+            'error': str(e)
+        })
+
+
+@app.route('/api/evaluate_quick', methods=['POST', 'OPTIONS'])
+@limiter.limit("50 per minute")
+def evaluate_quick():
+    """Quick evaluation using local Ollama LLM"""
+    if request.method == 'OPTIONS':
+        return '', 200
+
+    try:
+        data = request.json
+        job = data.get('job', {})
+        candidate = data.get('candidate', {})
+        model = data.get('model', 'mistral')  # Default to mistral
+
+        if not job or not candidate:
+            return jsonify({
+                'success': False,
+                'error': 'Missing job or candidate data'
+            }), 400
+
+        # Initialize Ollama provider
+        provider = OllamaProvider(model=model)
+
+        # Check if Ollama is available
+        if not provider.is_available():
+            return jsonify({
+                'success': False,
+                'error': 'Ollama is not running. Please start Ollama first.',
+                'ollama_available': False
+            }), 503
+
+        # Build prompt and run evaluation
+        prompt = build_quick_score_prompt(job, candidate)
+        response_text, usage = provider.evaluate(prompt)
+
+        # Parse the response
+        result = parse_quick_score_response(response_text)
+
+        return jsonify({
+            'success': True,
+            'score': result['score'],
+            'reasoning': result['reasoning'],
+            'model': model,
+            'usage': usage,
+            'ollama_available': True
+        })
+
+    except Exception as e:
+        print(f"Error in quick evaluation: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'ollama_available': False
+        }), 500
+
+
+@app.route('/api/evaluate_quick/batch', methods=['POST', 'OPTIONS'])
+@limiter.limit("10 per minute")  # More restrictive for batch
+def evaluate_quick_batch():
+    """Batch quick evaluation using local Ollama LLM"""
+    if request.method == 'OPTIONS':
+        return '', 200
+
+    try:
+        data = request.json
+        job = data.get('job', {})
+        candidates = data.get('candidates', [])
+        model = data.get('model', 'mistral')
+
+        if not job or not candidates:
+            return jsonify({
+                'success': False,
+                'error': 'Missing job or candidates data'
+            }), 400
+
+        # Initialize Ollama provider
+        provider = OllamaProvider(model=model)
+
+        # Check if Ollama is available
+        if not provider.is_available():
+            return jsonify({
+                'success': False,
+                'error': 'Ollama is not running. Please start Ollama first.',
+                'ollama_available': False
+            }), 503
+
+        # Evaluate each candidate
+        results = []
+        for candidate in candidates:
+            try:
+                prompt = build_quick_score_prompt(job, candidate)
+                response_text, usage = provider.evaluate(prompt)
+                result = parse_quick_score_response(response_text)
+
+                results.append({
+                    'candidate_id': candidate.get('id'),
+                    'success': True,
+                    'score': result['score'],
+                    'reasoning': result['reasoning'],
+                    'model': model,
+                    'usage': usage
+                })
+            except Exception as e:
+                results.append({
+                    'candidate_id': candidate.get('id'),
+                    'success': False,
+                    'error': str(e)
+                })
+
+        return jsonify({
+            'success': True,
+            'results': results,
+            'model': model,
+            'ollama_available': True
+        })
+
+    except Exception as e:
+        print(f"Error in batch quick evaluation: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'ollama_available': False
+        }), 500
+
+
+@app.route('/api/evaluate_quick/compare', methods=['POST', 'OPTIONS'])
+@limiter.limit("20 per minute")
+def evaluate_quick_compare():
+    """Compare multiple Ollama models on the same candidate"""
+    if request.method == 'OPTIONS':
+        return '', 200
+
+    try:
+        data = request.json
+        job = data.get('job', {})
+        candidate = data.get('candidate', {})
+        models = data.get('models', ['phi3', 'mistral', 'llama3'])
+
+        if not job or not candidate:
+            return jsonify({
+                'success': False,
+                'error': 'Missing job or candidate data'
+            }), 400
+
+        # Check if Ollama is available
+        test_provider = OllamaProvider()
+        if not test_provider.is_available():
+            return jsonify({
+                'success': False,
+                'error': 'Ollama is not running. Please start Ollama first.',
+                'ollama_available': False
+            }), 503
+
+        # Build prompt once (same for all models)
+        prompt = build_quick_score_prompt(job, candidate)
+
+        # Run each model
+        results = []
+        for model in models:
+            try:
+                provider = OllamaProvider(model=model)
+                response_text, usage = provider.evaluate(prompt)
+                result = parse_quick_score_response(response_text)
+
+                results.append({
+                    'model': model,
+                    'success': True,
+                    'score': result['score'],
+                    'reasoning': result['reasoning'],
+                    'elapsed_seconds': usage.get('elapsed_seconds', 0),
+                    'usage': usage
+                })
+            except Exception as e:
+                results.append({
+                    'model': model,
+                    'success': False,
+                    'error': str(e)
+                })
+
+        return jsonify({
+            'success': True,
+            'candidate_id': candidate.get('id'),
+            'results': results,
+            'ollama_available': True
+        })
+
+    except Exception as e:
+        print(f"Error in model comparison: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'ollama_available': False
+        }), 500
+
+
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
@@ -195,10 +425,14 @@ if __name__ == '__main__':
     print('✅ Flask API server starting...')
     print(f'📍 Running on http://localhost:{port}')
     print(f'🔧 Debug mode: {"ON" if debug_mode else "OFF"}')
-    print(f'🛡️  Rate limiting: 100 req/min (AI & regex - generous for local dev)')
+    print(f'🛡️  Rate limiting: 100 req/min (generous for local dev)')
     print('🔌 Endpoints:')
     print('   POST /api/evaluate_regex - Regex evaluation')
-    print('   POST /api/evaluate_candidate - AI evaluation')
+    print('   POST /api/evaluate_candidate - AI evaluation (Anthropic/OpenAI)')
+    print('   POST /api/evaluate_quick - Quick score (Ollama local)')
+    print('   POST /api/evaluate_quick/batch - Batch quick score')
+    print('   POST /api/evaluate_quick/compare - Model comparison')
+    print('   GET  /api/ollama/status - Check Ollama status')
     print('   POST /api/extract_job_info - Extract job info from description')
     print('   POST /api/parse_performance_profile - Parse uploaded Performance Profile')
     print('   GET  /health - Health check')
