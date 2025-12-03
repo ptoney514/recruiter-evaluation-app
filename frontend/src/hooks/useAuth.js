@@ -20,7 +20,6 @@ export const useAuth = create(() => ({
   session: { user: LOCAL_USER },
   loading: false,
   error: null,
-  isDevBypass: false,
 
   // No-op initialize - always authenticated
   initialize: async () => {},
@@ -36,8 +35,5 @@ export const useAuth = create(() => ({
 // Helper hook to get just the user
 export const useUser = () => useAuth((state) => state.user)
 
-// Helper hook to check if user is authenticated (always true)
+// Helper hook to check if user is authenticated (always true in single-user mode)
 export const useIsAuthenticated = () => true
-
-// Helper hook to check if dev bypass mode is active
-export const useIsDevBypass = () => false

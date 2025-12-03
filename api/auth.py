@@ -1,7 +1,11 @@
 """
 Authentication Module
 Simple session-based authentication for the Python API
+
+In single-user mode (SINGLE_USER_MODE=true), all requests are authenticated
+as the local user without requiring login.
 """
+import os
 import hashlib
 import secrets
 from datetime import datetime, timedelta
@@ -18,6 +22,16 @@ from database import (
 # Session configuration
 SESSION_COOKIE_NAME = 'session_id'
 SESSION_DURATION_DAYS = 7
+
+# Single-user mode - set via environment variable or default to True
+SINGLE_USER_MODE = os.environ.get('SINGLE_USER_MODE', 'true').lower() == 'true'
+
+# Default local user for single-user mode
+LOCAL_USER = {
+    'id': 'local-user',
+    'email': 'local@localhost',
+    'name': 'Local User'
+}
 
 
 def hash_password(password: str) -> str:
@@ -142,6 +156,9 @@ def require_auth(f):
     """
     Decorator to require authentication for an endpoint
 
+    In single-user mode, always authenticates as the local user.
+    In multi-user mode, requires a valid session cookie.
+
     Usage:
         @app.route('/api/protected')
         @require_auth
@@ -151,6 +168,12 @@ def require_auth(f):
     """
     @wraps(f)
     def decorated(*args, **kwargs):
+        # Single-user mode: always use local user
+        if SINGLE_USER_MODE:
+            request.user = LOCAL_USER
+            return f(*args, **kwargs)
+
+        # Multi-user mode: check session
         session_id = request.cookies.get(SESSION_COOKIE_NAME)
 
         if not session_id:
@@ -256,6 +279,10 @@ def register_auth_routes(app):
     def auth_session():
         if request.method == 'OPTIONS':
             return '', 200
+
+        # Single-user mode: always return local user
+        if SINGLE_USER_MODE:
+            return jsonify({'success': True, 'user': LOCAL_USER})
 
         session_id = request.cookies.get(SESSION_COOKIE_NAME)
         user = get_current_user(session_id)

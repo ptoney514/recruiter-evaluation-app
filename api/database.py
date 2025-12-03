@@ -2,6 +2,7 @@
 SQLite Database Access Module
 Provides database connectivity for Python API endpoints
 """
+import os
 import sqlite3
 import json
 from pathlib import Path
@@ -12,6 +13,12 @@ import uuid
 
 # Database file location - shared with frontend
 DB_PATH = Path(__file__).parent.parent / "frontend" / "data" / "recruiter.db"
+
+# Single-user mode settings
+SINGLE_USER_MODE = os.environ.get('SINGLE_USER_MODE', 'true').lower() == 'true'
+LOCAL_USER_ID = 'local-user'
+LOCAL_USER_EMAIL = 'local@localhost'
+LOCAL_USER_NAME = 'Local User'
 
 
 @contextmanager
@@ -334,3 +341,26 @@ def delete_expired_sessions() -> None:
     with get_db() as conn:
         conn.execute("DELETE FROM sessions WHERE expires_at < datetime('now')")
         conn.commit()
+
+
+# ============ Single-User Mode Initialization ============
+
+def ensure_local_user_exists() -> None:
+    """
+    Ensure the local user exists in the database for single-user mode.
+    This is called at app startup to ensure the foreign key constraint is satisfied.
+    """
+    if not SINGLE_USER_MODE:
+        return
+
+    with get_db() as conn:
+        # Check if local user already exists
+        cursor = conn.execute("SELECT id FROM users WHERE id = ?", (LOCAL_USER_ID,))
+        if cursor.fetchone() is None:
+            # Create local user with a dummy password hash (won't be used)
+            conn.execute("""
+                INSERT INTO users (id, email, password_hash, name, created_at)
+                VALUES (?, ?, ?, ?, datetime('now'))
+            """, (LOCAL_USER_ID, LOCAL_USER_EMAIL, 'local-mode-no-password', LOCAL_USER_NAME))
+            conn.commit()
+            print(f"✅ Created local user for single-user mode: {LOCAL_USER_EMAIL}")

@@ -440,6 +440,10 @@ if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_ENV') == 'development'
     port = int(os.environ.get('PORT', 8000))
 
+    # Initialize database for single-user mode
+    from database import ensure_local_user_exists
+    ensure_local_user_exists()
+
     print('✅ Flask API server starting...')
     print(f'📍 Running on http://localhost:{port}')
     print(f'🔧 Debug mode: {"ON" if debug_mode else "OFF"}')
