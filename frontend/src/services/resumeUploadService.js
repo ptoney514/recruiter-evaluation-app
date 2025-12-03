@@ -1,9 +1,8 @@
 /**
  * Resume Upload Service
- * Handles file validation, text extraction, and storage for resume uploads
+ * Handles file validation and text extraction for resume uploads
  */
 import { extractTextFromFile } from '../utils/pdfParser'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { MAX_FILE_SIZE_MB, SUPPORTED_FILE_TYPES } from '../constants/config'
 
 /**
@@ -216,110 +215,9 @@ export async function processResumeFiles(files, options = {}) {
   return results
 }
 
-/**
- * Upload resume file to Supabase Storage
- * @param {File} file - File to upload
- * @param {string} userId - User ID for organizing files
- * @param {Object} options - Upload options
- * @param {string} options.bucket - Storage bucket name
- * @returns {Promise<Object>} Upload result with public URL
- * @throws {Error} If upload fails
- */
-export async function uploadResumeToStorage(file, userId, options = {}) {
-  const { bucket = 'resumes' } = options
-
-  if (!isSupabaseConfigured()) {
-    throw new Error('Supabase is not configured')
-  }
-
-  // Create unique file path
-  const timestamp = Date.now()
-  const randomId = Math.random().toString(36).substr(2, 9)
-  const extension = file.name.split('.').pop()
-  const filePath = `${userId}/${timestamp}_${randomId}.${extension}`
-
-  // Upload to Supabase Storage
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: false
-    })
-
-  if (error) {
-    throw new Error(`Failed to upload file: ${error.message}`)
-  }
-
-  // Get public URL
-  const { data: urlData } = supabase.storage
-    .from(bucket)
-    .getPublicUrl(filePath)
-
-  return {
-    path: data.path,
-    publicUrl: urlData.publicUrl,
-    bucket
-  }
-}
-
-/**
- * Process and upload resume file
- * Combines text extraction and storage upload
- * @param {File} file - Resume file
- * @param {string} userId - User ID
- * @param {Object} options - Processing and upload options
- * @returns {Promise<Object>} Complete resume data with storage URL
- */
-export async function processAndUploadResume(file, userId, options = {}) {
-  // First, process the file to extract text
-  const resume = await processResumeFile(file, options)
-
-  // Then upload to storage if Supabase is configured
-  if (isSupabaseConfigured() && userId) {
-    try {
-      const uploadResult = await uploadResumeToStorage(file, userId, options)
-      resume.fileUrl = uploadResult.publicUrl
-      resume.storagePath = uploadResult.path
-    } catch (uploadError) {
-      console.warn('Failed to upload resume to storage:', uploadError)
-      // Don't fail the entire operation if storage upload fails
-      // The text extraction was successful, which is the critical part
-    }
-  }
-
-  return resume
-}
-
-/**
- * Delete resume from Supabase Storage
- * @param {string} filePath - Storage file path
- * @param {Object} options - Delete options
- * @param {string} options.bucket - Storage bucket name
- * @returns {Promise<void>}
- * @throws {Error} If deletion fails
- */
-export async function deleteResumeFromStorage(filePath, options = {}) {
-  const { bucket = 'resumes' } = options
-
-  if (!isSupabaseConfigured()) {
-    throw new Error('Supabase is not configured')
-  }
-
-  const { error } = await supabase.storage
-    .from(bucket)
-    .remove([filePath])
-
-  if (error) {
-    throw new Error(`Failed to delete file: ${error.message}`)
-  }
-}
-
 export const resumeUploadService = {
   extractCandidateName,
   validateFile,
   processResumeFile,
-  processResumeFiles,
-  uploadResumeToStorage,
-  processAndUploadResume,
-  deleteResumeFromStorage
+  processResumeFiles
 }

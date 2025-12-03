@@ -2,10 +2,7 @@
  * Playwright Configuration for E2E Tests
  * Configures browser automation for end-to-end testing
  *
- * Projects:
- * - setup: Creates authenticated user and saves session
- * - chromium: Runs unauthenticated tests (UI-only)
- * - chromium-auth: Runs authenticated tests (uses saved session)
+ * Single-user mode: No authentication required
  */
 
 import { defineConfig, devices } from '@playwright/test'
@@ -30,30 +27,9 @@ export default defineConfig({
 
   // Configure projects
   projects: [
-    // Auth setup - runs first, creates test user
-    {
-      name: 'setup',
-      testMatch: /auth\.setup\.js/,
-      use: { ...devices['Desktop Chrome'] },
-    },
-
-    // Unauthenticated tests (UI-only, no login required)
     {
       name: 'chromium',
-      testMatch: '**/*.spec.js',
-      testIgnore: [/auth\.setup\.js/, /\.auth\.spec\.js/],
       use: { ...devices['Desktop Chrome'] },
-    },
-
-    // Authenticated tests (requires login)
-    {
-      name: 'chromium-auth',
-      testMatch: '**/*.auth.spec.js',
-      dependencies: ['setup'],
-      use: {
-        ...devices['Desktop Chrome'],
-        storageState: 'playwright/.auth/user.json',
-      },
     },
   ],
 

@@ -1,9 +1,6 @@
-import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './lib/queryClient'
-import { AuthProvider } from './contexts/AuthContext'
-import { LandingPageNew } from './pages/LandingPageNew'
 import { HomePage } from './pages/HomePage'
 import { DashboardPage } from './pages/DashboardPage'
 import { ProjectDetailPage } from './pages/ProjectDetailPage'
@@ -13,27 +10,20 @@ import { JobInputPage } from './pages/JobInputPage'
 import { ResumeUploadPage } from './pages/ResumeUploadPage'
 import { ReviewPage } from './pages/ReviewPage'
 import { ResultsPage } from './pages/ResultsPage'
-import { LoginPage } from './pages/LoginPage'
-import { SignupPage } from './pages/SignupPage'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { UserMenu } from './components/auth/UserMenu'
-import { AuthModal } from './components/auth/AuthModal'
-import { ProtectedRoute } from './components/ProtectedRoute'
 import { AppLayout } from './components/layout/AppLayout'
-import { useAuth } from './hooks/useAuth'
 
-// AppContent component to handle conditional header rendering
-function AppContent({ openAuthModal }) {
+// AppContent component to handle routing
+function AppContent() {
   const location = useLocation()
   const isAppRoute = location.pathname.startsWith('/app')
-  const isPublicPage = ['/', '/login', '/signup'].includes(location.pathname)
 
-  // Show legacy header only for non-app protected routes (legacy flow)
-  const showLegacyHeader = !isPublicPage && !isAppRoute
+  // Show legacy header only for legacy routes (non /app routes)
+  const showLegacyHeader = !isAppRoute && location.pathname !== '/'
 
   return (
     <>
-      {/* Legacy Navigation Header - Only show for legacy protected routes */}
+      {/* Legacy Navigation Header - Only show for legacy routes */}
       {showLegacyHeader && (
         <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -41,7 +31,6 @@ function AppContent({ openAuthModal }) {
               <Link to="/app" className="flex items-center">
                 <span className="text-xl font-bold text-primary-600">Eval</span>
               </Link>
-              <UserMenu onOpenAuth={openAuthModal} />
             </div>
           </div>
         </nav>
@@ -49,88 +38,42 @@ function AppContent({ openAuthModal }) {
 
       {/* Routes */}
       <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<LandingPageNew />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
+        {/* Redirect root to dashboard */}
+        <Route path="/" element={<Navigate to="/app" replace />} />
 
-        {/* Protected App Routes - Use new sidebar layout */}
-        <Route path="/app" element={
-          <ProtectedRoute>
-            <AppLayout><DashboardPage /></AppLayout>
-          </ProtectedRoute>
-        } />
-        <Route path="/app/project/:projectId" element={
-          <ProtectedRoute>
-            <AppLayout><ProjectDetailPage /></AppLayout>
-          </ProtectedRoute>
-        } />
-        <Route path="/app/legacy" element={
-          <ProtectedRoute>
-            <AppLayout><HomePage /></AppLayout>
-          </ProtectedRoute>
-        } />
-        <Route path="/app/create-role" element={
-          <ProtectedRoute>
-            <AppLayout><CreateRolePage /></AppLayout>
-          </ProtectedRoute>
-        } />
-        <Route path="/app/role/:roleId/workbench" element={
-          <ProtectedRoute>
-            <AppLayout><WorkbenchPage /></AppLayout>
-          </ProtectedRoute>
-        } />
-        <Route path="/app/role/:roleId/results" element={
-          <ProtectedRoute>
-            <AppLayout><ResultsPage /></AppLayout>
-          </ProtectedRoute>
-        } />
+        {/* Main App Routes - Use sidebar layout */}
+        <Route path="/app" element={<AppLayout><DashboardPage /></AppLayout>} />
+        <Route path="/app/project/:projectId" element={<AppLayout><ProjectDetailPage /></AppLayout>} />
+        <Route path="/app/legacy" element={<AppLayout><HomePage /></AppLayout>} />
+        <Route path="/app/create-role" element={<AppLayout><CreateRolePage /></AppLayout>} />
+        <Route path="/app/role/:roleId/workbench" element={<AppLayout><WorkbenchPage /></AppLayout>} />
+        <Route path="/app/role/:roleId/results" element={<AppLayout><ResultsPage /></AppLayout>} />
 
-        {/* Legacy Protected Routes - Keep old header for now */}
-        <Route path="/job-input" element={<ProtectedRoute><JobInputPage /></ProtectedRoute>} />
-        <Route path="/upload-resumes" element={<ProtectedRoute><ResumeUploadPage /></ProtectedRoute>} />
-        <Route path="/review" element={<ProtectedRoute><ReviewPage /></ProtectedRoute>} />
-        <Route path="/results" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
+        {/* Legacy Routes - Keep for backwards compatibility */}
+        <Route path="/job-input" element={<JobInputPage />} />
+        <Route path="/upload-resumes" element={<ResumeUploadPage />} />
+        <Route path="/review" element={<ReviewPage />} />
+        <Route path="/results" element={<ResultsPage />} />
+
+        {/* Catch-all redirect to dashboard */}
+        <Route path="*" element={<Navigate to="/app" replace />} />
       </Routes>
     </>
   )
 }
 
 function App() {
-  const [authModalOpen, setAuthModalOpen] = useState(false)
-  const [authMode, setAuthMode] = useState('login')
-  const initialize = useAuth((state) => state.initialize)
-
-  // Initialize auth state on mount (runs once)
-  useEffect(() => {
-    initialize()
-  }, [])
-
-  const openAuthModal = (mode = 'login') => {
-    setAuthMode(mode)
-    setAuthModalOpen(true)
-  }
-
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <BrowserRouter
-            future={{
-              v7_startTransition: true,
-              v7_relativeSplatPath: true
-            }}
-          >
-            <AppContent openAuthModal={openAuthModal} />
-
-            {/* Auth Modal */}
-            <AuthModal
-              isOpen={authModalOpen}
-              onClose={() => setAuthModalOpen(false)}
-              defaultMode={authMode}
-            />
-          </BrowserRouter>
-        </AuthProvider>
+        <BrowserRouter
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true
+          }}
+        >
+          <AppContent />
+        </BrowserRouter>
       </QueryClientProvider>
     </ErrorBoundary>
   )

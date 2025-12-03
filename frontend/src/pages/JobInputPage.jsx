@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Input, TextArea } from '../components/ui/Input'
-import { storageManager } from '../services/storage/storageManager'
 import { sessionStore } from '../services/storage/sessionStore'
 import { JOB_TEMPLATES } from '../constants/jobTemplates'
 
@@ -16,13 +15,10 @@ export function JobInputPage() {
 
   // Load existing evaluation if available
   useEffect(() => {
-    async function loadExisting() {
-      const existing = await storageManager.getCurrentEvaluation()
-      if (existing && existing.job?.title) {
-        setJobData(existing.job)
-      }
+    const existing = sessionStore.getCurrentEvaluation()
+    if (existing && existing.job?.title) {
+      setJobData(existing.job)
     }
-    loadExisting()
   }, [])
 
   const handleTemplateChange = (templateKey) => {
@@ -69,15 +65,15 @@ export function JobInputPage() {
     }))
   }
 
-  const handleNext = async () => {
+  const handleNext = () => {
     // Validation
     if (!jobData.title.trim()) {
       alert('Please enter a job title')
       return
     }
 
-    // Save to storage (auto-routes to session or database)
-    await storageManager.updateEvaluation({ job: jobData })
+    // Save to session storage for legacy flow
+    sessionStore.updateEvaluation({ job: jobData })
     navigate('/upload-resumes')
   }
 

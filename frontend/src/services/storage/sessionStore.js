@@ -1,19 +1,10 @@
 /**
  * Session Storage Service
  *
- * @deprecated This file is DEPRECATED as of Nov 2024
+ * Stores temporary draft state in browser sessionStorage during multi-step forms.
+ * Data persists during browser session but clears when browser closes.
  *
- * The app now uses a B2B signup-first model where ALL users must be authenticated.
- * All data is stored in Supabase (see supabaseStore.js).
- *
- * This file is kept for backwards compatibility but should not be used in new code.
- * It will be removed in a future version.
- *
- * ---
- *
- * OLD PURPOSE (no longer applicable):
- * Stores evaluation state in browser sessionStorage (no database needed)
- * Data persists during browser session but clears when browser closes
+ * Main data is stored in SQLite via the Python API.
  */
 
 const STORAGE_KEY = 'resume_ranker_evaluation'

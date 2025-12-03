@@ -1,77 +1,66 @@
 # CLAUDE.md - Project Instructions
 
-**Resume Scanner Pro** - AI-powered batch resume evaluation tool for recruiters.
+**Resume Scanner Pro** - AI-powered batch resume evaluation tool for personal use.
 
 ## Project Vision
 
-Enable B2B recruiters to screen 50+ resumes instantly with AI-powered analysis, reducing evaluation time from hours to minutes while maintaining quality hiring decisions.
+Screen 50+ resumes instantly with AI-powered analysis, reducing evaluation time from hours to minutes while maintaining quality hiring decisions.
 
 **Core Features:**
 - ✅ Batch upload 1-50 resumes (free keyword ranking)
 - ✅ Two-stage evaluation (resume screening → interview assessment)
-- ✅ AI-powered analysis (Claude 3.5 Haiku + OpenAI GPT-4o)
+- ✅ AI-powered analysis (Claude 3.5 Haiku + OpenAI GPT-4o + Ollama)
+- ✅ Quick Score with local Ollama models
 - ✅ Interview guide generation
 - ✅ PDF export reports
-- 🚧 Live testing and user validation
-- 📋 Mobile apps (iOS/Android - Phase 4)
 
 ## Tech Stack
 
 - **Frontend**: React 18 + Vite, Tailwind CSS, React Router, Zustand
 - **State**: React Query (server state), Zustand (client state)
-- **Backend**: Python 3.13 serverless functions (Vercel)
-- **Database**: Supabase (PostgreSQL + Auth + Storage)
-- **AI**: Claude 3.5 Haiku (primary), OpenAI GPT-4o Mini (optional)
+- **Backend**: Python Flask API server
+- **Database**: SQLite (via Python API)
+- **AI**: Claude 3.5 Haiku (primary), OpenAI GPT-4o Mini (optional), Ollama (local)
 - **PDF Parsing**: pdfplumber (Python), PDF.js (client-side)
-- **Testing**: Vitest + React Testing Library (planned)
-- **Deployment**: Vercel (frontend + API functions)
+- **Testing**: Vitest + React Testing Library, Playwright (E2E)
 
 ## Quick Start
 
-**Prerequisites:** Node.js 18+, Python 3.13+, Anthropic API key, Supabase (local Docker or cloud)
+**Prerequisites:** Node.js 18+, Python 3.13+, Anthropic API key
 
 **Setup:**
 ```bash
 # 1. Install dependencies
 cd frontend && npm install && cd ..
-pip3 install --break-system-packages anthropic pdfplumber python-docx Pillow
+pip3 install --break-system-packages anthropic pdfplumber python-docx Pillow flask flask-cors
 
-# 2. Configure environment
+# 2. Configure API environment
 cd api && cp .env.example .env
 # Add ANTHROPIC_API_KEY to api/.env
-# Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to frontend/.env.local
 
-# 3. Start Supabase (local)
-supabase start
+# 3. Start servers (2 terminals)
+cd api && python3 flask_server.py    # Terminal 1: API
+cd frontend && npm run dev            # Terminal 2: Frontend
 
-# 4. Start servers
-cd api && python3 dev_server.py 8000  # Terminal 1
-cd frontend && npm run dev             # Terminal 2
-
-# 5. Access
-# Frontend: http://localhost:3000 (or :5173 if Vite default)
+# 4. Access
+# Frontend: http://localhost:3000
 # API: http://localhost:8000
-# Supabase Studio: http://localhost:54323
 ```
 
 ## Development Commands
 
-### Start All Services (must have Docker running)
+### Start Services
 ```bash
-# Terminal 1: Supabase
-supabase start
-
-# Terminal 2: API Server
+# Terminal 1: API Server
 cd api && python3 flask_server.py
 
-# Terminal 3: Frontend
+# Terminal 2: Frontend
 cd frontend && npm run dev
 ```
 
 **Access Points:**
 - Frontend: http://localhost:3000
 - API: http://localhost:8000
-- Supabase Studio: http://localhost:54323
 
 ### Testing
 ```bash
@@ -83,7 +72,6 @@ cd frontend && npm run test:e2e     # Run E2E tests (Playwright)
 ```bash
 npm run build                       # Production build
 npm run lint                        # ESLint
-supabase db reset                   # Reset local DB
 ```
 
 ## Architecture
@@ -95,140 +83,108 @@ recruiter-evaluation-app/
 │   ├── src/
 │   │   ├── pages/          # Route-level components
 │   │   ├── components/     # Reusable UI components
-│   │   ├── services/       # API/Supabase/storage layers
-│   │   ├── hooks/          # React Query hooks (planned)
-│   │   └── lib/            # Supabase client (planned)
+│   │   ├── services/       # API service layer
+│   │   └── hooks/          # React Query hooks
 │   └── .env.local          # Frontend environment variables
-├── api/                     # Python serverless functions
+├── api/                     # Python Flask API
+│   ├── flask_server.py      # Main API server
+│   ├── database.py          # SQLite database layer
 │   ├── evaluate_candidate.py  # AI evaluation endpoint
-│   ├── parse_resume.py        # PDF text extraction
 │   ├── ai_evaluator.py        # Multi-LLM evaluation logic
 │   ├── llm_providers.py       # Provider abstraction layer
+│   ├── ollama_provider.py     # Ollama integration
 │   └── .env                   # API keys
-├── supabase/
-│   └── migrations/          # Database schema versions
+├── data/                    # SQLite database and uploads
+│   └── recruiter.db         # Main database
 ├── docs/                    # Additional documentation
 ├── CLAUDE.md               # This file (stable architecture)
-└── STATUS.md               # Current work and progress
+└── PROJECT_STATUS.md       # Current work and progress
 ```
 
-### Two-Stage Evaluation Framework
+### Data Flow
+```
+Frontend (React) → databaseService.js → Python API → SQLite
+                                      → AI endpoints → Claude/Ollama
+```
 
-**Core Business Logic:**
+### Three-Tier Scoring System (A-T-Q)
 
-**Stage 1: Resume Screening** (who to interview)
-- Score: Qualifications (40%) + Experience (40%) + Risk Flags (20%)
+**Quick Score** (Local Ollama - Free)
+- Fast screening with local LLM models (phi3, mistral, llama3)
+- Runs automatically on resume upload
+- 0-100 score based on requirements matching
+
+**Stage 1: Resume Screening** (Claude - Paid)
+- Deep analysis: Accomplishments (50%) + Trajectory (30%) + Qualifications (20%)
 - Output: 0-100 score, recommendation (Interview/Phone Screen/Decline)
 - Thresholds: 85+ = Interview, 70-84 = Phone Screen, <70 = Decline
 
-**Stage 2: Final Hiring Decision** (who gets the offer)
+**Stage 2: Final Hiring Decision** (Claude - Paid)
 - Score: Resume (25%) + Interview (50%) + References (25%)
-- Interview performance weighted most heavily
 - Output: Final score, recommendation (STRONG HIRE/HIRE/DO NOT HIRE)
 
-**API Pattern:**
-```python
-# Stage 1
-POST /api/evaluate_candidate
-{
-  "stage": 1,
-  "job": {...},
-  "candidate": {...},
-  "provider": "anthropic",  # or "openai"
-  "model": "claude-3-5-haiku-20241022"  # optional
-}
+### API Endpoints
 
-# Stage 2
-POST /api/evaluate_candidate
-{
-  "stage": 2,
-  "job": {...},
-  "candidate": {...},
-  "resume_score": 85,
-  "interview": {...},
-  "references": [...]
-}
+```python
+# Jobs
+GET    /api/jobs              # List all jobs
+POST   /api/jobs              # Create job
+GET    /api/jobs/:id          # Get job
+PUT    /api/jobs/:id          # Update job
+DELETE /api/jobs/:id          # Delete job
+
+# Candidates
+GET    /api/jobs/:id/candidates    # List candidates for job
+POST   /api/jobs/:id/candidates    # Create candidate
+GET    /api/candidates/:id         # Get candidate
+PUT    /api/candidates/:id         # Update candidate
+DELETE /api/candidates/:id         # Delete candidate
+
+# Evaluations
+POST   /api/evaluate_candidate     # Run Claude evaluation
+POST   /api/evaluate_quick         # Run Ollama quick score
+POST   /api/evaluate_quick/batch   # Batch quick scoring
 ```
 
-### Database Schema (Supabase)
+### Database Schema (SQLite)
 
 **Tables:**
-- `jobs` - Job postings (JSONB: must_have_requirements, preferred_requirements)
-- `candidates` - Candidate profiles (JSONB: skills, education)
-- `evaluations` - AI evaluation results with scores
-- `candidate_rankings` - Manual ranking overrides
-- `interview_ratings` - Stage 2 interview data
-- `reference_checks` - Stage 2 reference data
+- `jobs` - Job postings with requirements (JSON fields)
+- `candidates` - Candidate profiles with three-tier scores
+- `evaluations` - Detailed AI evaluation results
 
-**Migrations:**
-- `001_initial_schema.sql` - Core tables
-- `002_interview_and_references.sql` - Stage 2 tables
-- `003_add_llm_provider_tracking.sql` - Multi-LLM support
-
-**Planned:**
-- `004_add_auth_and_rls.sql` - user_id columns + RLS policies
+**Key Columns (candidates):**
+- `quick_score` - Ollama-generated score (0-100)
+- `stage1_score`, `stage1_a_score`, `stage1_t_score`, `stage1_q_score` - Claude Stage 1
+- `stage2_score` - Claude Stage 2 final score
+- `resume_text` - Extracted text from uploaded files
 
 ## Key Design Decisions
 
 ### Python Backend over Node.js
-**Decision:** Keep Python serverless functions instead of rewriting in Node.js/TypeScript
+**Decision:** Keep Python Flask API instead of rewriting in Node.js
 
-**Why:** Python has better PDF parsing (pdfplumber), first-class AI SDKs (anthropic, openai), and the backend is already working well. Rewriting would delay MVP by weeks with minimal benefit.
+**Why:** Python has better PDF parsing (pdfplumber), first-class AI SDKs (anthropic, openai), and works well with SQLite. The backend is stable and performant.
 
-### Claude Haiku over Sonnet/GPT-4
+### SQLite for Personal Use
+**Decision:** Use SQLite instead of PostgreSQL/Supabase
+
+**Why:** Simple file-based database, no server needed, easy to backup/delete. Perfect for personal use without multi-user requirements.
+
+### Local-First Architecture
+**Decision:** All data stored locally, no cloud dependencies
+
+**Why:** Privacy, speed, no recurring costs for storage. Resume data stays on your machine.
+
+### Claude Haiku for Evaluations
 **Decision:** Use Claude 3.5 Haiku as default LLM
 
-**Why:** 5x cheaper than Sonnet ($0.003 vs $0.015 per evaluation). For batch resume screening, cost matters. Haiku quality is sufficient for structured evaluations. Users can optionally upgrade to GPT-4o for specific candidates.
+**Why:** 5x cheaper than Sonnet (~$0.003 per evaluation). Quality is sufficient for structured resume analysis. Can upgrade to GPT-4o for specific candidates.
 
-### Supabase over Self-Hosted
-**Decision:** Use Supabase for database, auth, and storage
+### Ollama for Quick Scoring
+**Decision:** Use local Ollama for initial screening
 
-**Why:** Faster iteration, built-in auth/storage, real-time subscriptions, RLS for security. Reduces infrastructure overhead for solo developer MVP.
-
-### B2B Signup-First Model (Authentication Required)
-**Decision:** Require account creation before trial usage (like Frill, Greenhouse, LinkedIn Recruiter)
-
-**Why:**
-- **Qualified leads:** Filters tire-kickers, captures email for nurture campaigns
-- **B2B expectations:** Corporate recruiters expect signup for SaaS trials - signals legitimacy
-- **Simpler architecture:** Single storage system (Supabase only), no sessionStorage migration flows
-- **Better conversion:** Email captured upfront, easier to track trial → paid conversion
-- **Prevents abuse:** Account requirement reduces spam, throwaway usage
-- **Focus on niche:** Target serious corporate/agency recruiters, not mass consumer market
-
-**Implementation:** Marketing landing page → Signup → Tool access (all data persisted to Supabase)
-
-### Serverless over Traditional Backend
-**Decision:** Python serverless functions (Vercel) instead of Express/FastAPI server
-
-**Why:** Stateless evaluation API benefits from serverless. Auto-scaling, pay-per-use, simpler deployment. No server management overhead.
-
-### JSONB for Flexible Schema
-**Decision:** Use PostgreSQL JSONB for requirements, skills, education, arrays
-
-**Why:** Job requirements vary widely across roles. JSONB allows schema evolution without migrations while maintaining queryability.
-
-## Accepted Trade-offs
-
-### JSONB Flexibility vs Type Safety
-**Trade-off:** Less type safety at database level for flexible data structures
-
-**Why Accept:** Faster MVP iteration. Requirements stabilize post-launch. Flexibility > strict typing for now.
-
-### Monorepo without Workspace Tools
-**Trade-off:** No Nx/Turborepo for monorepo management
-
-**Why Accept:** Only 2 directories (frontend, api), minimal shared code. Tooling adds complexity without value.
-
-### Manual Testing over E2E
-**Trade-off:** Manual API/UI testing instead of comprehensive automated tests
-
-**Why Accept:** Prioritize feature velocity. Add tests as system stabilizes and edge cases emerge.
-
-### Regex Parsing over Structured Output
-**Trade-off:** Parse Claude text responses with regex vs strict JSON schema
-
-**Why Accept:** Natural language output is easier to read/modify. Parsing logic is straightforward. Better for prompt engineering iteration.
+**Why:** Free, fast, and private. No API costs for initial filtering. Models like phi3 and mistral run locally.
 
 ## Critical Constraints
 
@@ -240,47 +196,36 @@ POST /api/evaluate_candidate
 - **Comment complex evaluation logic** - Scoring calculations, parsing, prompts
 - **Keep components under 200 lines** - Split if exceeding
 - **Validate all API inputs** - Frontend + backend validation
-- **Handle AI errors gracefully** - Claude API can fail, show user-friendly messages
-- **Use JSONB for flexible data** - Arrays, objects, variable structures
-- **Test migrations locally first** - Supabase local before production
+- **Handle AI errors gracefully** - API calls can fail, show user-friendly messages
 
 ### What NOT To Do
 
 - ❌ **Don't bypass React Query for server state** - Cache inconsistencies
 - ❌ **Don't commit .env files or API keys** - Security risk
 - ❌ **Don't modify prompts without updating parsers** - Evaluations will fail
-- ❌ **Don't store PII unencrypted** - Use Supabase encryption
-- ❌ **Don't skip CORS headers** - API endpoints need CORS
-- ❌ **Don't use sync file operations in serverless** - Use async only
+- ❌ **Don't use sync file operations in API** - Use async only
 - ❌ **Don't mutate React state directly** - Use setters
-- ❌ **Don't rewrite backend in Node.js** - Python is better for this use case
 - ❌ **Don't use class components** - Functional components only
 
-### Commit Protocol
+## Environment Variables
 
-Before every commit, use the **product-manager agent** (`.claude/agents/product-manager.md`) to update `PROJECT_STATUS.md` with:
-- Move completed items to "Completed Features" section
-- Update "In Progress" with current work
-- Note any new blockers, decisions, or infrastructure changes
-- Update "Last Updated" date
+**Frontend** (`frontend/.env.local`):
+```
+VITE_API_URL=http://localhost:8000
+```
 
-This ensures project status stays in sync with code changes and nothing gets lost between sessions.
+**API** (`api/.env`):
+```
+ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...  # Optional
+```
 
 ## Testing Philosophy
 
-**Current:** Manual testing of API endpoints and UI flows
-
-**Target:**
+**Current:**
 - Unit tests: Utility functions, parsing logic (Vitest)
 - Component tests: Forms, UI interactions (React Testing Library)
-- Integration tests: API evaluation endpoints
-- E2E tests: Critical user flows (Playwright - future)
-
-**Priorities:**
-1. Evaluation response parsing (high impact if broken)
-2. Scoring calculations (Stage 1 and Stage 2)
-3. Form validation logic
-4. Supabase data mutations
+- E2E tests: Critical user flows (Playwright)
 
 **Guidelines:**
 - Test business logic, not implementation details
@@ -308,49 +253,21 @@ This ensures project status stays in sync with code changes and nothing gets los
 - Output: $0.60 per 1M tokens
 - Average: ~$0.005 per evaluation
 
-Cost calculated automatically in `evaluate_candidate.py` and stored in database.
-
-## Environment Variables
-
-**Frontend** (`frontend/.env.local`):
-```
-VITE_SUPABASE_URL=http://127.0.0.1:54321  # Local or cloud URL
-VITE_SUPABASE_ANON_KEY=your-anon-key
-```
-
-**API** (`api/.env`):
-```
-ANTHROPIC_API_KEY=sk-ant-...
-OPENAI_API_KEY=sk-...  # Optional
-```
-
-## Important Implementation Notes
-
-- **React Query** manages all server state. Never use useState for server data.
-- **JSONB fields** enable schema evolution. Use for arrays/objects.
-- **Evaluation prompts** format must match parsing logic in `ai_evaluator.py`
-- **CORS enabled** on all API endpoints for local development
-- **File uploads** go to Supabase Storage, text extracted via `parse_resume.py`
-- **Recruiting skill** at `~/.claude/skills/recruiting-evaluation/SKILL.md` (falls back to inline)
-- **Multi-LLM support** via `llm_providers.py` abstraction layer
+**Ollama (local):** Free
 
 ## Current Focus
 
-**🎯 Phase 3: Live Testing Preparation**
+**🎯 Phase 4: Simplified Personal Use**
 
-### Session Goals:
-1. ✅ Clean up project structure for momentum tracking
-2. ⚠️ Test resume upload service (newly merged)
-3. ⚠️ Verify auth flow end-to-end
-4. ⚠️ Fix remaining code review issues (accessibility, ARIA labels)
-5. 📋 Prepare for Phase 4: Live user testing
+- ✅ Removed Supabase dependencies
+- ✅ Removed authentication (single-user mode)
+- ✅ SQLite database via Python API
+- ✅ Local file storage for resumes
 
-**For detailed progress and blockers, see [PROJECT_STATUS.md](PROJECT_STATUS.md)**
+**For detailed progress, see [PROJECT_STATUS.md](PROJECT_STATUS.md)**
 
 ---
 
 **File Organization:**
-- `CLAUDE.md` - This file (stable architecture, read once per session)
-- `PROJECT_STATUS.md` - Living status (update daily, reference often)
-- `WORKFLOW_GUIDE.md` - How to do common tasks
-- `TESTING_GUIDE.md` - Our testing standards
+- `CLAUDE.md` - This file (stable architecture)
+- `PROJECT_STATUS.md` - Living status (update frequently)

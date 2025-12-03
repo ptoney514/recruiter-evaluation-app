@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
-import { storageManager } from '../services/storage/storageManager'
+import { sessionStore } from '../services/storage/sessionStore'
 import { extractTextFromFile } from '../utils/pdfParser'
 import { MAX_FILE_SIZE_MB, MAX_RESUMES_BATCH, SUPPORTED_FILE_TYPES } from '../constants/config'
 
@@ -18,7 +18,7 @@ export function ResumeUploadPage() {
   // Load existing resumes if available
   useEffect(() => {
     async function loadExisting() {
-      const existing = await storageManager.getCurrentEvaluation()
+      const existing = sessionStore.getCurrentEvaluation()
       if (existing && existing.resumes) {
         setResumes(existing.resumes)
       }
@@ -117,7 +117,7 @@ export function ResumeUploadPage() {
       setResumes(updated)
 
       // Save to storage (auto-routes to session or database)
-      await storageManager.updateEvaluation({ resumes: updated })
+      sessionStore.updateEvaluation({ resumes: updated })
 
       // Show errors if any
       if (errors.length > 0) {
@@ -136,7 +136,7 @@ export function ResumeUploadPage() {
   const clearAllResumes = async () => {
     if (window.confirm('Remove all uploaded resumes?')) {
       setResumes([])
-      await storageManager.updateEvaluation({ resumes: [] })
+      sessionStore.updateEvaluation({ resumes: [] })
     }
   }
 
@@ -166,7 +166,7 @@ export function ResumeUploadPage() {
   const removeResume = async (id) => {
     const updated = resumes.filter(r => r.id !== id)
     setResumes(updated)
-    await storageManager.updateEvaluation({ resumes: updated })
+    sessionStore.updateEvaluation({ resumes: updated })
   }
 
   const handleNext = () => {

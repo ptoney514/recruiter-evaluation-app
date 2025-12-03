@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
-import { storageManager } from '../services/storage/storageManager'
 import { sessionStore } from '../services/storage/sessionStore'
 import { exportService } from '../services/exportService'
 import { useCandidates } from '../hooks/useCandidates'
@@ -118,7 +117,7 @@ export function ResultsPage() {
   useEffect(() => {
     if (!isDatabaseMode) {
       async function loadEvaluation() {
-        const current = await storageManager.getCurrentEvaluation()
+        const current = sessionStore.getCurrentEvaluation()
         if (!current || !current.job?.title || !current.resumes?.length) {
           navigate('/')
           return
@@ -150,7 +149,7 @@ export function ResultsPage() {
     if (isDatabaseMode) {
       navigate('/app')
     } else {
-      await storageManager.clearEvaluation()
+      sessionStore.clearEvaluation()
       navigate('/')
     }
   }
