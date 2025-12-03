@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '../lib/supabase'
+import * as dbService from '../services/databaseService'
 import { evaluateWithAI, evaluateWithRegex } from '../services/evaluationService'
 import { checkOllamaStatus, evaluateQuick, evaluateQuickBatch, compareModels, OLLAMA_MODELS, DEFAULT_MODEL } from '../services/ollamaService'
 
@@ -19,99 +19,7 @@ function mapRecommendation(apiRecommendation) {
 }
 
 /**
- * React Query hook to fetch a single evaluation by ID
- *
- * @param {string} evaluationId - Evaluation ID to fetch
- * @returns {Object} React Query result with evaluation data, loading state, and error
- */
-export function useEvaluation(evaluationId) {
-  return useQuery({
-    queryKey: ['evaluations', evaluationId],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
-      const { data, error } = await supabase
-        .from('evaluations')
-        .select(`
-          id,
-          candidate_id,
-          job_id,
-          overall_score,
-          recommendation,
-          confidence,
-          key_strengths,
-          concerns,
-          requirements_match,
-          reasoning,
-          claude_model,
-          evaluation_prompt_tokens,
-          evaluation_completion_tokens,
-          evaluation_cost,
-          version,
-          context_included,
-          score_change,
-          change_reason,
-          created_at,
-          candidates (
-            id,
-            full_name,
-            email
-          ),
-          jobs (
-            id,
-            title
-          )
-        `)
-        .eq('id', evaluationId)
-        .eq('user_id', user.id)
-        .single()
-
-      if (error) {
-        throw error
-      }
-
-      return {
-        id: data.id,
-        candidateId: data.candidate_id,
-        jobId: data.job_id,
-        overallScore: data.overall_score,
-        recommendation: data.recommendation,
-        confidence: data.confidence,
-        keyStrengths: data.key_strengths || [],
-        concerns: data.concerns || [],
-        requirementsMatch: data.requirements_match || {},
-        reasoning: data.reasoning,
-        claudeModel: data.claude_model,
-        promptTokens: data.evaluation_prompt_tokens,
-        completionTokens: data.evaluation_completion_tokens,
-        cost: data.evaluation_cost,
-        version: data.version,
-        contextIncluded: data.context_included || ['resume'],
-        scoreChange: data.score_change,
-        changeReason: data.change_reason,
-        createdAt: data.created_at,
-        candidate: data.candidates ? {
-          id: data.candidates.id,
-          name: data.candidates.full_name,
-          email: data.candidates.email
-        } : null,
-        job: data.jobs ? {
-          id: data.jobs.id,
-          title: data.jobs.title
-        } : null
-      }
-    },
-    enabled: !!evaluationId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  })
-}
-
-/**
- * React Query hook to fetch all evaluations for a candidate
+ * React Query hook to fetch evaluations for a candidate
  *
  * @param {string} candidateId - Candidate ID to fetch evaluations for
  * @returns {Object} React Query result with evaluations array
@@ -120,49 +28,29 @@ export function useEvaluationHistory(candidateId) {
   return useQuery({
     queryKey: ['evaluations', 'history', candidateId],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const result = await dbService.getEvaluations(candidateId)
 
-      if (!user) {
-        throw new Error('User not authenticated')
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch evaluations')
       }
 
-      const { data, error } = await supabase
-        .from('evaluations')
-        .select(`
-          id,
-          candidate_id,
-          job_id,
-          overall_score,
-          recommendation,
-          confidence,
-          key_strengths,
-          concerns,
-          reasoning,
-          claude_model,
-          evaluation_cost,
-          version,
-          score_change,
-          change_reason,
-          created_at
-        `)
-        .eq('candidate_id', candidateId)
-        .eq('user_id', user.id)
-        .order('version', { ascending: false })
-
-      if (error) {
-        throw error
-      }
-
-      return data.map(e => ({
+      return (result.evaluations || []).map(e => ({
         id: e.id,
         candidateId: e.candidate_id,
         jobId: e.job_id,
-        overallScore: e.overall_score,
+        overallScore: e.overall_score || e.score,
         recommendation: e.recommendation,
         confidence: e.confidence,
-        keyStrengths: e.key_strengths || [],
+        // A-T-Q scores
+        aScore: e.a_score,
+        tScore: e.t_score,
+        qScore: e.q_score,
+        scoringModel: e.scoring_model || 'ATQ',
+        keyStrengths: e.key_strengths || e.strengths || [],
         concerns: e.concerns || [],
         reasoning: e.reasoning,
+        accomplishmentsAnalysis: e.accomplishments_analysis,
+        trajectoryAnalysis: e.trajectory_analysis,
         claudeModel: e.claude_model,
         cost: e.evaluation_cost,
         version: e.version,
@@ -177,6 +65,26 @@ export function useEvaluationHistory(candidateId) {
 }
 
 /**
+ * React Query hook to fetch a single evaluation by ID
+ *
+ * @param {string} evaluationId - Evaluation ID to fetch
+ * @returns {Object} React Query result with evaluation data, loading state, and error
+ */
+export function useEvaluation(evaluationId) {
+  return useQuery({
+    queryKey: ['evaluations', evaluationId],
+    queryFn: async () => {
+      // For single evaluation, we need to fetch via candidate evaluations
+      // The API might need an endpoint for this - for now return null
+      // This can be enhanced when needed
+      return null
+    },
+    enabled: !!evaluationId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+}
+
+/**
  * React Query mutation hook to evaluate a single candidate with AI
  *
  * @returns {Object} React Query mutation with mutate function and status
@@ -186,46 +94,26 @@ export function useEvaluateCandidate() {
 
   return useMutation({
     mutationFn: async ({ candidateId, jobId, options = {} }) => {
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
       // Fetch candidate data
-      const { data: candidate, error: candidateError } = await supabase
-        .from('candidates')
-        .select('id, full_name, email, resume_text')
-        .eq('id', candidateId)
-        .eq('user_id', user.id)
-        .single()
-
-      if (candidateError) {
-        throw new Error(`Failed to fetch candidate: ${candidateError.message}`)
+      const candidateResult = await dbService.getCandidate(candidateId)
+      if (!candidateResult.success) {
+        throw new Error(`Failed to fetch candidate: ${candidateResult.error}`)
       }
+      const candidate = candidateResult.candidate
 
       if (!candidate.resume_text) {
         throw new Error('Candidate has no resume text to evaluate')
       }
 
       // Fetch job data
-      const { data: job, error: jobError } = await supabase
-        .from('jobs')
-        .select('id, title, description, must_have_requirements, preferred_requirements, performance_profile')
-        .eq('id', jobId)
-        .eq('user_id', user.id)
-        .single()
-
-      if (jobError) {
-        throw new Error(`Failed to fetch job: ${jobError.message}`)
+      const jobResult = await dbService.getJob(jobId)
+      if (!jobResult.success) {
+        throw new Error(`Failed to fetch job: ${jobResult.error}`)
       }
+      const job = jobResult.job
 
       // Update candidate status to 'evaluating'
-      await supabase
-        .from('candidates')
-        .update({ evaluation_status: 'evaluating' })
-        .eq('id', candidateId)
-        .eq('user_id', user.id)
+      await dbService.updateCandidate(candidateId, { evaluation_status: 'evaluating' })
 
       // Format data for evaluation service
       const formattedJob = {
@@ -237,7 +125,7 @@ export function useEvaluateCandidate() {
       }
 
       const formattedCandidate = {
-        name: candidate.full_name,
+        name: candidate.name || candidate.full_name,
         text: candidate.resume_text,
         email: candidate.email || ''
       }
@@ -252,88 +140,46 @@ export function useEvaluateCandidate() {
 
       if (!result.success || result.results.length === 0) {
         // Mark as failed
-        await supabase
-          .from('candidates')
-          .update({ evaluation_status: 'failed' })
-          .eq('id', candidateId)
-          .eq('user_id', user.id)
-
+        await dbService.updateCandidate(candidateId, { evaluation_status: 'failed' })
         throw new Error('AI evaluation failed')
       }
 
       const evaluation = result.results[0]
       const mappedRecommendation = mapRecommendation(evaluation.recommendation)
 
-      // Get next version number for this candidate
-      const { data: versionData } = await supabase
-        .rpc('get_next_evaluation_version', { candidate_uuid: candidateId })
-
-      const version = versionData || 1
-
-      // Get previous evaluation for score comparison
-      const { data: prevEvaluation } = await supabase
-        .from('evaluations')
-        .select('overall_score')
-        .eq('candidate_id', candidateId)
-        .eq('user_id', user.id)
-        .order('version', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      const scoreChange = prevEvaluation
-        ? evaluation.score - prevEvaluation.overall_score
-        : null
-
-      // Insert evaluation record
-      const { data: savedEvaluation, error: evalError } = await supabase
-        .from('evaluations')
-        .insert([{
-          candidate_id: candidateId,
-          job_id: jobId,
-          user_id: user.id,
-          overall_score: evaluation.score,
-          recommendation: mappedRecommendation,
-          confidence: evaluation.confidence || null,
-          key_strengths: evaluation.keyStrengths || [],
-          concerns: evaluation.keyConcerns || [],
-          requirements_match: evaluation.requirementsMatch || {},
-          reasoning: evaluation.reasoning,
-          claude_model: options.model || 'claude-3-5-haiku-20241022',
-          evaluation_prompt_tokens: result.usage?.inputTokens || 0,
-          evaluation_completion_tokens: result.usage?.outputTokens || 0,
-          evaluation_cost: result.usage?.cost || 0,
-          version,
-          context_included: ['resume'],
-          score_change: scoreChange,
-          change_reason: version > 1 ? 'Re-evaluation' : null
-        }])
-        .select()
-        .single()
-
-      if (evalError) {
-        throw new Error(`Failed to save evaluation: ${evalError.message}`)
+      // Create evaluation record
+      const evalData = {
+        score: evaluation.score,
+        scoring_model: 'ATQ',
+        a_score: evaluation.aScore || null,
+        t_score: evaluation.tScore || null,
+        q_score: evaluation.qScore || null,
+        recommendation: mappedRecommendation,
+        reasoning: evaluation.reasoning,
+        strengths: evaluation.keyStrengths || [],
+        concerns: evaluation.keyConcerns || [],
+        accomplishments_analysis: evaluation.accomplishmentsAnalysis || null,
+        trajectory_analysis: evaluation.trajectoryAnalysis || null
       }
+
+      const evalResult = await dbService.createEvaluation(candidateId, evalData)
 
       // Update candidate with evaluation results
-      const { error: updateError } = await supabase
-        .from('candidates')
-        .update({
-          evaluation_status: 'evaluated',
-          recommendation: mappedRecommendation,
-          score: evaluation.score,
-          evaluated_at: new Date().toISOString(),
-          evaluation_count: version
-        })
-        .eq('id', candidateId)
-        .eq('user_id', user.id)
-
-      if (updateError) {
-        throw new Error(`Failed to update candidate: ${updateError.message}`)
-      }
+      await dbService.updateCandidate(candidateId, {
+        evaluation_status: 'evaluated',
+        recommendation: mappedRecommendation,
+        score: evaluation.score,
+        evaluated_at: new Date().toISOString(),
+        stage1_score: evaluation.score,
+        stage1_a_score: evaluation.aScore,
+        stage1_t_score: evaluation.tScore,
+        stage1_q_score: evaluation.qScore,
+        stage1_evaluated_at: new Date().toISOString()
+      })
 
       return {
-        evaluation: savedEvaluation,
-        candidate: { id: candidateId, name: candidate.full_name },
+        evaluation: evalResult.evaluation,
+        candidate: { id: candidateId, name: candidate.name || candidate.full_name },
         usage: result.usage
       }
     },
@@ -357,53 +203,37 @@ export function useBatchEvaluate() {
 
   return useMutation({
     mutationFn: async ({ candidateIds, jobId, options = {} }) => {
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
       if (!candidateIds || candidateIds.length === 0) {
         throw new Error('No candidates selected for evaluation')
       }
 
-      // Fetch all candidates
-      const { data: candidates, error: candidatesError } = await supabase
-        .from('candidates')
-        .select('id, full_name, email, resume_text')
-        .in('id', candidateIds)
-        .eq('user_id', user.id)
+      // Fetch job data first
+      const jobResult = await dbService.getJob(jobId)
+      if (!jobResult.success) {
+        throw new Error(`Failed to fetch job: ${jobResult.error}`)
+      }
+      const job = jobResult.job
 
-      if (candidatesError) {
-        throw new Error(`Failed to fetch candidates: ${candidatesError.message}`)
+      // Fetch all candidates
+      const candidatesResult = await dbService.getCandidates(jobId)
+      if (!candidatesResult.success) {
+        throw new Error(`Failed to fetch candidates: ${candidatesResult.error}`)
       }
 
-      // Filter out candidates without resume text
-      const validCandidates = candidates.filter(c => c.resume_text)
-      const skippedCandidates = candidates.filter(c => !c.resume_text)
+      // Filter to selected candidates with resume text
+      const allCandidates = candidatesResult.candidates || []
+      const selectedCandidates = allCandidates.filter(c => candidateIds.includes(c.id))
+      const validCandidates = selectedCandidates.filter(c => c.resume_text)
+      const skippedCandidates = selectedCandidates.filter(c => !c.resume_text)
 
       if (validCandidates.length === 0) {
         throw new Error('No candidates have resume text to evaluate')
       }
 
-      // Fetch job data
-      const { data: job, error: jobError } = await supabase
-        .from('jobs')
-        .select('id, title, description, must_have_requirements, preferred_requirements, performance_profile')
-        .eq('id', jobId)
-        .eq('user_id', user.id)
-        .single()
-
-      if (jobError) {
-        throw new Error(`Failed to fetch job: ${jobError.message}`)
-      }
-
       // Update all candidates to 'evaluating' status
-      await supabase
-        .from('candidates')
-        .update({ evaluation_status: 'evaluating' })
-        .in('id', validCandidates.map(c => c.id))
-        .eq('user_id', user.id)
+      for (const c of validCandidates) {
+        await dbService.updateCandidate(c.id, { evaluation_status: 'evaluating' })
+      }
 
       // Format data for evaluation service
       const formattedJob = {
@@ -416,7 +246,7 @@ export function useBatchEvaluate() {
 
       const formattedCandidates = validCandidates.map(c => ({
         id: c.id,
-        name: c.full_name,
+        name: c.name || c.full_name,
         text: c.resume_text,
         email: c.email || ''
       }))
@@ -443,54 +273,37 @@ export function useBatchEvaluate() {
             const mappedRecommendation = mapRecommendation(evaluation.recommendation)
             const isSuccess = evaluation.recommendation !== 'ERROR'
 
-            // Get next version number
-            const { data: versionData } = await supabase
-              .rpc('get_next_evaluation_version', { candidate_uuid: evaluatedCandidate.id })
-
-            const version = versionData || 1
-
             if (isSuccess) {
-              // Insert evaluation record
-              await supabase
-                .from('evaluations')
-                .insert([{
-                  candidate_id: evaluatedCandidate.id,
-                  job_id: jobId,
-                  user_id: user.id,
-                  overall_score: evaluation.score,
-                  recommendation: mappedRecommendation,
-                  confidence: evaluation.confidence || null,
-                  key_strengths: evaluation.keyStrengths || [],
-                  concerns: evaluation.keyConcerns || [],
-                  requirements_match: evaluation.requirementsMatch || {},
-                  reasoning: evaluation.reasoning,
-                  claude_model: options.model || 'claude-3-5-haiku-20241022',
-                  evaluation_prompt_tokens: progress.result.usage?.inputTokens || 0,
-                  evaluation_completion_tokens: progress.result.usage?.outputTokens || 0,
-                  evaluation_cost: progress.result.usage?.cost || 0,
-                  version,
-                  context_included: ['resume']
-                }])
+              // Create evaluation record
+              await dbService.createEvaluation(evaluatedCandidate.id, {
+                score: evaluation.score,
+                scoring_model: 'ATQ',
+                a_score: evaluation.aScore || null,
+                t_score: evaluation.tScore || null,
+                q_score: evaluation.qScore || null,
+                recommendation: mappedRecommendation,
+                reasoning: evaluation.reasoning,
+                strengths: evaluation.keyStrengths || [],
+                concerns: evaluation.keyConcerns || []
+              })
 
               // Update candidate status
-              await supabase
-                .from('candidates')
-                .update({
-                  evaluation_status: 'evaluated',
-                  recommendation: mappedRecommendation,
-                  score: evaluation.score,
-                  evaluated_at: new Date().toISOString(),
-                  evaluation_count: version
-                })
-                .eq('id', evaluatedCandidate.id)
-                .eq('user_id', user.id)
+              await dbService.updateCandidate(evaluatedCandidate.id, {
+                evaluation_status: 'evaluated',
+                recommendation: mappedRecommendation,
+                score: evaluation.score,
+                evaluated_at: new Date().toISOString(),
+                stage1_score: evaluation.score,
+                stage1_a_score: evaluation.aScore,
+                stage1_t_score: evaluation.tScore,
+                stage1_q_score: evaluation.qScore,
+                stage1_evaluated_at: new Date().toISOString()
+              })
             } else {
               // Mark as failed
-              await supabase
-                .from('candidates')
-                .update({ evaluation_status: 'failed' })
-                .eq('id', evaluatedCandidate.id)
-                .eq('user_id', user.id)
+              await dbService.updateCandidate(evaluatedCandidate.id, {
+                evaluation_status: 'failed'
+              })
             }
 
             progressResults.push({
@@ -515,15 +328,11 @@ export function useBatchEvaluate() {
       })
 
       // Mark skipped candidates
-      if (skippedCandidates.length > 0) {
-        await supabase
-          .from('candidates')
-          .update({
-            evaluation_status: 'failed',
-            recruiter_notes: 'Skipped: No resume text available'
-          })
-          .in('id', skippedCandidates.map(c => c.id))
-          .eq('user_id', user.id)
+      for (const c of skippedCandidates) {
+        await dbService.updateCandidate(c.id, {
+          evaluation_status: 'failed',
+          recruiter_notes: 'Skipped: No resume text available'
+        })
       }
 
       return {
@@ -531,7 +340,7 @@ export function useBatchEvaluate() {
         results: progressResults,
         summary: result.summary,
         usage: result.usage,
-        skipped: skippedCandidates.map(c => ({ id: c.id, name: c.full_name }))
+        skipped: skippedCandidates.map(c => ({ id: c.id, name: c.name || c.full_name }))
       }
     },
     onSuccess: () => {
@@ -554,44 +363,30 @@ export function useRegexEvaluate() {
 
   return useMutation({
     mutationFn: async ({ candidateIds, jobId }) => {
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
       if (!candidateIds || candidateIds.length === 0) {
         throw new Error('No candidates selected for evaluation')
       }
 
-      // Fetch all candidates
-      const { data: candidates, error: candidatesError } = await supabase
-        .from('candidates')
-        .select('id, full_name, email, resume_text')
-        .in('id', candidateIds)
-        .eq('user_id', user.id)
+      // Fetch job data
+      const jobResult = await dbService.getJob(jobId)
+      if (!jobResult.success) {
+        throw new Error(`Failed to fetch job: ${jobResult.error}`)
+      }
+      const job = jobResult.job
 
-      if (candidatesError) {
-        throw new Error(`Failed to fetch candidates: ${candidatesError.message}`)
+      // Fetch all candidates for this job
+      const candidatesResult = await dbService.getCandidates(jobId)
+      if (!candidatesResult.success) {
+        throw new Error(`Failed to fetch candidates: ${candidatesResult.error}`)
       }
 
-      // Filter out candidates without resume text
-      const validCandidates = candidates.filter(c => c.resume_text)
+      // Filter to selected candidates with resume text
+      const allCandidates = candidatesResult.candidates || []
+      const selectedCandidates = allCandidates.filter(c => candidateIds.includes(c.id))
+      const validCandidates = selectedCandidates.filter(c => c.resume_text)
 
       if (validCandidates.length === 0) {
         throw new Error('No candidates have resume text to evaluate')
-      }
-
-      // Fetch job data
-      const { data: job, error: jobError } = await supabase
-        .from('jobs')
-        .select('id, title, description, must_have_requirements, preferred_requirements')
-        .eq('id', jobId)
-        .eq('user_id', user.id)
-        .single()
-
-      if (jobError) {
-        throw new Error(`Failed to fetch job: ${jobError.message}`)
       }
 
       // Format data for regex evaluation
@@ -604,7 +399,7 @@ export function useRegexEvaluate() {
 
       const formattedCandidates = validCandidates.map(c => ({
         id: c.id,
-        name: c.full_name,
+        name: c.name || c.full_name,
         text: c.resume_text
       }))
 
@@ -613,22 +408,17 @@ export function useRegexEvaluate() {
 
       // Update candidates with regex scores (no evaluation record created)
       for (const evalResult of result.results || []) {
-        const candidate = validCandidates.find(c => c.full_name === evalResult.name)
+        const candidate = validCandidates.find(c => (c.name || c.full_name) === evalResult.name)
         if (candidate) {
           // Map regex recommendation
           let recommendation = 'DECLINE'
           if (evalResult.score >= 85) recommendation = 'INTERVIEW'
           else if (evalResult.score >= 70) recommendation = 'PHONE_SCREEN'
 
-          await supabase
-            .from('candidates')
-            .update({
-              score: evalResult.score,
-              recommendation,
-              // Don't change evaluation_status - regex is just a pre-filter
-            })
-            .eq('id', candidate.id)
-            .eq('user_id', user.id)
+          await dbService.updateCandidate(candidate.id, {
+            score: evalResult.score,
+            recommendation
+          })
         }
       }
 
@@ -652,167 +442,19 @@ export function useRegexEvaluate() {
  */
 export function useRetryEvaluation() {
   const queryClient = useQueryClient()
+  const evaluateMutation = useEvaluateCandidate()
 
   return useMutation({
     mutationFn: async ({ candidateId, jobId, options = {} }) => {
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
       // Reset status to pending first
-      await supabase
-        .from('candidates')
-        .update({ evaluation_status: 'pending' })
-        .eq('id', candidateId)
-        .eq('user_id', user.id)
+      await dbService.updateCandidate(candidateId, { evaluation_status: 'pending' })
 
-      // Fetch candidate data
-      const { data: candidate, error: candidateError } = await supabase
-        .from('candidates')
-        .select('id, full_name, email, resume_text')
-        .eq('id', candidateId)
-        .eq('user_id', user.id)
-        .single()
-
-      if (candidateError) {
-        throw new Error(`Failed to fetch candidate: ${candidateError.message}`)
-      }
-
-      if (!candidate.resume_text) {
-        throw new Error('Candidate has no resume text to evaluate')
-      }
-
-      // Fetch job data
-      const { data: job, error: jobError } = await supabase
-        .from('jobs')
-        .select('id, title, description, must_have_requirements, preferred_requirements, performance_profile')
-        .eq('id', jobId)
-        .eq('user_id', user.id)
-        .single()
-
-      if (jobError) {
-        throw new Error(`Failed to fetch job: ${jobError.message}`)
-      }
-
-      // Update candidate status to 'evaluating'
-      await supabase
-        .from('candidates')
-        .update({ evaluation_status: 'evaluating' })
-        .eq('id', candidateId)
-        .eq('user_id', user.id)
-
-      // Format data for evaluation service
-      const formattedJob = {
-        title: job.title,
-        description: job.description,
-        mustHaveRequirements: job.must_have_requirements || [],
-        preferredRequirements: job.preferred_requirements || [],
-        performanceProfile: job.performance_profile
-      }
-
-      const formattedCandidate = {
-        name: candidate.full_name,
-        text: candidate.resume_text,
-        email: candidate.email || ''
-      }
-
-      // Call AI evaluation with extra retries
-      const result = await evaluateWithAI(formattedJob, [formattedCandidate], {
-        stage: options.stage || 1,
-        additionalInstructions: options.additionalInstructions,
-        provider: options.provider || 'anthropic',
-        model: options.model,
-        maxRetries: 3 // Extra retry for manual retry
+      // Use the standard evaluation mutation with extra retries
+      return evaluateMutation.mutateAsync({
+        candidateId,
+        jobId,
+        options: { ...options, maxRetries: 3 }
       })
-
-      if (!result.success || result.results.length === 0) {
-        // Mark as failed
-        await supabase
-          .from('candidates')
-          .update({ evaluation_status: 'failed' })
-          .eq('id', candidateId)
-          .eq('user_id', user.id)
-
-        throw new Error('AI evaluation failed after retry')
-      }
-
-      const evaluation = result.results[0]
-      const mappedRecommendation = mapRecommendation(evaluation.recommendation)
-
-      // Get next version number for this candidate
-      const { data: versionData } = await supabase
-        .rpc('get_next_evaluation_version', { candidate_uuid: candidateId })
-
-      const version = versionData || 1
-
-      // Get previous evaluation for score comparison
-      const { data: prevEvaluation } = await supabase
-        .from('evaluations')
-        .select('overall_score')
-        .eq('candidate_id', candidateId)
-        .eq('user_id', user.id)
-        .order('version', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      const scoreChange = prevEvaluation
-        ? evaluation.score - prevEvaluation.overall_score
-        : null
-
-      // Insert evaluation record
-      const { data: savedEvaluation, error: evalError } = await supabase
-        .from('evaluations')
-        .insert([{
-          candidate_id: candidateId,
-          job_id: jobId,
-          user_id: user.id,
-          overall_score: evaluation.score,
-          recommendation: mappedRecommendation,
-          confidence: evaluation.confidence || null,
-          key_strengths: evaluation.keyStrengths || [],
-          concerns: evaluation.keyConcerns || [],
-          requirements_match: evaluation.requirementsMatch || {},
-          reasoning: evaluation.reasoning,
-          claude_model: options.model || 'claude-3-5-haiku-20241022',
-          evaluation_prompt_tokens: result.usage?.inputTokens || 0,
-          evaluation_completion_tokens: result.usage?.outputTokens || 0,
-          evaluation_cost: result.usage?.cost || 0,
-          version,
-          context_included: ['resume'],
-          score_change: scoreChange,
-          change_reason: 'Manual retry'
-        }])
-        .select()
-        .single()
-
-      if (evalError) {
-        throw new Error(`Failed to save evaluation: ${evalError.message}`)
-      }
-
-      // Update candidate with evaluation results
-      const { error: updateError } = await supabase
-        .from('candidates')
-        .update({
-          evaluation_status: 'evaluated',
-          recommendation: mappedRecommendation,
-          score: evaluation.score,
-          evaluated_at: new Date().toISOString(),
-          evaluation_count: version
-        })
-        .eq('id', candidateId)
-        .eq('user_id', user.id)
-
-      if (updateError) {
-        throw new Error(`Failed to update candidate: ${updateError.message}`)
-      }
-
-      return {
-        evaluation: savedEvaluation,
-        candidate: { id: candidateId, name: candidate.full_name },
-        usage: result.usage
-      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['candidates'] })
@@ -832,78 +474,35 @@ export function useEvaluationResults(jobId) {
   return useQuery({
     queryKey: ['evaluations', 'results', jobId],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
       // Fetch job details
-      const { data: job, error: jobError } = await supabase
-        .from('jobs')
-        .select('id, title, department, location')
-        .eq('id', jobId)
-        .eq('user_id', user.id)
-        .single()
+      const jobResult = await dbService.getJob(jobId)
+      if (!jobResult.success) {
+        throw new Error(`Failed to fetch job: ${jobResult.error}`)
+      }
+      const job = jobResult.job
 
-      if (jobError) {
-        throw new Error(`Failed to fetch job: ${jobError.message}`)
+      // Fetch candidates
+      const candidatesResult = await dbService.getCandidates(jobId)
+      if (!candidatesResult.success) {
+        throw new Error(`Failed to fetch candidates: ${candidatesResult.error}`)
       }
 
-      // Fetch candidates with their latest evaluations
-      const { data: candidates, error: candidatesError } = await supabase
-        .from('candidates')
-        .select(`
-          id,
-          full_name,
-          email,
-          score,
-          recommendation,
-          evaluation_status,
-          evaluated_at,
-          evaluations (
-            id,
-            overall_score,
-            recommendation,
-            confidence,
-            key_strengths,
-            concerns,
-            reasoning,
-            claude_model,
-            evaluation_cost,
-            version,
-            created_at
-          )
-        `)
-        .eq('job_id', jobId)
-        .eq('user_id', user.id)
-        .eq('evaluation_status', 'evaluated')
-        .order('score', { ascending: false })
-
-      if (candidatesError) {
-        throw new Error(`Failed to fetch candidates: ${candidatesError.message}`)
-      }
+      // Filter to evaluated candidates and sort by score
+      const candidates = (candidatesResult.candidates || [])
+        .filter(c => c.evaluation_status === 'evaluated')
+        .sort((a, b) => (b.score || 0) - (a.score || 0))
 
       // Transform data for ResultsPage
-      const results = candidates.map(c => {
-        const latestEvaluation = c.evaluations && c.evaluations.length > 0
-          ? c.evaluations.sort((a, b) => b.version - a.version)[0]
-          : null
-
-        return {
-          name: c.full_name,
-          email: c.email,
-          score: latestEvaluation?.overall_score || c.score,
-          recommendation: latestEvaluation?.recommendation || c.recommendation,
-          confidence: latestEvaluation?.confidence,
-          keyStrengths: latestEvaluation?.key_strengths || [],
-          keyConcerns: latestEvaluation?.concerns || [],
-          reasoning: latestEvaluation?.reasoning,
-          model: latestEvaluation?.claude_model,
-          cost: latestEvaluation?.evaluation_cost,
-          evaluatedAt: c.evaluated_at
-        }
-      })
+      const results = candidates.map(c => ({
+        name: c.name || c.full_name,
+        email: c.email,
+        score: c.stage1_score || c.score,
+        aScore: c.stage1_a_score,
+        tScore: c.stage1_t_score,
+        qScore: c.stage1_q_score,
+        recommendation: c.recommendation,
+        evaluatedAt: c.evaluated_at || c.stage1_evaluated_at
+      }))
 
       // Generate summary
       const advanceCount = results.filter(r => r.recommendation === 'INTERVIEW').length
@@ -978,39 +577,23 @@ export function useQuickEvaluate() {
 
   return useMutation({
     mutationFn: async ({ candidateId, jobId, model = DEFAULT_MODEL }) => {
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
       // Fetch candidate data
-      const { data: candidate, error: candidateError } = await supabase
-        .from('candidates')
-        .select('id, full_name, email, resume_text')
-        .eq('id', candidateId)
-        .eq('user_id', user.id)
-        .single()
-
-      if (candidateError) {
-        throw new Error(`Failed to fetch candidate: ${candidateError.message}`)
+      const candidateResult = await dbService.getCandidate(candidateId)
+      if (!candidateResult.success) {
+        throw new Error(`Failed to fetch candidate: ${candidateResult.error}`)
       }
+      const candidate = candidateResult.candidate
 
       if (!candidate.resume_text) {
         throw new Error('Candidate has no resume text to evaluate')
       }
 
       // Fetch job data
-      const { data: job, error: jobError } = await supabase
-        .from('jobs')
-        .select('id, title, must_have_requirements, preferred_requirements')
-        .eq('id', jobId)
-        .eq('user_id', user.id)
-        .single()
-
-      if (jobError) {
-        throw new Error(`Failed to fetch job: ${jobError.message}`)
+      const jobResult = await dbService.getJob(jobId)
+      if (!jobResult.success) {
+        throw new Error(`Failed to fetch job: ${jobResult.error}`)
       }
+      const job = jobResult.job
 
       // Format data for Ollama evaluation
       const formattedJob = {
@@ -1021,7 +604,7 @@ export function useQuickEvaluate() {
 
       const formattedCandidate = {
         id: candidate.id,
-        name: candidate.full_name,
+        name: candidate.name || candidate.full_name,
         resumeText: candidate.resume_text
       }
 
@@ -1036,31 +619,23 @@ export function useQuickEvaluate() {
       const quickScoreAnalysis = {
         requirements_identified: result.requirements_identified || { must_have: [], preferred: [] },
         match_analysis: result.match_analysis || [],
-        methodology: result.methodology || 'Q(40%) + E(40%) + R(20%)',
+        methodology: result.methodology || 'A(50%) + T(30%) + Q(20%)',
         model: model,
         evaluated_at: result.evaluated_at || new Date().toISOString()
       }
 
       // Update candidate with quick score and analysis
-      const { error: updateError } = await supabase
-        .from('candidates')
-        .update({
-          quick_score: result.score,
-          quick_score_at: new Date().toISOString(),
-          quick_score_model: model,
-          quick_score_reasoning: result.reasoning,
-          quick_score_analysis: quickScoreAnalysis
-        })
-        .eq('id', candidateId)
-        .eq('user_id', user.id)
-
-      if (updateError) {
-        throw new Error(`Failed to save quick score: ${updateError.message}`)
-      }
+      await dbService.updateCandidate(candidateId, {
+        quick_score: result.score,
+        quick_score_at: new Date().toISOString(),
+        quick_score_model: model,
+        quick_score_reasoning: result.reasoning,
+        quick_score_analysis: JSON.stringify(quickScoreAnalysis)
+      })
 
       return {
         candidateId,
-        candidateName: candidate.full_name,
+        candidateName: candidate.name || candidate.full_name,
         score: result.score,
         reasoning: result.reasoning,
         requirements_identified: result.requirements_identified,
@@ -1087,44 +662,30 @@ export function useBatchQuickEvaluate() {
 
   return useMutation({
     mutationFn: async ({ candidateIds, jobId, model = DEFAULT_MODEL, onProgress = null }) => {
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
       if (!candidateIds || candidateIds.length === 0) {
         throw new Error('No candidates selected for evaluation')
       }
 
-      // Fetch all candidates
-      const { data: candidates, error: candidatesError } = await supabase
-        .from('candidates')
-        .select('id, full_name, email, resume_text')
-        .in('id', candidateIds)
-        .eq('user_id', user.id)
+      // Fetch job data
+      const jobResult = await dbService.getJob(jobId)
+      if (!jobResult.success) {
+        throw new Error(`Failed to fetch job: ${jobResult.error}`)
+      }
+      const job = jobResult.job
 
-      if (candidatesError) {
-        throw new Error(`Failed to fetch candidates: ${candidatesError.message}`)
+      // Fetch all candidates for this job
+      const candidatesResult = await dbService.getCandidates(jobId)
+      if (!candidatesResult.success) {
+        throw new Error(`Failed to fetch candidates: ${candidatesResult.error}`)
       }
 
-      // Filter out candidates without resume text
-      const validCandidates = candidates.filter(c => c.resume_text)
+      // Filter to selected candidates with resume text
+      const allCandidates = candidatesResult.candidates || []
+      const selectedCandidates = allCandidates.filter(c => candidateIds.includes(c.id))
+      const validCandidates = selectedCandidates.filter(c => c.resume_text)
 
       if (validCandidates.length === 0) {
         throw new Error('No candidates have resume text to evaluate')
-      }
-
-      // Fetch job data
-      const { data: job, error: jobError } = await supabase
-        .from('jobs')
-        .select('id, title, must_have_requirements, preferred_requirements')
-        .eq('id', jobId)
-        .eq('user_id', user.id)
-        .single()
-
-      if (jobError) {
-        throw new Error(`Failed to fetch job: ${jobError.message}`)
       }
 
       // Format data
@@ -1136,7 +697,7 @@ export function useBatchQuickEvaluate() {
 
       const formattedCandidates = validCandidates.map(c => ({
         id: c.id,
-        name: c.full_name,
+        name: c.name || c.full_name,
         resumeText: c.resume_text
       }))
 
@@ -1148,30 +709,23 @@ export function useBatchQuickEvaluate() {
       }
 
       // Update each candidate with their quick score and analysis
-      const updatePromises = result.results
-        .filter(r => r.success)
-        .map(r => {
-          const quickScoreAnalysis = {
-            requirements_identified: r.requirements_identified || { must_have: [], preferred: [] },
-            match_analysis: r.match_analysis || [],
-            methodology: r.methodology || 'Q(40%) + E(40%) + R(20%)',
-            model: model,
-            evaluated_at: r.evaluated_at || new Date().toISOString()
-          }
-          return supabase
-            .from('candidates')
-            .update({
-              quick_score: r.score,
-              quick_score_at: new Date().toISOString(),
-              quick_score_model: model,
-              quick_score_reasoning: r.reasoning,
-              quick_score_analysis: quickScoreAnalysis
-            })
-            .eq('id', r.candidate_id)
-            .eq('user_id', user.id)
-        })
+      for (const r of result.results.filter(r => r.success)) {
+        const quickScoreAnalysis = {
+          requirements_identified: r.requirements_identified || { must_have: [], preferred: [] },
+          match_analysis: r.match_analysis || [],
+          methodology: r.methodology || 'A(50%) + T(30%) + Q(20%)',
+          model: model,
+          evaluated_at: r.evaluated_at || new Date().toISOString()
+        }
 
-      await Promise.all(updatePromises)
+        await dbService.updateCandidate(r.candidate_id, {
+          quick_score: r.score,
+          quick_score_at: new Date().toISOString(),
+          quick_score_model: model,
+          quick_score_reasoning: r.reasoning,
+          quick_score_analysis: JSON.stringify(quickScoreAnalysis)
+        })
+      }
 
       return {
         success: true,
@@ -1194,43 +748,25 @@ export function useBatchQuickEvaluate() {
  * @returns {Object} React Query mutation with mutate function and status
  */
 export function useModelComparison() {
-  const queryClient = useQueryClient()
-
   return useMutation({
     mutationFn: async ({ candidateId, jobId, models = ['phi3', 'mistral', 'llama3'] }) => {
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
       // Fetch candidate data
-      const { data: candidate, error: candidateError } = await supabase
-        .from('candidates')
-        .select('id, full_name, email, resume_text')
-        .eq('id', candidateId)
-        .eq('user_id', user.id)
-        .single()
-
-      if (candidateError) {
-        throw new Error(`Failed to fetch candidate: ${candidateError.message}`)
+      const candidateResult = await dbService.getCandidate(candidateId)
+      if (!candidateResult.success) {
+        throw new Error(`Failed to fetch candidate: ${candidateResult.error}`)
       }
+      const candidate = candidateResult.candidate
 
       if (!candidate.resume_text) {
         throw new Error('Candidate has no resume text to evaluate')
       }
 
       // Fetch job data
-      const { data: job, error: jobError } = await supabase
-        .from('jobs')
-        .select('id, title, must_have_requirements, preferred_requirements')
-        .eq('id', jobId)
-        .eq('user_id', user.id)
-        .single()
-
-      if (jobError) {
-        throw new Error(`Failed to fetch job: ${jobError.message}`)
+      const jobResult = await dbService.getJob(jobId)
+      if (!jobResult.success) {
+        throw new Error(`Failed to fetch job: ${jobResult.error}`)
       }
+      const job = jobResult.job
 
       // Format data
       const formattedJob = {
@@ -1241,7 +777,7 @@ export function useModelComparison() {
 
       const formattedCandidate = {
         id: candidate.id,
-        name: candidate.full_name,
+        name: candidate.name || candidate.full_name,
         resumeText: candidate.resume_text
       }
 
@@ -1254,7 +790,7 @@ export function useModelComparison() {
 
       return {
         candidateId,
-        candidateName: candidate.full_name,
+        candidateName: candidate.name || candidate.full_name,
         results: result.results
       }
     },
@@ -1272,12 +808,6 @@ export function useSaveQuickScore() {
 
   return useMutation({
     mutationFn: async ({ candidateId, score, reasoning, model, requirements_identified, match_analysis, methodology, evaluated_at }) => {
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
       // Build analysis object if analysis data provided
       const updateData = {
         quick_score: score,
@@ -1288,23 +818,20 @@ export function useSaveQuickScore() {
 
       // Include analysis if provided (from model comparison)
       if (requirements_identified || match_analysis) {
-        updateData.quick_score_analysis = {
+        const quickScoreAnalysis = {
           requirements_identified: requirements_identified || { must_have: [], preferred: [] },
           match_analysis: match_analysis || [],
-          methodology: methodology || 'Q(40%) + E(40%) + R(20%)',
+          methodology: methodology || 'A(50%) + T(30%) + Q(20%)',
           model: model,
           evaluated_at: evaluated_at || new Date().toISOString()
         }
+        updateData.quick_score_analysis = JSON.stringify(quickScoreAnalysis)
       }
 
-      const { error: updateError } = await supabase
-        .from('candidates')
-        .update(updateData)
-        .eq('id', candidateId)
-        .eq('user_id', user.id)
+      const result = await dbService.updateCandidate(candidateId, updateData)
 
-      if (updateError) {
-        throw new Error(`Failed to save quick score: ${updateError.message}`)
+      if (!result.success) {
+        throw new Error(`Failed to save quick score: ${result.error}`)
       }
 
       return { candidateId, score, model }

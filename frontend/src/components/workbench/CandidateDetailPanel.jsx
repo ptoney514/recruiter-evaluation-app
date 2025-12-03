@@ -382,38 +382,44 @@ export function CandidateDetailPanel({ candidate, job, onClose, onUpdateStatus, 
                     Evala Intelligence
                   </h3>
 
-              {/* Score Cards */}
+              {/* Score Cards - A-T-Q Model */}
               <div className="grid grid-cols-4 gap-4 mb-6">
                 <div className="col-span-1 bg-white p-4 rounded-xl shadow-sm border border-slate-200 text-center flex flex-col justify-center">
                   <div
                     className={`text-3xl font-bold ${
-                      candidate.tier2Score >= 85 ? 'text-emerald-600' : 'text-amber-600'
+                      (candidate.stage1Score || candidate.quickScore || 0) >= 85 ? 'text-emerald-600' :
+                      (candidate.stage1Score || candidate.quickScore || 0) >= 70 ? 'text-amber-600' : 'text-rose-600'
                     }`}
                   >
-                    {candidate.tier2Score}
+                    {candidate.stage1Score || candidate.quickScore || '--'}
                   </div>
-                  <div className="text-xs text-slate-500 font-medium mt-1">Evala Score</div>
+                  <div className="text-xs text-slate-500 font-medium mt-1">
+                    {candidate.stage1Score ? 'Evala Score' : 'Quick Score'}
+                  </div>
                 </div>
                 <div className="col-span-3 bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-around items-center">
                   <div className="text-center">
-                    <div className="text-lg font-bold text-slate-800">{candidate.quals}%</div>
-                    <div className="text-xs text-slate-400">Qualifications</div>
-                  </div>
-                  <div className="w-px h-8 bg-slate-100"></div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-slate-800">{candidate.exp}%</div>
-                    <div className="text-xs text-slate-400">Experience</div>
-                  </div>
-                  <div className="w-px h-8 bg-slate-100"></div>
-                  <div className="text-center">
-                    <div
-                      className={`text-lg font-bold ${
-                        candidate.risk === 'Low' ? 'text-emerald-600' : 'text-rose-600'
-                      }`}
-                    >
-                      {candidate.risk}
+                    <div className="text-lg font-bold text-slate-800">
+                      {candidate.stage1AScore || candidate.quick_score_analysis?.a_score || '--'}
                     </div>
-                    <div className="text-xs text-slate-400">Risk Profile</div>
+                    <div className="text-xs text-slate-400">A (50%)</div>
+                    <div className="text-[10px] text-slate-300">Accomplishments</div>
+                  </div>
+                  <div className="w-px h-10 bg-slate-100"></div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-slate-800">
+                      {candidate.stage1TScore || candidate.quick_score_analysis?.t_score || '--'}
+                    </div>
+                    <div className="text-xs text-slate-400">T (30%)</div>
+                    <div className="text-[10px] text-slate-300">Trajectory</div>
+                  </div>
+                  <div className="w-px h-10 bg-slate-100"></div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-slate-800">
+                      {candidate.stage1QScore || candidate.quick_score_analysis?.q_score || '--'}
+                    </div>
+                    <div className="text-xs text-slate-400">Q (20%)</div>
+                    <div className="text-[10px] text-slate-300">Qualifications</div>
                   </div>
                 </div>
               </div>
@@ -425,27 +431,41 @@ export function CandidateDetailPanel({ candidate, job, onClose, onUpdateStatus, 
                   Evala Assessment
                 </h4>
                 <p className="text-slate-600 text-sm leading-relaxed mb-4">
-                  {candidate.summary}
+                  {candidate.stage1Reasoning || candidate.quick_score_analysis?.reasoning || candidate.summary || 'No assessment available yet. Run an evaluation to see the AI analysis.'}
                 </p>
 
                 <div className="space-y-3">
-                  <div>
-                    <div className="text-xs font-bold text-emerald-600 mb-1 flex items-center gap-1">
-                      <CheckCircle2 size={12} /> STRENGTHS
-                    </div>
-                    <p className="text-xs text-slate-600">
-                      Strong alignment with JD requirements for budget management and digital
-                      strategy. Proven tenure at TechFlow.
-                    </p>
-                  </div>
-                  {candidate.risk !== 'Low' && (
+                  {/* Key Strengths */}
+                  {(candidate.stage1Strengths?.length > 0 || candidate.quick_score_analysis?.key_strengths?.length > 0) && (
                     <div>
-                      <div className="text-xs font-bold text-amber-600 mb-1 flex items-center gap-1">
-                        <AlertCircle size={12} /> AREAS TO PROBE
+                      <div className="text-xs font-bold text-emerald-600 mb-1 flex items-center gap-1">
+                        <CheckCircle2 size={12} /> KEY STRENGTHS
                       </div>
-                      <p className="text-xs text-slate-600">
-                        Short tenure in 2018 role. Ask about transition reasons.
-                      </p>
+                      <ul className="text-xs text-slate-600 space-y-1">
+                        {(candidate.stage1Strengths || candidate.quick_score_analysis?.key_strengths || []).map((strength, i) => (
+                          <li key={i} className="flex items-start gap-1">
+                            <span className="text-emerald-500 mt-0.5">•</span>
+                            {strength}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Observations (replacing "AREAS TO PROBE" - no penalties, just contextual notes) */}
+                  {(candidate.stage1Observations?.length > 0 || candidate.quick_score_analysis?.observations?.length > 0) && (
+                    <div>
+                      <div className="text-xs font-bold text-slate-500 mb-1 flex items-center gap-1">
+                        <AlertCircle size={12} /> OBSERVATIONS
+                      </div>
+                      <ul className="text-xs text-slate-600 space-y-1">
+                        {(candidate.stage1Observations || candidate.quick_score_analysis?.observations || []).map((obs, i) => (
+                          <li key={i} className="flex items-start gap-1">
+                            <span className="text-slate-400 mt-0.5">•</span>
+                            {obs}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
                 </div>

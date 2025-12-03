@@ -1,62 +1,19 @@
 /**
- * Tests for useJobs hooks
- * Tests job CRUD operations with React Query and Supabase
- *
- * Note: VITE_AUTH_BYPASS is set to 'false' in vitest.config.js
- * so these tests properly test authentication flows
+ * useJobs Hook Unit Tests
+ * Tests React Query hooks with mocked databaseService
  */
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { renderHook, waitFor, act } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import React from 'react'
+import * as dbService from '../../services/databaseService'
+import { useJobs, useJob, useCreateJob, useUpdateJob, useDeleteJob } from '../useJobs'
 
-// Create mock functions at module scope
-const mockGetUser = vi.fn()
-const mockFrom = vi.fn()
+// Mock the database service
+vi.mock('../../services/databaseService')
 
-// Mock Supabase client - this must happen before the hook is imported
-vi.mock('../../lib/supabase', () => ({
-  supabase: {
-    auth: {
-      getUser: () => mockGetUser(),
-    },
-    from: (...args) => mockFrom(...args),
-  },
-}))
-
-// Import hooks after mocking
-import {
-  useJobs,
-  useJob,
-  useCreateJob,
-  useUpdateJob,
-  useDeleteJob,
-} from '../useJobs'
-
-// Test fixtures
-const mockUser = { id: 'user-123', email: 'test@example.com' }
-const mockJobId = 'job-456'
-
-const mockJobData = {
-  id: mockJobId,
-  user_id: mockUser.id,
-  title: 'Senior Software Engineer',
-  department: 'Engineering',
-  location: 'Remote',
-  employment_type: 'Full-time',
-  description: 'We are looking for a senior engineer...',
-  must_have_requirements: ['5+ years experience', 'React', 'Node.js'],
-  preferred_requirements: ['GraphQL', 'AWS'],
-  status: 'open',
-  created_at: '2025-01-10T10:00:00Z',
-  updated_at: '2025-01-15T10:00:00Z',
-  candidates: [{ count: 5 }],
-  evaluations: [{ count: 3 }],
-}
-
-// Helper to create query client wrapper
-function createWrapper() {
-  const queryClient = new QueryClient({
+// Create a fresh QueryClient for each test
+function createTestQueryClient() {
+  return new QueryClient({
     defaultOptions: {
       queries: {
         retry: false,
@@ -67,423 +24,308 @@ function createWrapper() {
       },
     },
   })
+}
 
-  return function Wrapper({ children }) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
-    )
-  }
+// Wrapper component with QueryClientProvider
+function createWrapper() {
+  const queryClient = createTestQueryClient()
+  return ({ children }) => (
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
+  )
 }
 
 describe('useJobs hooks', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-
-    // Default: authenticated user
-    mockGetUser.mockResolvedValue({
-      data: { user: mockUser },
-      error: null,
-    })
   })
 
   afterEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
   })
+
+  // ============ useJobs ============
 
   describe('useJobs', () => {
-    it('should fetch jobs for authenticated user', async () => {
-      const mockChain = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({
-          data: [mockJobData],
-          error: null,
-        }),
-      }
-      mockFrom.mockReturnValue(mockChain)
+    const mockJobs = [
+      {
+        id: 'job-1',
+        title: 'Software Engineer',
+        department: 'Engineering',
+        location: 'Remote',
+        status: 'active',
+        created_at: '2024-01-01T00:00:00Z',
+        candidates_count: 5,
+        evaluated_count: 3,
+      },
+      {
+        id: 'job-2',
+        title: 'Product Manager',
+        department: 'Product',
+        location: 'NYC',
+        status: 'draft',
+        created_at: '2024-01-02T00:00:00Z',
+        candidates_count: 0,
+        evaluated_count: 0,
+      },
+    ]
 
-      const wrapper = createWrapper()
-      const { result } = renderHook(() => useJobs(), { wrapper })
+    it('should fetch jobs successfully', async () => {
+      dbService.getJobs.mockResolvedValueOnce({
+        success: true,
+        jobs: mockJobs,
+      })
 
+      const { result } = renderHook(() => useJobs(), {
+        wrapper: createWrapper(),
+      })
+
+      // Initially loading
       expect(result.current.isLoading).toBe(true)
 
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
+      // Wait for data
+      await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-      expect(result.current.data).toHaveLength(1)
-      expect(result.current.data[0].title).toBe('Senior Software Engineer')
+      expect(result.current.data).toHaveLength(2)
+      expect(result.current.data[0].title).toBe('Software Engineer')
       expect(result.current.data[0].candidates_count).toBe(5)
-      expect(result.current.data[0].evaluated_count).toBe(3)
     })
 
-    it('should throw error when user is not authenticated', async () => {
-      mockGetUser.mockResolvedValue({
-        data: { user: null },
-        error: null,
+    it('should handle empty jobs list', async () => {
+      dbService.getJobs.mockResolvedValueOnce({
+        success: true,
+        jobs: [],
       })
 
-      const wrapper = createWrapper()
-      const { result } = renderHook(() => useJobs(), { wrapper })
-
-      await waitFor(() => {
-        expect(result.current.isError).toBe(true)
+      const { result } = renderHook(() => useJobs(), {
+        wrapper: createWrapper(),
       })
 
-      expect(result.current.error.message).toBe('User not authenticated')
+      await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+      expect(result.current.data).toHaveLength(0)
     })
 
-    it('should handle Supabase query errors', async () => {
-      const mockError = new Error('Database connection failed')
-      const mockChain = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({
-          data: null,
-          error: mockError,
-        }),
-      }
-      mockFrom.mockReturnValue(mockChain)
-
-      const wrapper = createWrapper()
-      const { result } = renderHook(() => useJobs(), { wrapper })
-
-      await waitFor(() => {
-        expect(result.current.isError).toBe(true)
+    it('should handle API errors', async () => {
+      dbService.getJobs.mockResolvedValueOnce({
+        success: false,
+        error: 'Unauthorized',
       })
 
-      expect(result.current.error.message).toBe('Database connection failed')
+      const { result } = renderHook(() => useJobs(), {
+        wrapper: createWrapper(),
+      })
+
+      await waitFor(() => expect(result.current.isError).toBe(true))
+
+      expect(result.current.error.message).toBe('Unauthorized')
     })
 
-    it('should return empty array when no jobs exist', async () => {
-      const mockChain = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({
-          data: [],
-          error: null,
-        }),
-      }
-      mockFrom.mockReturnValue(mockChain)
-
-      const wrapper = createWrapper()
-      const { result } = renderHook(() => useJobs(), { wrapper })
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
+    it('should set default status to draft for jobs without status', async () => {
+      dbService.getJobs.mockResolvedValueOnce({
+        success: true,
+        jobs: [{ id: 'job-1', title: 'Test Job' }],
       })
 
-      expect(result.current.data).toEqual([])
+      const { result } = renderHook(() => useJobs(), {
+        wrapper: createWrapper(),
+      })
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+      expect(result.current.data[0].status).toBe('draft')
     })
   })
+
+  // ============ useJob ============
 
   describe('useJob', () => {
-    it('should fetch single job by ID', async () => {
-      const mockChain = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: mockJobData,
-          error: null,
-        }),
-      }
-      mockFrom.mockReturnValue(mockChain)
+    const mockJob = {
+      id: 'job-123',
+      title: 'Senior Software Engineer',
+      department: 'Engineering',
+      location: 'SF',
+      must_have_requirements: ['5+ years experience', 'Python'],
+      preferred_requirements: ['AWS'],
+    }
 
-      const wrapper = createWrapper()
-      const { result } = renderHook(() => useJob(mockJobId), { wrapper })
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
+    it('should fetch a single job by ID', async () => {
+      dbService.getJob.mockResolvedValueOnce({
+        success: true,
+        job: mockJob,
       })
 
-      expect(result.current.data.id).toBe(mockJobId)
+      const { result } = renderHook(() => useJob('job-123'), {
+        wrapper: createWrapper(),
+      })
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+      expect(dbService.getJob).toHaveBeenCalledWith('job-123')
       expect(result.current.data.title).toBe('Senior Software Engineer')
+      expect(result.current.data.must_have_requirements).toContain('Python')
     })
 
-    it('should not fetch when jobId is not provided', async () => {
-      const wrapper = createWrapper()
-      const { result } = renderHook(() => useJob(null), { wrapper })
+    it('should not fetch when jobId is null', async () => {
+      const { result } = renderHook(() => useJob(null), {
+        wrapper: createWrapper(),
+      })
 
-      expect(result.current.data).toBeUndefined()
-      expect(mockFrom).not.toHaveBeenCalled()
+      // Should not be loading because query is disabled
+      expect(result.current.isLoading).toBe(false)
+      expect(result.current.fetchStatus).toBe('idle')
+      expect(dbService.getJob).not.toHaveBeenCalled()
+    })
+
+    it('should handle job not found', async () => {
+      dbService.getJob.mockResolvedValueOnce({
+        success: false,
+        error: 'Job not found',
+      })
+
+      const { result } = renderHook(() => useJob('nonexistent'), {
+        wrapper: createWrapper(),
+      })
+
+      await waitFor(() => expect(result.current.isError).toBe(true))
+
+      expect(result.current.error.message).toBe('Job not found')
     })
   })
+
+  // ============ useCreateJob ============
 
   describe('useCreateJob', () => {
-    it('should create a new job with user_id', async () => {
-      const newJobData = {
-        id: 'new-job-123',
-        title: 'Product Manager',
-        description: 'Looking for a PM',
-        priorities: 'SaaS experience preferred',
-        must_have_requirements: [],
-        preferred_requirements: [],
-        status: 'open',
-        user_id: mockUser.id,
+    it('should create a new job', async () => {
+      const newJob = {
+        title: 'New Position',
+        department: 'Sales',
       }
 
-      const mockChain = {
-        insert: vi.fn().mockReturnThis(),
-        select: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: newJobData,
-          error: null,
-        }),
+      const createdJob = {
+        id: 'job-new',
+        ...newJob,
+        created_at: '2024-01-03T00:00:00Z',
       }
-      mockFrom.mockReturnValue(mockChain)
 
-      const wrapper = createWrapper()
-      const { result } = renderHook(() => useCreateJob(), { wrapper })
-
-      let createdJob
-      await act(async () => {
-        createdJob = await result.current.mutateAsync({
-          title: 'Product Manager',
-          description: 'Looking for a PM',
-          priorities: 'SaaS experience preferred',
-          must_have_requirements: [],
-          preferred_requirements: [],
-          status: 'open',
-        })
+      dbService.createJob.mockResolvedValueOnce({
+        success: true,
+        job: createdJob,
       })
 
-      expect(createdJob.title).toBe('Product Manager')
-      expect(createdJob.priorities).toBe('SaaS experience preferred')
-      expect(mockChain.insert).toHaveBeenCalledWith([
-        expect.objectContaining({
-          title: 'Product Manager',
-          description: 'Looking for a PM',
-          priorities: 'SaaS experience preferred',
-          user_id: mockUser.id,
-        }),
-      ])
-    })
-
-    it('should throw error when user is not authenticated', async () => {
-      mockGetUser.mockResolvedValue({
-        data: { user: null },
-        error: null,
+      const { result } = renderHook(() => useCreateJob(), {
+        wrapper: createWrapper(),
       })
 
-      const wrapper = createWrapper()
-      const { result } = renderHook(() => useCreateJob(), { wrapper })
+      // Execute mutation
+      result.current.mutate(newJob)
 
-      await expect(
-        result.current.mutateAsync({
-          title: 'Test Job',
-          description: 'Test description',
-        })
-      ).rejects.toThrow('User not authenticated')
+      await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+      expect(dbService.createJob).toHaveBeenCalledWith(newJob)
+      expect(result.current.data.id).toBe('job-new')
     })
 
-    it('should handle Supabase insert errors', async () => {
-      const mockError = new Error("Could not find the 'priorities' column")
-      const mockChain = {
-        insert: vi.fn().mockReturnThis(),
-        select: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: null,
-          error: mockError,
-        }),
-      }
-      mockFrom.mockReturnValue(mockChain)
-
-      const wrapper = createWrapper()
-      const { result } = renderHook(() => useCreateJob(), { wrapper })
-
-      await expect(
-        result.current.mutateAsync({
-          title: 'Test Job',
-          description: 'Test description',
-          priorities: 'Test priorities',
-        })
-      ).rejects.toThrow("Could not find the 'priorities' column")
-    })
-
-    it('should handle null priorities', async () => {
-      const newJobData = {
-        id: 'new-job-456',
-        title: 'Engineer',
-        description: 'Looking for an engineer',
-        priorities: null,
-        status: 'open',
-        user_id: mockUser.id,
-      }
-
-      const mockChain = {
-        insert: vi.fn().mockReturnThis(),
-        select: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: newJobData,
-          error: null,
-        }),
-      }
-      mockFrom.mockReturnValue(mockChain)
-
-      const wrapper = createWrapper()
-      const { result } = renderHook(() => useCreateJob(), { wrapper })
-
-      let createdJob
-      await act(async () => {
-        createdJob = await result.current.mutateAsync({
-          title: 'Engineer',
-          description: 'Looking for an engineer',
-          priorities: null,
-          status: 'open',
-        })
+    it('should handle creation errors', async () => {
+      dbService.createJob.mockResolvedValueOnce({
+        success: false,
+        error: 'Validation error',
       })
 
-      expect(createdJob.priorities).toBeNull()
-      expect(mockChain.insert).toHaveBeenCalledWith([
-        expect.objectContaining({
-          priorities: null,
-        }),
-      ])
+      const { result } = renderHook(() => useCreateJob(), {
+        wrapper: createWrapper(),
+      })
+
+      result.current.mutate({ title: '' })
+
+      await waitFor(() => expect(result.current.isError).toBe(true))
+
+      expect(result.current.error.message).toBe('Validation error')
     })
   })
+
+  // ============ useUpdateJob ============
 
   describe('useUpdateJob', () => {
-    it('should update job fields', async () => {
-      const updatedData = {
-        ...mockJobData,
+    it('should update an existing job', async () => {
+      const updates = { title: 'Updated Title' }
+      const updatedJob = {
+        id: 'job-123',
         title: 'Updated Title',
-        priorities: 'New priorities',
+        department: 'Engineering',
       }
 
-      const mockChain = {
-        update: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        select: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: updatedData,
-          error: null,
-        }),
-      }
-      mockFrom.mockReturnValue(mockChain)
-
-      const wrapper = createWrapper()
-      const { result } = renderHook(() => useUpdateJob(), { wrapper })
-
-      let updated
-      await act(async () => {
-        updated = await result.current.mutateAsync({
-          jobId: mockJobId,
-          updates: {
-            title: 'Updated Title',
-            priorities: 'New priorities',
-          },
-        })
+      dbService.updateJob.mockResolvedValueOnce({
+        success: true,
+        job: updatedJob,
       })
 
-      expect(updated.title).toBe('Updated Title')
-      expect(updated.priorities).toBe('New priorities')
-      expect(mockChain.update).toHaveBeenCalledWith({
-        title: 'Updated Title',
-        priorities: 'New priorities',
+      const { result } = renderHook(() => useUpdateJob(), {
+        wrapper: createWrapper(),
       })
+
+      result.current.mutate({ jobId: 'job-123', updates })
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+      expect(dbService.updateJob).toHaveBeenCalledWith('job-123', updates)
+      expect(result.current.data.title).toBe('Updated Title')
     })
 
-    it('should throw error when user is not authenticated', async () => {
-      mockGetUser.mockResolvedValue({
-        data: { user: null },
-        error: null,
+    it('should handle update errors', async () => {
+      dbService.updateJob.mockResolvedValueOnce({
+        success: false,
+        error: 'Job not found',
       })
 
-      const wrapper = createWrapper()
-      const { result } = renderHook(() => useUpdateJob(), { wrapper })
+      const { result } = renderHook(() => useUpdateJob(), {
+        wrapper: createWrapper(),
+      })
 
-      await expect(
-        result.current.mutateAsync({
-          jobId: mockJobId,
-          updates: { title: 'New Title' },
-        })
-      ).rejects.toThrow('User not authenticated')
+      result.current.mutate({ jobId: 'nonexistent', updates: {} })
+
+      await waitFor(() => expect(result.current.isError).toBe(true))
+
+      expect(result.current.error.message).toBe('Job not found')
     })
   })
+
+  // ============ useDeleteJob ============
 
   describe('useDeleteJob', () => {
     it('should delete a job', async () => {
-      const mockChain = {
-        delete: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockImplementation(() => ({
-          eq: vi.fn().mockResolvedValue({
-            data: null,
-            error: null,
-          }),
-        })),
-      }
-      mockFrom.mockReturnValue(mockChain)
-
-      const wrapper = createWrapper()
-      const { result } = renderHook(() => useDeleteJob(), { wrapper })
-
-      await act(async () => {
-        await result.current.mutateAsync(mockJobId)
+      dbService.deleteJob.mockResolvedValueOnce({
+        success: true,
       })
 
-      expect(mockChain.delete).toHaveBeenCalled()
-      expect(result.current.isError).toBe(false)
+      const { result } = renderHook(() => useDeleteJob(), {
+        wrapper: createWrapper(),
+      })
+
+      result.current.mutate('job-123')
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+      expect(dbService.deleteJob).toHaveBeenCalledWith('job-123')
+      expect(result.current.data).toBe('job-123')
     })
 
-    it('should throw error when user is not authenticated', async () => {
-      mockGetUser.mockResolvedValue({
-        data: { user: null },
-        error: null,
+    it('should handle deletion errors', async () => {
+      dbService.deleteJob.mockResolvedValueOnce({
+        success: false,
+        error: 'Cannot delete job with candidates',
       })
 
-      const wrapper = createWrapper()
-      const { result } = renderHook(() => useDeleteJob(), { wrapper })
-
-      await expect(
-        result.current.mutateAsync(mockJobId)
-      ).rejects.toThrow('User not authenticated')
-    })
-  })
-
-  describe('dev auth bypass mode', () => {
-    // Note: In actual implementation, dev bypass is controlled by environment variable
-    // These tests verify the hook works correctly when getCurrentUserId returns a dev user ID
-
-    it('should use dev user ID when getCurrentUserId returns dev ID', async () => {
-      const devUserId = '00000000-0000-0000-0000-000000000001'
-      mockGetUser.mockResolvedValue({
-        data: { user: { id: devUserId, email: 'dev-admin@localhost' } },
-        error: null,
+      const { result } = renderHook(() => useDeleteJob(), {
+        wrapper: createWrapper(),
       })
 
-      const newJobData = {
-        id: 'dev-job-123',
-        title: 'Dev Job',
-        user_id: devUserId,
-      }
+      result.current.mutate('job-with-candidates')
 
-      const mockChain = {
-        insert: vi.fn().mockReturnThis(),
-        select: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: newJobData,
-          error: null,
-        }),
-      }
-      mockFrom.mockReturnValue(mockChain)
+      await waitFor(() => expect(result.current.isError).toBe(true))
 
-      const wrapper = createWrapper()
-      const { result } = renderHook(() => useCreateJob(), { wrapper })
-
-      await act(async () => {
-        await result.current.mutateAsync({
-          title: 'Dev Job',
-          description: 'Test',
-        })
-      })
-
-      expect(mockChain.insert).toHaveBeenCalledWith([
-        expect.objectContaining({
-          user_id: devUserId,
-        }),
-      ])
+      expect(result.current.error.message).toBe('Cannot delete job with candidates')
     })
   })
 })

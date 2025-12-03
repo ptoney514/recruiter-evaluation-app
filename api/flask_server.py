@@ -21,9 +21,15 @@ from ai_evaluator import evaluate_candidate_with_ai
 from extract_job_info import extract_job_info
 from parse_performance_profile import parse_performance_profile
 from ollama_provider import OllamaProvider, build_quick_score_prompt, parse_quick_score_response
+from auth import register_auth_routes
+from crud_routes import register_crud_routes
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app, supports_credentials=True)  # Enable CORS with credentials for cookies
+
+# Register routes
+register_auth_routes(app)
+register_crud_routes(app)
 
 # Rate limiting to prevent abuse
 limiter = Limiter(
@@ -439,11 +445,18 @@ if __name__ == '__main__':
     print(f'🔧 Debug mode: {"ON" if debug_mode else "OFF"}')
     print(f'🛡️  Rate limiting: 100 req/min (generous for local dev)')
     print('🔌 Endpoints:')
+    print('   Auth:')
+    print('   POST /api/auth/signup - Create account')
+    print('   POST /api/auth/login - Login')
+    print('   POST /api/auth/logout - Logout')
+    print('   GET  /api/auth/session - Get current session')
+    print('   Evaluation:')
     print('   POST /api/evaluate_regex - Regex evaluation')
     print('   POST /api/evaluate_candidate - AI evaluation (Anthropic/OpenAI)')
     print('   POST /api/evaluate_quick - Quick score (Ollama local)')
     print('   POST /api/evaluate_quick/batch - Batch quick score')
     print('   POST /api/evaluate_quick/compare - Model comparison')
+    print('   Utilities:')
     print('   GET  /api/ollama/status - Check Ollama status')
     print('   POST /api/extract_job_info - Extract job info from description')
     print('   POST /api/parse_performance_profile - Parse uploaded Performance Profile')

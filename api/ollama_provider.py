@@ -1,6 +1,11 @@
 """
 Ollama Local LLM Provider
 Provides quick candidate scoring using locally-running Ollama models
+
+Uses A-T-Q (Accomplishments-Trajectory-Qualifications) scoring model:
+- A (Accomplishments): 50% - Comparable work, scale, and impact evidence
+- T (Trajectory): 30% - Growth pattern, progression velocity, intentionality
+- Q (Qualifications): 20% - Must-haves (including location) and preferreds
 """
 import requests
 import re
@@ -110,12 +115,12 @@ class OllamaProvider:
 
 def build_quick_score_prompt(job_data: Dict[str, Any], candidate_data: Dict[str, Any]) -> str:
     """
-    Build a prompt for quick scoring with requirements analysis
+    Build a prompt for quick scoring using A-T-Q model
 
     Asks the model to:
-    1. Echo back the requirements it identified (transparency)
-    2. Analyze each requirement against the resume (MET/NOT_MET/PARTIAL)
-    3. Provide overall score and reasoning
+    1. Identify requirements from the job posting
+    2. Analyze accomplishments, trajectory, and qualifications
+    3. Provide A-T-Q scores and overall score
 
     Args:
         job_data: Job details (title, requirements)
@@ -141,7 +146,7 @@ def build_quick_score_prompt(job_data: Dict[str, Any], candidate_data: Dict[str,
     if len(resume_text) > 4000:
         resume_text = resume_text[:4000] + "\n\n[Resume truncated for quick evaluation]"
 
-    prompt = f"""You are a recruiter doing initial screening of a candidate.
+    prompt = f"""You are a recruiter doing initial screening using the A-T-Q scoring model.
 
 JOB: {job_title}
 
@@ -156,6 +161,21 @@ CANDIDATE RESUME:
 
 ---
 
+Use the A-T-Q scoring model:
+- A (Accomplishments) = 50%: Has the candidate done comparable work at comparable scale with evidence of impact?
+- T (Trajectory) = 30%: Is their career showing growth pattern, progression velocity, and intentional moves?
+- Q (Qualifications) = 20%: Do they meet the must-have and preferred requirements?
+
+Scoring rubric:
+- 90-100: Exceptional match
+- 75-89: Strong match
+- 60-74: Moderate match
+- 40-59: Weak match
+- 0-39: Poor match
+
+DO NOT penalize gaps or job changes automatically - assess them in context.
+Location is a requirement (met/unmet), NOT a risk penalty.
+
 Provide your assessment in this EXACT format:
 
 MUST-HAVE IDENTIFIED:
@@ -169,34 +189,39 @@ MATCH ANALYSIS:
 - [requirement text]: [MET/NOT_MET/PARTIAL] - [brief evidence from resume]
 (analyze each must-have and preferred requirement)
 
-SCORE: [0-100]
-REASONING: [2-3 sentences explaining the overall fit]
+A_SCORE: [0-100] (accomplishments score)
+T_SCORE: [0-100] (trajectory score)
+Q_SCORE: [0-100] (qualifications score)
+SCORE: [0-100] (overall = A*0.5 + T*0.3 + Q*0.2)
 
-Be thorough in analyzing each requirement."""
+REASONING: [2-3 sentences focusing on what the candidate HAS accomplished, not just credentials]"""
 
     return prompt
 
 
 def parse_quick_score_response(response_text: str, model: str = None) -> Dict[str, Any]:
     """
-    Parse the quick score response from Ollama with full requirements analysis
+    Parse the quick score response from Ollama with A-T-Q analysis
 
     Args:
         response_text: Raw response from Ollama
         model: The model used for evaluation (for metadata)
 
     Returns:
-        Dict with score, reasoning, requirements_identified, and match_analysis
+        Dict with score, a_score, t_score, q_score, reasoning, requirements_identified, and match_analysis
     """
     result = {
         'score': None,
+        'a_score': None,
+        't_score': None,
+        'q_score': None,
         'reasoning': '',
         'requirements_identified': {
             'must_have': [],
             'preferred': []
         },
         'match_analysis': [],
-        'methodology': 'Q(40%) + E(40%) + R(20%)',
+        'methodology': 'A(50%) + T(30%) + Q(20%)',
         'evaluated_at': datetime.utcnow().isoformat() + 'Z',
         'model': model
     }
@@ -219,6 +244,30 @@ def parse_quick_score_response(response_text: str, model: str = None) -> Dict[st
             continue
         elif upper_line.startswith('MATCH ANALYSIS:'):
             current_section = 'match_analysis'
+            continue
+        elif upper_line.startswith('A_SCORE:'):
+            current_section = None
+            score_str = line.split(':', 1)[1].strip()
+            numbers = re.findall(r'\d+', score_str)
+            if numbers:
+                score = int(numbers[0])
+                result['a_score'] = max(0, min(100, score))
+            continue
+        elif upper_line.startswith('T_SCORE:'):
+            current_section = None
+            score_str = line.split(':', 1)[1].strip()
+            numbers = re.findall(r'\d+', score_str)
+            if numbers:
+                score = int(numbers[0])
+                result['t_score'] = max(0, min(100, score))
+            continue
+        elif upper_line.startswith('Q_SCORE:'):
+            current_section = None
+            score_str = line.split(':', 1)[1].strip()
+            numbers = re.findall(r'\d+', score_str)
+            if numbers:
+                score = int(numbers[0])
+                result['q_score'] = max(0, min(100, score))
             continue
         elif upper_line.startswith('SCORE:'):
             current_section = None
@@ -257,6 +306,14 @@ def parse_quick_score_response(response_text: str, model: str = None) -> Dict[st
 
     # Clean up reasoning
     result['reasoning'] = result['reasoning'].strip()
+
+    # Calculate overall score from A-T-Q if not found
+    if result['score'] is None:
+        a = result['a_score'] or 0
+        t = result['t_score'] or 0
+        q = result['q_score'] or 0
+        if a > 0 or t > 0 or q > 0:
+            result['score'] = int((a * 0.50) + (t * 0.30) + (q * 0.20))
 
     # Fallback: try to find a score if SCORE: wasn't found
     if result['score'] is None:

@@ -440,6 +440,9 @@ export function WorkbenchPage() {
               <th className="py-3">Candidate</th>
               <th className="py-3 w-28">Quick Score</th>
               <th className="py-3 w-36">Evala Score</th>
+              <th className="py-3 w-36">
+                <span title="Accomplishments (50%) + Trajectory (30%) + Qualifications (20%)">A-T-Q</span>
+              </th>
               <th className="py-3 w-28">Fit</th>
               <th className="py-3 w-16 text-center">Actions</th>
             </tr>
@@ -447,7 +450,7 @@ export function WorkbenchPage() {
           <tbody className="divide-y divide-slate-100">
             {filteredCandidates.length === 0 ? (
               <tr>
-                <td colSpan="7" className="py-12 text-center">
+                <td colSpan="8" className="py-12 text-center">
                   <div className="flex flex-col items-center">
                     <UploadCloud size={48} className="text-slate-300 mb-4" />
                     <p className="text-slate-500 mb-2">No candidates yet</p>
@@ -537,6 +540,27 @@ export function WorkbenchPage() {
                           )}
                         </div>
                       </div>
+                    </td>
+
+                    {/* A-T-Q Breakdown */}
+                    <td className="py-4">
+                      {(candidate.stage1AScore || candidate.stage1TScore || candidate.stage1QScore) ? (
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="font-medium text-slate-700" title="Accomplishments">
+                            A:{candidate.stage1AScore || '--'}
+                          </span>
+                          <span className="text-slate-300">|</span>
+                          <span className="font-medium text-slate-700" title="Trajectory">
+                            T:{candidate.stage1TScore || '--'}
+                          </span>
+                          <span className="text-slate-300">|</span>
+                          <span className="font-medium text-slate-700" title="Qualifications">
+                            Q:{candidate.stage1QScore || '--'}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-sm">--</span>
+                      )}
                     </td>
 
                     {/* Fit */}

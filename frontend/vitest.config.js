@@ -12,6 +12,15 @@ export default defineConfig({
       './src/tests/setupDatabase.js',
     ],
     css: true,
+    // Limit parallel workers to prevent memory exhaustion
+    // Each worker can use 3-4GB RAM, so limit to 2 max
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        maxForks: 2,
+        minForks: 1,
+      },
+    },
     env: {
       VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL || 'http://127.0.0.1:54321',
       // Local Supabase default anon key for testing

@@ -69,7 +69,8 @@ export function exportToExcel(evaluation, results, mode) {
   ]
 
   if (isAiMode(mode)) {
-    rankingsData[0].push('Qualifications Score', 'Experience Score', 'Risk Flags Score')
+    // A-T-Q scoring model: Accomplishments (50%) + Trajectory (30%) + Qualifications (20%)
+    rankingsData[0].push('A Score (50%)', 'T Score (30%)', 'Q Score (20%)')
   } else {
     rankingsData[0].push('Matched Keywords', 'Missing Keywords')
   }
@@ -84,9 +85,9 @@ export function exportToExcel(evaluation, results, mode) {
 
     if (isAiMode(mode)) {
       row.push(
-        candidate.qualificationsScore || 'N/A',
-        candidate.experienceScore || 'N/A',
-        candidate.riskFlagsScore || 'N/A'
+        candidate.aScore || candidate.accomplishmentsScore || 'N/A',
+        candidate.tScore || candidate.trajectoryScore || 'N/A',
+        candidate.qScore || candidate.qualificationsScore || 'N/A'
       )
     } else {
       row.push(
@@ -103,13 +104,15 @@ export function exportToExcel(evaluation, results, mode) {
 
   // Sheet 3: Detailed Analysis (AI mode only)
   if (isAiMode(mode)) {
-    const analysisData = [['Candidate', 'Key Strengths', 'Key Concerns', 'Interview Questions', 'Reasoning']]
+    // Updated for A-T-Q: Key Concerns replaced with Observations (contextual notes, not penalties)
+    const analysisData = [['Candidate', 'Key Strengths', 'Observations', 'Interview Questions', 'Reasoning']]
 
     candidates.forEach(candidate => {
       analysisData.push([
         candidate.name,
         (candidate.keyStrengths || []).map((s, i) => `${i + 1}. ${s}`).join('\n'),
-        (candidate.keyConcerns || []).map((c, i) => `${i + 1}. ${c}`).join('\n'),
+        // Observations replace Key Concerns in A-T-Q model (no automatic penalties)
+        (candidate.observations || candidate.keyConcerns || []).map((c, i) => `${i + 1}. ${c}`).join('\n'),
         (candidate.interviewQuestions || []).map((q, i) => `${i + 1}. ${q}`).join('\n'),
         candidate.reasoning || ''
       ])
@@ -195,8 +198,9 @@ export function exportToPDF(evaluation, results, mode) {
     ]
 
     if (isAiMode(mode)) {
+      // A-T-Q model breakdown
       row.push(
-        `Q:${candidate.qualificationsScore || 'N/A'}\nE:${candidate.experienceScore || 'N/A'}\nR:${candidate.riskFlagsScore || 'N/A'}`
+        `A:${candidate.aScore || candidate.accomplishmentsScore || 'N/A'}\nT:${candidate.tScore || candidate.trajectoryScore || 'N/A'}\nQ:${candidate.qScore || candidate.qualificationsScore || 'N/A'}`
       )
     }
 
@@ -268,17 +272,18 @@ export function exportToPDF(evaluation, results, mode) {
         detailY += lines.length * 5
       })
 
-      // Concerns
+      // Observations (A-T-Q model - contextual notes, not penalties)
       detailY += 4
       doc.setFontSize(12)
       doc.setFont(undefined, 'bold')
-      doc.text('Key Concerns:', 14, detailY)
+      doc.text('Observations:', 14, detailY)
       detailY += 6
 
       doc.setFontSize(10)
       doc.setFont(undefined, 'normal')
-      ;(candidate.keyConcerns || []).forEach(concern => {
-        const lines = doc.splitTextToSize(`• ${concern}`, 180)
+      // Use observations if available, fallback to keyConcerns for backwards compatibility
+      ;(candidate.observations || candidate.keyConcerns || []).forEach(observation => {
+        const lines = doc.splitTextToSize(`• ${observation}`, 180)
         doc.text(lines, 18, detailY)
         detailY += lines.length * 5
       })

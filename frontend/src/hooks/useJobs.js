@@ -1,14 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '../lib/supabase'
-
-/**
- * Helper to get the current user ID from Supabase auth
- * Works with both normal auth and dev bypass mode (which now uses real auth)
- */
-async function getCurrentUserId() {
-  const { data: { user } } = await supabase.auth.getUser()
-  return user?.id || null
-}
+import * as dbService from '../services/databaseService'
 
 /**
  * React Query hook to fetch all jobs for the current user
@@ -20,40 +11,14 @@ export function useJobs() {
   return useQuery({
     queryKey: ['jobs'],
     queryFn: async () => {
-      const userId = await getCurrentUserId()
+      const result = await dbService.getJobs()
 
-      if (!userId) {
-        throw new Error('User not authenticated')
-      }
-
-      const { data, error } = await supabase
-        .from('jobs')
-        .select(`
-          id,
-          title,
-          department,
-          location,
-          employment_type,
-          compensation_min,
-          compensation_max,
-          description,
-          must_have_requirements,
-          preferred_requirements,
-          status,
-          created_at,
-          updated_at,
-          candidates (count),
-          evaluations (count)
-        `)
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        throw error
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch jobs')
       }
 
       // Transform the data to include candidate counts
-      const jobsWithCounts = data.map(job => ({
+      const jobsWithCounts = (result.jobs || []).map(job => ({
         id: job.id,
         title: job.title,
         department: job.department,
@@ -67,8 +32,8 @@ export function useJobs() {
         status: job.status || 'draft',
         created_at: job.created_at,
         updated_at: job.updated_at,
-        candidates_count: job.candidates?.[0]?.count || 0,
-        evaluated_count: job.evaluations?.[0]?.count || 0
+        candidates_count: job.candidates_count || 0,
+        evaluated_count: job.evaluated_count || 0
       }))
 
       return jobsWithCounts
@@ -87,39 +52,13 @@ export function useJob(jobId) {
   return useQuery({
     queryKey: ['jobs', jobId],
     queryFn: async () => {
-      const userId = await getCurrentUserId()
+      const result = await dbService.getJob(jobId)
 
-      if (!userId) {
-        throw new Error('User not authenticated')
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch job')
       }
 
-      const { data, error } = await supabase
-        .from('jobs')
-        .select(`
-          id,
-          title,
-          department,
-          location,
-          employment_type,
-          compensation_min,
-          compensation_max,
-          description,
-          must_have_requirements,
-          preferred_requirements,
-          performance_profile,
-          status,
-          created_at,
-          updated_at
-        `)
-        .eq('id', jobId)
-        .eq('user_id', userId)
-        .single()
-
-      if (error) {
-        throw error
-      }
-
-      return data
+      return result.job
     },
     enabled: !!jobId,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -136,29 +75,13 @@ export function useCreateJob() {
 
   return useMutation({
     mutationFn: async (jobData) => {
-      const userId = await getCurrentUserId()
+      const result = await dbService.createJob(jobData)
 
-      if (!userId) {
-        throw new Error('User not authenticated')
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create job')
       }
 
-      // Add user_id to job data
-      const jobWithUser = {
-        ...jobData,
-        user_id: userId
-      }
-
-      const { data, error } = await supabase
-        .from('jobs')
-        .insert([jobWithUser])
-        .select()
-        .single()
-
-      if (error) {
-        throw error
-      }
-
-      return data
+      return result.job
     },
     onSuccess: () => {
       // Invalidate jobs query to refetch the list
@@ -177,25 +100,13 @@ export function useUpdateJob() {
 
   return useMutation({
     mutationFn: async ({ jobId, updates }) => {
-      const userId = await getCurrentUserId()
+      const result = await dbService.updateJob(jobId, updates)
 
-      if (!userId) {
-        throw new Error('User not authenticated')
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update job')
       }
 
-      const { data, error } = await supabase
-        .from('jobs')
-        .update(updates)
-        .eq('id', jobId)
-        .eq('user_id', userId)
-        .select()
-        .single()
-
-      if (error) {
-        throw error
-      }
-
-      return data
+      return result.job
     },
     onSuccess: (data) => {
       // Invalidate both jobs list and specific job query
@@ -215,20 +126,10 @@ export function useDeleteJob() {
 
   return useMutation({
     mutationFn: async (jobId) => {
-      const userId = await getCurrentUserId()
+      const result = await dbService.deleteJob(jobId)
 
-      if (!userId) {
-        throw new Error('User not authenticated')
-      }
-
-      const { error } = await supabase
-        .from('jobs')
-        .delete()
-        .eq('id', jobId)
-        .eq('user_id', userId)
-
-      if (error) {
-        throw error
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete job')
       }
 
       return jobId

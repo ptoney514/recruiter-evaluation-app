@@ -52,3 +52,4 @@ playwright/.auth/
 *.tmp
 *.bak
 frontend/playwright/.auth/
+frontend/data/
