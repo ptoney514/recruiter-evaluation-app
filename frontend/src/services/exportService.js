@@ -12,7 +12,7 @@ import 'jspdf-autotable'
  * @returns {boolean} True if AI mode
  */
 function isAiMode(mode) {
-  return mode === 'openai' || mode === 'claude' || isAiMode(mode)
+  return mode === 'openai' || mode === 'claude' || mode === 'ai'
 }
 
 /**
