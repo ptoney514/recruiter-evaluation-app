@@ -41,7 +41,8 @@ def dict_from_row(row: sqlite3.Row) -> Dict[str, Any]:
         'must_have_requirements', 'preferred_requirements',
         'quick_score_analysis', 'strengths', 'concerns',
         'interview_questions', 'observations',
-        'accomplishments_analysis', 'trajectory_analysis', 'qualifications_analysis'
+        'accomplishments_analysis', 'trajectory_analysis', 'qualifications_analysis',
+        'quick_tags'  # New pipeline status tags field
     ]
     for field in json_fields:
         if field in result and result[field]:
@@ -55,11 +56,17 @@ def dict_from_row(row: sqlite3.Row) -> Dict[str, Any]:
 # ============ Job Functions ============
 
 def get_job(job_id: str) -> Optional[Dict[str, Any]]:
-    """Get a job by ID"""
+    """Get a job by ID with requirements"""
     with get_db() as conn:
         cursor = conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,))
         row = cursor.fetchone()
-        return dict_from_row(row) if row else None
+        if not row:
+            return None
+
+        job = dict_from_row(row)
+        # Include requirements array
+        job['requirements'] = get_requirements_for_job(job_id)
+        return job
 
 
 def get_jobs_for_user(user_id: str) -> List[Dict[str, Any]]:
@@ -93,6 +100,150 @@ def create_job(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         ))
         conn.commit()
     return get_job(job_id)
+
+
+def update_job(job_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
+    """Update a job"""
+    with get_db() as conn:
+        # Build dynamic update statement
+        update_fields = []
+        values = []
+
+        for key in ['title', 'department', 'location', 'summary', 'status']:
+            if key in updates:
+                update_fields.append(f"{key} = ?")
+                values.append(updates[key])
+
+        if update_fields:
+            update_fields.append("updated_at = ?")
+            values.append(datetime.utcnow().isoformat() + 'Z')
+            values.append(job_id)
+
+            query = f"UPDATE jobs SET {', '.join(update_fields)} WHERE id = ?"
+            conn.execute(query, values)
+            conn.commit()
+
+    return get_job(job_id)
+
+
+def delete_job(job_id: str) -> None:
+    """Delete a job and all associated candidates"""
+    with get_db() as conn:
+        conn.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
+        conn.commit()
+
+
+# ============ Requirements Functions ============
+
+def get_requirements_for_job(job_id: str) -> List[Dict[str, Any]]:
+    """Get all requirements for a job"""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "SELECT * FROM requirements WHERE job_id = ? ORDER BY sort_order ASC, created_at ASC",
+            (job_id,)
+        )
+        return [dict_from_row(row) for row in cursor.fetchall()]
+
+
+def get_requirement(requirement_id: str) -> Optional[Dict[str, Any]]:
+    """Get a specific requirement"""
+    with get_db() as conn:
+        cursor = conn.execute("SELECT * FROM requirements WHERE id = ?", (requirement_id,))
+        row = cursor.fetchone()
+        return dict_from_row(row) if row else None
+
+
+def create_requirement(job_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a new requirement"""
+    requirement_id = str(uuid.uuid4())
+    with get_db() as conn:
+        # Get next sort_order
+        cursor = conn.execute(
+            "SELECT COALESCE(MAX(sort_order), -1) + 1 as next_order FROM requirements WHERE job_id = ?",
+            (job_id,)
+        )
+        next_order = cursor.fetchone()['next_order']
+
+        conn.execute("""
+            INSERT INTO requirements (id, job_id, text, is_required, category, sort_order)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            requirement_id,
+            job_id,
+            data.get('text', ''),
+            data.get('is_required', True),
+            data.get('category', 'other'),
+            next_order
+        ))
+        conn.commit()
+
+    return get_requirement(requirement_id)
+
+
+def update_requirement(requirement_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
+    """Update a requirement"""
+    with get_db() as conn:
+        update_fields = []
+        values = []
+
+        for key in ['text', 'is_required', 'category']:
+            if key in updates:
+                update_fields.append(f"{key} = ?")
+                values.append(updates[key])
+
+        if update_fields:
+            update_fields.append("updated_at = ?")
+            values.append(datetime.utcnow().isoformat() + 'Z')
+            values.append(requirement_id)
+
+            query = f"UPDATE requirements SET {', '.join(update_fields)} WHERE id = ?"
+            conn.execute(query, values)
+            conn.commit()
+
+    return get_requirement(requirement_id)
+
+
+def delete_requirement(requirement_id: str) -> None:
+    """Delete a requirement"""
+    with get_db() as conn:
+        conn.execute("DELETE FROM requirements WHERE id = ?", (requirement_id,))
+        conn.commit()
+
+
+def bulk_create_requirements(job_id: str, requirements: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Create multiple requirements at once"""
+    created_requirements = []
+
+    with get_db() as conn:
+        for sort_order, req_data in enumerate(requirements):
+            requirement_id = str(uuid.uuid4())
+            conn.execute("""
+                INSERT INTO requirements (id, job_id, text, is_required, category, sort_order)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                requirement_id,
+                job_id,
+                req_data.get('text', ''),
+                req_data.get('is_required', True),
+                req_data.get('category', 'other'),
+                sort_order
+            ))
+        conn.commit()
+
+    return get_requirements_for_job(job_id)
+
+
+def reorder_requirements(job_id: str, requirement_ids: List[str]) -> List[Dict[str, Any]]:
+    """Reorder requirements"""
+    with get_db() as conn:
+        for new_order, requirement_id in enumerate(requirement_ids):
+            conn.execute(
+                "UPDATE requirements SET sort_order = ? WHERE id = ? AND job_id = ?",
+                (new_order, requirement_id, job_id)
+            )
+        conn.commit()
+
+    return get_requirements_for_job(job_id)
 
 
 # ============ Candidate Functions ============
@@ -133,6 +284,70 @@ def create_candidate(job_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         ))
         conn.commit()
     return get_candidate(candidate_id)
+
+
+def update_candidate(candidate_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
+    """Update candidate fields"""
+    with get_db() as conn:
+        update_fields = []
+        values = []
+
+        # Allowed fields to update
+        allowed_fields = [
+            'name', 'email', 'phone', 'resume_text', 'pipeline_status',
+            'recruiter_notes', 'status'
+        ]
+
+        for key in allowed_fields:
+            if key in updates:
+                update_fields.append(f"{key} = ?")
+                values.append(updates[key])
+
+        # Handle quick_tags specially (JSON)
+        if 'quick_tags' in updates:
+            update_fields.append("quick_tags = ?")
+            values.append(json.dumps(updates['quick_tags']) if isinstance(updates['quick_tags'], list) else updates['quick_tags'])
+
+        if update_fields:
+            update_fields.append("notes_updated_at = ?")
+            values.append(datetime.utcnow().isoformat() + 'Z')
+            update_fields.append("updated_at = ?")
+            values.append(datetime.utcnow().isoformat() + 'Z')
+            values.append(candidate_id)
+
+            query = f"UPDATE candidates SET {', '.join(update_fields)} WHERE id = ?"
+            conn.execute(query, values)
+            conn.commit()
+
+    return get_candidate(candidate_id)
+
+
+def update_candidate_pipeline_status(
+    candidate_id: str,
+    pipeline_status: str,
+    recruiter_notes: str = None,
+    quick_tags: List[str] = None
+) -> Dict[str, Any]:
+    """Update candidate pipeline status and notes"""
+    # Validate pipeline status
+    valid_statuses = ['new', 'meets-reqs', 'doesnt-meet', 'reviewed-forward', 'reviewed-maybe', 'reviewed-decline']
+    if pipeline_status not in valid_statuses:
+        raise ValueError(f"Invalid pipeline_status: {pipeline_status}")
+
+    updates = {'pipeline_status': pipeline_status}
+    if recruiter_notes is not None:
+        updates['recruiter_notes'] = recruiter_notes
+    if quick_tags is not None:
+        updates['quick_tags'] = quick_tags
+
+    return update_candidate(candidate_id, updates)
+
+
+def delete_candidate(candidate_id: str) -> None:
+    """Delete a candidate"""
+    with get_db() as conn:
+        conn.execute("DELETE FROM candidates WHERE id = ?", (candidate_id,))
+        conn.commit()
 
 
 def update_candidate_quick_score(
