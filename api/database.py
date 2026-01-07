@@ -295,7 +295,13 @@ def update_candidate(candidate_id: str, updates: Dict[str, Any]) -> Dict[str, An
         # Allowed fields to update
         allowed_fields = [
             'name', 'email', 'phone', 'resume_text', 'pipeline_status',
-            'recruiter_notes', 'status'
+            'recruiter_notes', 'status',
+            # Quick score fields
+            'quick_score', 'quick_score_at', 'quick_score_model',
+            'quick_score_reasoning', 'quick_score_analysis',
+            # Stage 1 fields
+            'stage1_score', 'stage1_a_score', 'stage1_t_score', 'stage1_q_score',
+            'stage1_evaluated_at', 'recommendation'
         ]
 
         for key in allowed_fields:
