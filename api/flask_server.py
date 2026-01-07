@@ -87,15 +87,18 @@ def evaluate_regex():
 @app.route('/api/evaluate_candidate', methods=['POST', 'OPTIONS'])
 @limiter.limit("100 per minute")  # Generous limit for local dev (Vercel will have its own limits)
 def evaluate_with_ai():
-    """Evaluate a single candidate using Claude Haiku AI"""
+    """Evaluate a single candidate using Claude AI"""
     if request.method == 'OPTIONS':
         return '', 200
 
     try:
+        from database import get_user_setting, LOCAL_USER_ID
+
         data = request.json
         job = data.get('job', {})
         candidate = data.get('candidate', {})
         stage = data.get('stage', 1)
+        provider = data.get('provider', 'anthropic')
 
         if not job or not candidate:
             return jsonify({
@@ -103,8 +106,15 @@ def evaluate_with_ai():
                 'error': 'Missing job or candidate data'
             }), 400
 
-        # Call AI evaluator
-        result = evaluate_candidate_with_ai(job, candidate, stage)
+        # Get model from request OR fall back to user settings
+        model = data.get('model')
+        if not model:
+            # Load from user settings based on stage
+            setting_key = f'stage{stage}_model' if stage in [1, 2] else 'stage1_model'
+            model = get_user_setting(LOCAL_USER_ID, setting_key, 'claude-3-5-haiku-20241022')
+
+        # Call AI evaluator with model and provider
+        result = evaluate_candidate_with_ai(job, candidate, stage, provider=provider, model=model)
 
         return jsonify(result)
 
@@ -123,6 +133,64 @@ def evaluate_with_ai():
             'success': False,
             'error': str(e)
         }), 500
+
+
+# ============ Settings API Endpoints ============
+
+@app.route('/api/settings', methods=['GET', 'OPTIONS'])
+def get_settings():
+    """Get all user settings"""
+    if request.method == 'OPTIONS':
+        return '', 200
+
+    try:
+        from database import get_user_settings, LOCAL_USER_ID
+        settings = get_user_settings(LOCAL_USER_ID)
+        return jsonify({'success': True, 'settings': settings})
+    except Exception as e:
+        print(f"Error fetching settings: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/settings', methods=['PUT', 'OPTIONS'])
+def update_settings():
+    """Update user settings (batch update)"""
+    if request.method == 'OPTIONS':
+        return '', 200
+
+    try:
+        from database import update_user_setting, LOCAL_USER_ID
+
+        data = request.json
+        settings_to_update = data.get('settings', {})
+
+        for key, value in settings_to_update.items():
+            update_user_setting(LOCAL_USER_ID, key, value)
+
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Error updating settings: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/models', methods=['GET', 'OPTIONS'])
+def get_available_models():
+    """Get list of available LLM models for each provider"""
+    if request.method == 'OPTIONS':
+        return '', 200
+
+    try:
+        from llm_providers import PROVIDER_CONFIGS
+        return jsonify({'success': True, 'providers': PROVIDER_CONFIGS})
+    except Exception as e:
+        print(f"Error fetching models: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/extract_job_info', methods=['POST', 'OPTIONS'])
@@ -441,8 +509,9 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
 
     # Initialize database for single-user mode
-    from database import ensure_local_user_exists
+    from database import ensure_local_user_exists, ensure_settings_table_exists
     ensure_local_user_exists()
+    ensure_settings_table_exists()
 
     print('✅ Flask API server starting...')
     print(f'📍 Running on http://localhost:{port}')

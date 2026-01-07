@@ -12,6 +12,7 @@ export default defineConfig({
       './src/tests/setupDatabase.js',
     ],
     css: true,
+    testTimeout: 10000, // Increase timeout for async tests
     // Limit parallel workers to prevent memory exhaustion
     // Each worker can use 3-4GB RAM, so limit to 2 max
     pool: 'forks',

@@ -579,3 +579,89 @@ def ensure_local_user_exists() -> None:
             """, (LOCAL_USER_ID, LOCAL_USER_EMAIL, 'local-mode-no-password', LOCAL_USER_NAME))
             conn.commit()
             print(f"✅ Created local user for single-user mode: {LOCAL_USER_EMAIL}")
+
+
+# ============ Settings Functions ============
+
+def ensure_settings_table_exists() -> None:
+    """
+    Create settings table if it doesn't exist.
+    This is called at app startup.
+    """
+    with get_db() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                id TEXT PRIMARY KEY NOT NULL,
+                user_id TEXT NOT NULL,
+                key TEXT NOT NULL,
+                value TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                UNIQUE(user_id, key)
+            )
+        """)
+        conn.commit()
+
+    # Initialize default settings for local user if they don't exist
+    if SINGLE_USER_MODE:
+        ensure_default_settings()
+
+
+def ensure_default_settings() -> None:
+    """
+    Initialize default settings for the local user.
+    Called during app startup in single-user mode.
+    """
+    default_settings = {
+        'stage1_model': 'claude-3-5-haiku-20241022',
+        'stage2_model': 'claude-sonnet-4-5-20251022',
+        'default_provider': 'anthropic'
+    }
+
+    for key, value in default_settings.items():
+        # Only insert if the setting doesn't already exist
+        existing = get_user_setting(LOCAL_USER_ID, key)
+        if existing is None:
+            update_user_setting(LOCAL_USER_ID, key, value)
+
+
+def get_user_settings(user_id: str) -> Dict[str, str]:
+    """Get all settings for a user as a dictionary"""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "SELECT key, value FROM settings WHERE user_id = ? ORDER BY key",
+            (user_id,)
+        )
+        rows = cursor.fetchall()
+        return {row['key']: row['value'] for row in rows}
+
+
+def get_user_setting(user_id: str, key: str, default: Optional[str] = None) -> Optional[str]:
+    """Get a specific setting value for a user"""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "SELECT value FROM settings WHERE user_id = ? AND key = ?",
+            (user_id, key)
+        )
+        row = cursor.fetchone()
+        return row['value'] if row else default
+
+
+def update_user_setting(user_id: str, key: str, value: str) -> None:
+    """Update or create a setting for a user"""
+    with get_db() as conn:
+        # Try to insert, if it already exists (unique constraint), update instead
+        try:
+            conn.execute("""
+                INSERT INTO settings (id, user_id, key, value, created_at, updated_at)
+                VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
+            """, (str(uuid.uuid4()), user_id, key, value))
+        except sqlite3.IntegrityError:
+            # Setting already exists, update it
+            conn.execute("""
+                UPDATE settings SET value = ?, updated_at = datetime('now')
+                WHERE user_id = ? AND key = ?
+            """, (value, user_id, key))
+
+        conn.commit()

@@ -10,6 +10,7 @@ import { JobInputPage } from './pages/JobInputPage'
 import { ResumeUploadPage } from './pages/ResumeUploadPage'
 import { ReviewPage } from './pages/ReviewPage'
 import { ResultsPage } from './pages/ResultsPage'
+import { SettingsPage } from './pages/SettingsPage'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AppLayout } from './components/layout/AppLayout'
 
@@ -48,6 +49,7 @@ function AppContent() {
         <Route path="/app/create-role" element={<AppLayout><CreateRolePage /></AppLayout>} />
         <Route path="/app/role/:roleId/workbench" element={<AppLayout><WorkbenchPage /></AppLayout>} />
         <Route path="/app/role/:roleId/results" element={<AppLayout><ResultsPage /></AppLayout>} />
+        <Route path="/app/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
 
         {/* Legacy Routes - Keep for backwards compatibility */}
         <Route path="/job-input" element={<JobInputPage />} />
