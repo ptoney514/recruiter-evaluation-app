@@ -11,11 +11,13 @@ import {
   RefreshCw,
   Trash2,
   Eye,
-  GitCompare
+  GitCompare,
+  Edit2
 } from 'lucide-react';
 import { CandidateDetailPanel } from '../components/workbench/CandidateDetailPanel';
 import { ResumeUploadModal } from '../components/workbench/ResumeUploadModal';
 import { ModelComparisonModal } from '../components/workbench/ModelComparisonModal';
+import { EditProjectModal } from '../components/dashboard/EditProjectModal';
 import { useCandidates, useDeleteCandidate } from '../hooks/useCandidates';
 import { useJob } from '../hooks/useJobs';
 import { useBatchEvaluate } from '../hooks/useEvaluations';
@@ -222,6 +224,7 @@ export function WorkbenchPage() {
   const [showComparisonModal, setShowComparisonModal] = useState(false);
   const [comparisonCandidate, setComparisonCandidate] = useState(null);
   const [evaluationProgress, setEvaluationProgress] = useState({ current: 0, total: 0 });
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Derived state
   const isLoading = jobLoading || candidatesLoading;
@@ -369,6 +372,10 @@ export function WorkbenchPage() {
           <h1 className="text-2xl font-bold text-slate-900">Candidate Workbench</h1>
         </div>
         <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={() => setIsEditModalOpen(true)}>
+            <Edit2 size={18} />
+            Edit Position
+          </Button>
           <Button variant="outline" onClick={() => setShowUploadModal(true)}>
             <UploadCloud size={18} />
             Upload Resumes
@@ -629,6 +636,15 @@ export function WorkbenchPage() {
         candidate={comparisonCandidate}
         onScoreSaved={handleScoreSaved}
       />
+
+      {/* Edit Position Modal */}
+      {isEditModalOpen && job && (
+        <EditProjectModal
+          project={job}
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

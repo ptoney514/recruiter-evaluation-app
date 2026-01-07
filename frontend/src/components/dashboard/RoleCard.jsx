@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Trash2 } from 'lucide-react';
+import { Users, Trash2, Edit2 } from 'lucide-react';
 import { useDeleteJob } from '../../hooks/useJobs';
+import { EditProjectModal } from './EditProjectModal';
 
 /**
  * Badge component for role status
@@ -28,6 +29,7 @@ function Badge({ children, color = 'slate' }) {
 export function RoleCard({ role, onClick }) {
   const navigate = useNavigate();
   const deleteJob = useDeleteJob();
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Derive status from role data
   const getStatus = () => {
@@ -67,14 +69,26 @@ export function RoleCard({ role, onClick }) {
         <h3 className="font-bold text-lg text-slate-900 group-hover:text-teal-600 transition flex-1">
           {role.title}
         </h3>
-        <button
-          onClick={handleDelete}
-          disabled={deleteJob.isPending}
-          className="p-2 text-slate-400 hover:text-red-600 disabled:opacity-50 ml-2 flex-shrink-0"
-          title="Delete role"
-        >
-          <Trash2 size={18} />
-        </button>
+        <div className="flex gap-1 ml-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsEditModalOpen(true);
+            }}
+            className="p-2 text-slate-400 hover:text-teal-600 disabled:opacity-50 flex-shrink-0"
+            title="Edit role"
+          >
+            <Edit2 size={18} />
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleteJob.isPending}
+            className="p-2 text-slate-400 hover:text-red-600 disabled:opacity-50 flex-shrink-0"
+            title="Delete role"
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 text-sm text-slate-600">
@@ -88,6 +102,14 @@ export function RoleCard({ role, onClick }) {
       >
         Open Workbench
       </button>
+
+      {isEditModalOpen && (
+        <EditProjectModal
+          project={role}
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
