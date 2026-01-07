@@ -49,6 +49,15 @@ class AnthropicProvider(LLMProvider):
         self.model = model
         self.client = anthropic.Anthropic(api_key=self.api_key)
 
+    def _get_model_pricing(self, model: str) -> Dict[str, float]:
+        """Get pricing for a specific model from PROVIDER_CONFIGS"""
+        for provider_config in PROVIDER_CONFIGS.values():
+            for model_config in provider_config.get('models', []):
+                if model_config['id'] == model:
+                    return model_config.get('pricing', {'input': 3.00, 'output': 15.00})
+        # Fallback to Sonnet 4.5 pricing if model not found
+        return {'input': 3.00, 'output': 15.00}
+
     def evaluate(self, prompt: str) -> Tuple[str, Dict[str, Any]]:
         """Call Claude API for evaluation"""
         message = self.client.messages.create(
@@ -61,9 +70,10 @@ class AnthropicProvider(LLMProvider):
 
         response_text = message.content[0].text
 
-        # Calculate cost (Haiku pricing: $0.25/1M input, $1.25/1M output)
-        input_cost = (message.usage.input_tokens / 1_000_000) * 0.25
-        output_cost = (message.usage.output_tokens / 1_000_000) * 1.25
+        # Calculate cost dynamically based on model
+        pricing = self._get_model_pricing(self.model)
+        input_cost = (message.usage.input_tokens / 1_000_000) * pricing['input']
+        output_cost = (message.usage.output_tokens / 1_000_000) * pricing['output']
         total_cost = input_cost + output_cost
 
         usage_metadata = {
@@ -189,8 +199,19 @@ PROVIDER_CONFIGS = {
     'anthropic': {
         'display_name': 'Anthropic Claude',
         'models': [
-            {'id': 'claude-3-5-haiku-20241022', 'name': 'Claude 3.5 Haiku', 'cost': 'Low'},
-            {'id': 'claude-3-5-sonnet-20241022', 'name': 'Claude 3.5 Sonnet', 'cost': 'Medium'},
+            # Claude 4.5 Series (Latest - 2025)
+            {'id': 'claude-haiku-4-5-20251001', 'name': 'Claude Haiku 4.5', 'cost': 'Low',
+             'pricing': {'input': 1.00, 'output': 5.00}},
+            {'id': 'claude-sonnet-4-5-20251022', 'name': 'Claude Sonnet 4.5', 'cost': 'Medium',
+             'pricing': {'input': 3.00, 'output': 15.00}},
+            {'id': 'claude-opus-4-5-20251101', 'name': 'Claude Opus 4.5', 'cost': 'High',
+             'pricing': {'input': 5.00, 'output': 25.00}},
+
+            # Legacy Models (3.5 Series - Oct 2024)
+            {'id': 'claude-3-5-haiku-20241022', 'name': 'Claude 3.5 Haiku (Legacy)', 'cost': 'Very Low',
+             'pricing': {'input': 0.25, 'output': 1.25}},
+            {'id': 'claude-3-5-sonnet-20241022', 'name': 'Claude 3.5 Sonnet (Legacy)', 'cost': 'Medium',
+             'pricing': {'input': 3.00, 'output': 15.00}},
         ],
         'default_model': 'claude-3-5-haiku-20241022'
     },

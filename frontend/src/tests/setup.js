@@ -7,8 +7,8 @@ afterEach(() => {
   cleanup()
 })
 
-// Mock sessionStorage for tests
-const sessionStorageMock = (() => {
+// Mock localStorage and sessionStorage for tests
+const storageFactory = () => {
   let store = {}
 
   return {
@@ -22,11 +22,25 @@ const sessionStorageMock = (() => {
     clear: () => {
       store = {}
     },
+    get length() {
+      return Object.keys(store).length
+    },
+    key: (index) => {
+      const keys = Object.keys(store)
+      return keys[index] || null
+    },
   }
-})()
+}
+
+const sessionStorageMock = storageFactory()
+const localStorageMock = storageFactory()
 
 Object.defineProperty(window, 'sessionStorage', {
   value: sessionStorageMock,
+})
+
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock,
 })
 
 // Mock window.alert for tests
