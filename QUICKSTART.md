@@ -51,6 +51,62 @@ This starts the React development server on **http://localhost:3000**
 - **Frontend**: http://localhost:3000
 - **API**: http://localhost:8000
 
+## Git Commands
+
+### Check Current Branch
+
+```bash
+git branch --show-current
+```
+
+Shows just the current branch name (e.g., `main`, `feature/page-design`)
+
+### Check Status Summary
+
+```bash
+git status
+```
+
+Shows:
+- Current branch
+- If it's up-to-date with remote
+- Uncommitted changes
+- Untracked files
+
+### See All Branches
+
+```bash
+git branch
+```
+
+Lists all local branches with `*` marking the current one:
+```
+  feature/page-design
+  hopeful-gates
+  main
+* naughty-satoshi
+```
+
+### See All Branches (Including Remote)
+
+```bash
+git branch -a
+```
+
+Shows local and remote branches with tracking info
+
+### See Branch Tracking Info
+
+```bash
+git branch -vv
+```
+
+Shows branches with remote tracking and commit info:
+```
+* main                    0a6a672 [origin/main] Merge pull request #50
+  feature/page-design     3f3c398 feat: Add Anthropic model selection
+```
+
 ## Testing
 
 ### Frontend Unit Tests
