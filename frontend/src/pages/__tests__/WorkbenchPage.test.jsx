@@ -8,15 +8,19 @@ import { WorkbenchPage } from '../WorkbenchPage'
 
 // Mock the hooks
 const mockUseCandidates = vi.fn()
+const mockUseDeleteCandidate = vi.fn()
 const mockUseJob = vi.fn()
+const mockUseUpdateJob = vi.fn()
 const mockUseBatchEvaluate = vi.fn()
 
 vi.mock('../../hooks/useCandidates', () => ({
-  useCandidates: () => mockUseCandidates()
+  useCandidates: () => mockUseCandidates(),
+  useDeleteCandidate: () => mockUseDeleteCandidate()
 }))
 
 vi.mock('../../hooks/useJobs', () => ({
-  useJob: () => mockUseJob()
+  useJob: () => mockUseJob(),
+  useUpdateJob: () => mockUseUpdateJob()
 }))
 
 vi.mock('../../hooks/useEvaluations', () => ({
@@ -35,6 +39,17 @@ vi.mock('../../components/workbench/ResumeUploadModal', () => ({
   )
 }))
 
+// Mock the ModelComparisonModal
+vi.mock('../../components/workbench/ModelComparisonModal', () => ({
+  ModelComparisonModal: ({ isOpen, onClose }) => (
+    isOpen ? (
+      <div data-testid="comparison-modal">
+        <button onClick={onClose}>Close Comparison</button>
+      </div>
+    ) : null
+  )
+}))
+
 // Mock CandidateDetailPanel
 vi.mock('../../components/workbench/CandidateDetailPanel', () => ({
   CandidateDetailPanel: ({ candidate, onClose }) => (
@@ -42,6 +57,19 @@ vi.mock('../../components/workbench/CandidateDetailPanel', () => ({
       <div data-testid="detail-panel">
         <span>{candidate.name}</span>
         <button onClick={onClose}>Close Panel</button>
+      </div>
+    ) : null
+  )
+}))
+
+// Mock EditProjectModal
+vi.mock('../../components/dashboard/EditProjectModal', () => ({
+  EditProjectModal: ({ isOpen, onClose, onSave, project }) => (
+    isOpen ? (
+      <div data-testid="edit-modal">
+        <span>Edit: {project?.title}</span>
+        <button onClick={onClose}>Cancel</button>
+        <button onClick={() => onSave({ title: 'Updated Title' })}>Save Changes</button>
       </div>
     ) : null
   )
@@ -150,6 +178,16 @@ describe('WorkbenchPage', () => {
     })
 
     mockUseBatchEvaluate.mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue({ success: true }),
+      isPending: false
+    })
+
+    mockUseUpdateJob.mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue({ success: true }),
+      isPending: false
+    })
+
+    mockUseDeleteCandidate.mockReturnValue({
       mutateAsync: vi.fn().mockResolvedValue({ success: true }),
       isPending: false
     })
@@ -489,6 +527,57 @@ describe('WorkbenchPage', () => {
 
       const analyzedStatuses = screen.getAllByText('Analyzed')
       expect(analyzedStatuses.length).toBe(2) // Jane and Bob
+    })
+  })
+
+  describe('Edit Position Modal', () => {
+    it('should open edit modal when Edit Position is clicked', async () => {
+      const user = userEvent.setup()
+      render(<WorkbenchPage />, { wrapper: createWrapper() })
+
+      const editButton = screen.getByRole('button', { name: /edit position/i })
+      await user.click(editButton)
+
+      expect(screen.getByTestId('edit-modal')).toBeInTheDocument()
+    })
+
+    it('should call updateJob when save is clicked', async () => {
+      const mockMutateAsync = vi.fn().mockResolvedValue({ success: true })
+      mockUseUpdateJob.mockReturnValue({
+        mutateAsync: mockMutateAsync,
+        isPending: false
+      })
+
+      const user = userEvent.setup()
+      render(<WorkbenchPage />, { wrapper: createWrapper() })
+
+      // Open modal
+      const editButton = screen.getByRole('button', { name: /edit position/i })
+      await user.click(editButton)
+
+      // Click save
+      const saveButton = screen.getByRole('button', { name: /save changes/i })
+      await user.click(saveButton)
+
+      expect(mockMutateAsync).toHaveBeenCalledWith({
+        jobId: 'job-123',
+        updates: { title: 'Updated Title' }
+      })
+    })
+
+    it('should close modal when cancel is clicked', async () => {
+      const user = userEvent.setup()
+      render(<WorkbenchPage />, { wrapper: createWrapper() })
+
+      // Open modal
+      const editButton = screen.getByRole('button', { name: /edit position/i })
+      await user.click(editButton)
+
+      // Click cancel
+      const cancelButton = screen.getByRole('button', { name: /cancel/i })
+      await user.click(cancelButton)
+
+      expect(screen.queryByTestId('edit-modal')).not.toBeInTheDocument()
     })
   })
 })

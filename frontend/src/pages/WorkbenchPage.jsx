@@ -19,7 +19,7 @@ import { ResumeUploadModal } from '../components/workbench/ResumeUploadModal';
 import { ModelComparisonModal } from '../components/workbench/ModelComparisonModal';
 import { EditProjectModal } from '../components/dashboard/EditProjectModal';
 import { useCandidates, useDeleteCandidate } from '../hooks/useCandidates';
-import { useJob } from '../hooks/useJobs';
+import { useJob, useUpdateJob } from '../hooks/useJobs';
 import { useBatchEvaluate } from '../hooks/useEvaluations';
 
 /**
@@ -207,6 +207,9 @@ export function WorkbenchPage() {
   // Fetch job details
   const { data: job, isLoading: jobLoading, error: jobError } = useJob(roleId);
 
+  // Update job mutation
+  const updateJob = useUpdateJob();
+
   // Fetch candidates for this job
   const { data: candidates = [], isLoading: candidatesLoading, error: candidatesError, refetch: refetchCandidates } = useCandidates(roleId);
 
@@ -292,6 +295,13 @@ export function WorkbenchPage() {
     console.log(`Score saved for ${candidateId}: ${score} (${model})`);
     refetchCandidates();
   }, [refetchCandidates]);
+
+  const handleProjectUpdate = useCallback(async (updatedData) => {
+    await updateJob.mutateAsync({
+      jobId: roleId,
+      updates: updatedData
+    });
+  }, [updateJob, roleId]);
 
   const handleDeleteCandidate = useCallback(async (candidateId, candidateName) => {
     if (!window.confirm(`Are you sure you want to delete ${candidateName}? This cannot be undone.`)) {
@@ -643,6 +653,7 @@ export function WorkbenchPage() {
           project={job}
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
+          onSave={handleProjectUpdate}
         />
       )}
     </div>
